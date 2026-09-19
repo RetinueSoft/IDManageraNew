@@ -302,4 +302,70 @@ public class PdfGenerationServiceTests
         Assert.Contains("City", words);
         Assert.Contains("Pune", words);
     }
+
+    // ---- a key followed by value-only fields: a hanging label, values flow in the value column ----
+
+    [Fact]
+    public void KeyWithValueOnlyFieldsAfterIt_FlowsTheValuesInTheValueColumnWithAHangingIndent()
+    {
+        var group = Combined(false, 20,
+            new LayerSourceItemDto { Key = "Address", Value = "", Separator = "space" },
+            new LayerSourceItemDto { Value = "Palace" },
+            new LayerSourceItemDto { Key = "", Value = "" },            // empty: skipped, no ", ,"
+            new LayerSourceItemDto { Value = "Colony" },
+            new LayerSourceItemDto { Value = "Mannargudi" },
+            new LayerSourceItemDto { Value = "Thiruvarur", Separator = "dash" },
+            new LayerSourceItemDto { Value = "614001" },
+            new LayerSourceItemDto { Value = "TamilNadu" },
+            new LayerSourceItemDto { Value = "India" });
+
+        using var pdf = PdfDocument.Open(Render(group));
+        var page = pdf.GetPage(1);
+        var words = page.GetWords().ToList();
+
+        var address = words.First(w => w.Text == "Address").BoundingBox;
+        var palace = words.First(w => w.Text.StartsWith("Palace")).BoundingBox;
+
+        // The key is at the layer's x; the values start in the value column, after the key column
+        // (20mm) and the separator - not at the layer's left edge.
+        Assert.Equal(5 * MmToPt, address.Left, 0);
+        Assert.True(palace.Left - address.Left > 20 * MmToPt, $"values should start after the key column: {palace.Left - address.Left}");
+
+        // The values are joined by their separators, with nothing for the empty field.
+        var text = string.Join(" ", words.Select(w => w.Text));
+        Assert.Contains("Palace, Colony, Mannargudi, Thiruvarur", text);
+        Assert.Contains("- 614001", text);
+        Assert.DoesNotContain(", ,", text);
+
+        // The text wraps inside the value column, and every wrapped line starts under the values.
+        var valueWords = words.Where(w => w.Text != "Address" && w.Text != ":").ToList();
+        var lines = valueWords.GroupBy(w => Math.Round(w.BoundingBox.Bottom, 0)).OrderByDescending(g => g.Key).ToList();
+        Assert.True(lines.Count >= 2, $"expected the values to wrap, got {lines.Count} line(s)");
+        foreach (var line in lines)
+        {
+            Assert.Equal(palace.Left, line.Min(w => w.BoundingBox.Left), 0);
+        }
+    }
+
+    [Fact]
+    public void ASecondKey_StartsANewRow_AndItsValueOnlyFieldsContinueThatRow()
+    {
+        var group = Combined(false, 20,
+            new LayerSourceItemDto { Key = "Name", Value = "Asha" },
+            new LayerSourceItemDto { Key = "Address", Value = "" },
+            new LayerSourceItemDto { Value = "MGRoad" },
+            new LayerSourceItemDto { Value = "Pune" });
+
+        using var pdf = PdfDocument.Open(Render(group));
+        var words = pdf.GetPage(1).GetWords().ToList();
+
+        var name = words.First(w => w.Text == "Name").BoundingBox;
+        var address = words.First(w => w.Text == "Address").BoundingBox;
+        var asha = words.First(w => w.Text == "Asha").BoundingBox;
+        var road = words.First(w => w.Text.StartsWith("MGRoad")).BoundingBox;
+
+        Assert.True(address.Top < name.Bottom + 1, "the second key is on its own row below the first");
+        Assert.Equal(asha.Left, road.Left, 0);          // both values start in the value column
+        Assert.Equal(address.Bottom, road.Bottom, 0);   // the address values sit on the address row
+    }
 }

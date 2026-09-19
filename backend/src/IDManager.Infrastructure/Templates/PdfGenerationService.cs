@@ -384,25 +384,56 @@ public class PdfGenerationService
 
     private readonly record struct BulletRow(bool IsBlank, string Key, string Value);
 
-    /// One row per source with a key or a value (a key with no value keeps its label), plus
-    /// one blank row per empty-line entry (trailing blanks dropped). Must match
-    /// LayerGroupText.bulletRows in the designer.
+    /// The rows of an aligned group (a key width is set).
+    ///
+    /// A field with a key starts a row: the key in the key column, the value in the value
+    /// column. Value-only fields after it continue that row's value, joined by their own
+    /// separators (comma, dash, new line...), so a label such as "Address" can head a run of
+    /// values that flow together in the value column and wrap under it. The next key starts
+    /// a new row. A key with no value keeps its label; a source with neither key nor value is
+    /// skipped. An empty-line entry adds a blank row and ends the current row; trailing blank
+    /// rows are dropped. In a bullet list every source is its own row.
+    /// Must match LayerGroupText.bulletRows in the designer.
     private static List<BulletRow> BulletRows(LayerGroupDto group)
     {
-        var rows = new List<BulletRow>();
+        var keys = new List<string>();
+        var values = new List<string>();
+        var blanks = new List<bool>();
+        var openRow = -1; // the row a value-only source may continue (never in a bullet list)
+        var pendingJoin = "";
+
         foreach (var source in group.Sources)
         {
             if (source.EmptyLine)
             {
-                rows.Add(new BulletRow(true, "", ""));
+                keys.Add("");
+                values.Add("");
+                blanks.Add(true);
+                openRow = -1;
                 continue;
             }
+
             var key = (source.Key ?? "").Trim();
             var value = (source.Value ?? "").Trim();
             if (key.Length == 0 && value.Length == 0) continue;
-            rows.Add(new BulletRow(false, key, value));
+
+            if (!group.BulletList && key.Length == 0 && openRow >= 0)
+            {
+                values[openRow] = values[openRow].Length == 0 ? value : values[openRow] + pendingJoin + value;
+            }
+            else
+            {
+                keys.Add(key);
+                values.Add(value);
+                blanks.Add(false);
+                openRow = group.BulletList ? -1 : keys.Count - 1;
+            }
+
+            pendingJoin = JoinText(source.Separator);
         }
 
+        var rows = new List<BulletRow>();
+        for (var i = 0; i < keys.Count; i++) rows.Add(new BulletRow(blanks[i], keys[i], values[i]));
         while (rows.Count > 0 && rows[^1].IsBlank) rows.RemoveAt(rows.Count - 1);
         return rows;
     }

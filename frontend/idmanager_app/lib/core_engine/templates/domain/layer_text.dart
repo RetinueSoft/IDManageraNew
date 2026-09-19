@@ -42,21 +42,51 @@ extension LayerGroupText on LayerGroup {
   /// optional.) Must match PdfGenerationService's aligned table.
   bool get hasAlignedKeys => isList && (keyWidthMm ?? 0) > 0;
 
-  /// The rows of an aligned layer: one per field that has a key or a value (a key with no
-  /// value keeps its label), plus one blank line per "empty line" entry (trailing blank
-  /// lines are dropped).
+  /// The rows of an aligned layer (a key width is set).
+  ///
+  /// A field with a key starts a row: the key in the key column, the value in the value
+  /// column. Value-only fields after it *continue that row's value*, joined by their own
+  /// separators (comma, dash, new line...), so a label such as "Address" can head a run of
+  /// values that flow together in the value column and wrap under it. The next key starts
+  /// a new row. A key with no value keeps its label; a field with neither key nor value is
+  /// skipped. An "empty line" entry adds a blank row and ends the current row; trailing
+  /// blank rows are dropped.
+  ///
+  /// In a bullet list every field is its own row (its own bullet). Must match
+  /// PdfGenerationService.BulletRows on the backend.
   List<BulletRow> get bulletRows {
-    final rows = <BulletRow>[];
+    final keys = <String>[];
+    final values = <String>[];
+    final blanks = <bool>[];
+    var openRow = -1; // the row a value-only field may continue (never in a bullet list)
+    var pendingJoin = '';
+
     for (final s in sources) {
       if (s.emptyLine) {
-        rows.add(const BulletRow.blank());
+        keys.add('');
+        values.add('');
+        blanks.add(true);
+        openRow = -1;
         continue;
       }
       final key = (s.key ?? '').trim();
       final value = (s.value ?? '').trim();
       if (key.isEmpty && value.isEmpty) continue;
-      rows.add(BulletRow(key, value));
+
+      if (!bulletList && key.isEmpty && openRow >= 0) {
+        values[openRow] = values[openRow].isEmpty ? value : '${values[openRow]}$pendingJoin$value';
+      } else {
+        keys.add(key);
+        values.add(value);
+        blanks.add(false);
+        openRow = bulletList ? -1 : keys.length - 1;
+      }
+      pendingJoin = (JoinSeparator.tryFromWireName(s.separator) ?? JoinSeparator.comma).text;
     }
+
+    final rows = [
+      for (var i = 0; i < keys.length; i++) blanks[i] ? const BulletRow.blank() : BulletRow(keys[i], values[i]),
+    ];
     while (rows.isNotEmpty && rows.last.isBlank) {
       rows.removeLast();
     }

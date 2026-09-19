@@ -109,5 +109,76 @@ void main() {
       expect(rows.first.key, 'A');
       expect(rows.last.value, '2');
     });
+
+    // ---- a key with value-only fields after it: one row, a hanging label ----
+
+    test('value-only fields after a key continue its row, joined by their own separators', () {
+      final rows = _group([
+        const LayerSourceItem(key: 'Address', value: '', separator: 'space'),
+        const LayerSourceItem(value: 'Line 1'),
+        const LayerSourceItem(key: '', value: ''), // empty: skipped, no stray separator
+        const LayerSourceItem(value: 'Village'),
+        const LayerSourceItem(value: 'District', separator: 'dash'),
+        const LayerSourceItem(value: '614001'),
+      ], keyWidthMm: 20).bulletRows;
+
+      expect(rows, hasLength(1));
+      expect(rows.single.key, 'Address');
+      expect(rows.single.value, 'Line 1, Village, District - 614001');
+    });
+
+    test('a newline separator inside a row breaks the value onto a new line in the value column', () {
+      final rows = _group([
+        const LayerSourceItem(key: 'Address', value: 'Line 1', separator: 'newline'),
+        const LayerSourceItem(value: 'Line 2'),
+      ], keyWidthMm: 20).bulletRows;
+
+      expect(rows.single.value, 'Line 1\nLine 2');
+    });
+
+    test('the next key starts a new row, and the value-only fields after it continue that one', () {
+      final rows = _group([
+        const LayerSourceItem(key: 'Name', value: 'Asha'),
+        const LayerSourceItem(key: 'Address', value: ''),
+        const LayerSourceItem(value: 'MG Road'),
+        const LayerSourceItem(value: 'Pune'),
+      ], keyWidthMm: 20).bulletRows;
+
+      expect(rows.map((r) => r.key).toList(), ['Name', 'Address']);
+      expect(rows.map((r) => r.value).toList(), ['Asha', 'MG Road, Pune']);
+    });
+
+    test('value-only fields with no key before them form one row with no label column', () {
+      final rows = _group([
+        const LayerSourceItem(value: 'A'),
+        const LayerSourceItem(value: 'B'),
+      ], keyWidthMm: 20).bulletRows;
+
+      expect(rows, hasLength(1));
+      expect(rows.single.key, '');
+      expect(rows.single.value, 'A, B');
+    });
+
+    test('an empty line ends the row: what follows starts fresh', () {
+      final rows = _group([
+        const LayerSourceItem(key: 'Address', value: 'MG Road'),
+        const LayerSourceItem(emptyLine: true),
+        const LayerSourceItem(value: 'Notes'),
+      ], keyWidthMm: 20).bulletRows;
+
+      expect(rows.map((r) => r.isBlank).toList(), [false, true, false]);
+      expect(rows.last.key, '');
+      expect(rows.last.value, 'Notes');
+    });
+
+    test('in a bullet list every field stays its own row', () {
+      final rows = _group([
+        const LayerSourceItem(key: 'Address', value: ''),
+        const LayerSourceItem(value: 'MG Road'),
+        const LayerSourceItem(value: 'Pune'),
+      ], bullets: true, keyWidthMm: 20).bulletRows;
+
+      expect(rows.map((r) => r.value).toList(), ['', 'MG Road', 'Pune']);
+    });
   });
 }
