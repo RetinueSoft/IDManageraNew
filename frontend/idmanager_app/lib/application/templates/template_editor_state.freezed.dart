@@ -15,7 +15,8 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$TemplateEditorState {
 
- CardTemplateDetail get template; List<TemplateLayer> get layers; CardSide get side; String? get selectedGroupId; bool get isSaving;
+ CardTemplateDetail get template; List<TemplateLayer> get layers;/// Fields extracted from the template's one sample PDF - the palette layers are added from.
+ List<ExtractedField> get sampleFields; CardSide get side; String? get selectedGroupId; bool get isSaving;
 /// Create a copy of TemplateEditorState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -27,20 +28,20 @@ $TemplateEditorStateCopyWith<TemplateEditorState> get copyWith => _$TemplateEdit
 @override
 bool operator ==(Object other) {
   final _this = this as TemplateEditorState;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TemplateEditorState&&(identical(other.template, _this.template) || other.template == _this.template)&&const DeepCollectionEquality().equals(other.layers, _this.layers)&&(identical(other.side, _this.side) || other.side == _this.side)&&(identical(other.selectedGroupId, _this.selectedGroupId) || other.selectedGroupId == _this.selectedGroupId)&&(identical(other.isSaving, _this.isSaving) || other.isSaving == _this.isSaving));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TemplateEditorState&&(identical(other.template, _this.template) || other.template == _this.template)&&const DeepCollectionEquality().equals(other.layers, _this.layers)&&const DeepCollectionEquality().equals(other.sampleFields, _this.sampleFields)&&(identical(other.side, _this.side) || other.side == _this.side)&&(identical(other.selectedGroupId, _this.selectedGroupId) || other.selectedGroupId == _this.selectedGroupId)&&(identical(other.isSaving, _this.isSaving) || other.isSaving == _this.isSaving));
 }
 
 
 @override
 int get hashCode {
   final _this = this as TemplateEditorState;
-  return Object.hash(runtimeType,_this.template,const DeepCollectionEquality().hash(_this.layers),_this.side,_this.selectedGroupId,_this.isSaving);
+  return Object.hash(runtimeType,_this.template,const DeepCollectionEquality().hash(_this.layers),const DeepCollectionEquality().hash(_this.sampleFields),_this.side,_this.selectedGroupId,_this.isSaving);
 }
 
 @override
 String toString() {
   final _this = this as TemplateEditorState;
-  return 'TemplateEditorState(template: ${_this.template}, layers: ${_this.layers}, side: ${_this.side}, selectedGroupId: ${_this.selectedGroupId}, isSaving: ${_this.isSaving})';
+  return 'TemplateEditorState(template: ${_this.template}, layers: ${_this.layers}, sampleFields: ${_this.sampleFields}, side: ${_this.side}, selectedGroupId: ${_this.selectedGroupId}, isSaving: ${_this.isSaving})';
 }
 
 
@@ -51,7 +52,7 @@ abstract mixin class $TemplateEditorStateCopyWith<$Res>  {
   factory $TemplateEditorStateCopyWith(TemplateEditorState value, $Res Function(TemplateEditorState) _then) = _$TemplateEditorStateCopyWithImpl;
 @useResult
 $Res call({
- CardTemplateDetail template, List<TemplateLayer> layers, CardSide side, String? selectedGroupId, bool isSaving
+ CardTemplateDetail template, List<TemplateLayer> layers, List<ExtractedField> sampleFields, CardSide side, String? selectedGroupId, bool isSaving
 });
 
 
@@ -68,11 +69,12 @@ class _$TemplateEditorStateCopyWithImpl<$Res>
 
 /// Create a copy of TemplateEditorState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? template = null,Object? layers = null,Object? side = null,Object? selectedGroupId = freezed,Object? isSaving = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? template = null,Object? layers = null,Object? sampleFields = null,Object? side = null,Object? selectedGroupId = freezed,Object? isSaving = null,}) {
   return _then(TemplateEditorState(
 template: null == template ? _self.template : template // ignore: cast_nullable_to_non_nullable
 as CardTemplateDetail,layers: null == layers ? _self.layers : layers // ignore: cast_nullable_to_non_nullable
-as List<TemplateLayer>,side: null == side ? _self.side : side // ignore: cast_nullable_to_non_nullable
+as List<TemplateLayer>,sampleFields: null == sampleFields ? _self.sampleFields : sampleFields // ignore: cast_nullable_to_non_nullable
+as List<ExtractedField>,side: null == side ? _self.side : side // ignore: cast_nullable_to_non_nullable
 as CardSide,selectedGroupId: freezed == selectedGroupId ? _self.selectedGroupId : selectedGroupId // ignore: cast_nullable_to_non_nullable
 as String?,isSaving: null == isSaving ? _self.isSaving : isSaving // ignore: cast_nullable_to_non_nullable
 as bool,
@@ -166,10 +168,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( CardTemplateDetail template,  List<TemplateLayer> layers,  CardSide side,  String? selectedGroupId,  bool isSaving)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( CardTemplateDetail template,  List<TemplateLayer> layers,  List<ExtractedField> sampleFields,  CardSide side,  String? selectedGroupId,  bool isSaving)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _TemplateEditorState() when $default != null:
-return $default(_that.template,_that.layers,_that.side,_that.selectedGroupId,_that.isSaving);case _:
+return $default(_that.template,_that.layers,_that.sampleFields,_that.side,_that.selectedGroupId,_that.isSaving);case _:
   return orElse();
 
 }
@@ -187,10 +189,10 @@ return $default(_that.template,_that.layers,_that.side,_that.selectedGroupId,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( CardTemplateDetail template,  List<TemplateLayer> layers,  CardSide side,  String? selectedGroupId,  bool isSaving)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( CardTemplateDetail template,  List<TemplateLayer> layers,  List<ExtractedField> sampleFields,  CardSide side,  String? selectedGroupId,  bool isSaving)  $default,) {final _that = this;
 switch (_that) {
 case _TemplateEditorState():
-return $default(_that.template,_that.layers,_that.side,_that.selectedGroupId,_that.isSaving);}
+return $default(_that.template,_that.layers,_that.sampleFields,_that.side,_that.selectedGroupId,_that.isSaving);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -204,10 +206,10 @@ return $default(_that.template,_that.layers,_that.side,_that.selectedGroupId,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( CardTemplateDetail template,  List<TemplateLayer> layers,  CardSide side,  String? selectedGroupId,  bool isSaving)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( CardTemplateDetail template,  List<TemplateLayer> layers,  List<ExtractedField> sampleFields,  CardSide side,  String? selectedGroupId,  bool isSaving)?  $default,) {final _that = this;
 switch (_that) {
 case _TemplateEditorState() when $default != null:
-return $default(_that.template,_that.layers,_that.side,_that.selectedGroupId,_that.isSaving);case _:
+return $default(_that.template,_that.layers,_that.sampleFields,_that.side,_that.selectedGroupId,_that.isSaving);case _:
   return null;
 
 }
@@ -219,7 +221,7 @@ return $default(_that.template,_that.layers,_that.side,_that.selectedGroupId,_th
 
 
 class _TemplateEditorState implements TemplateEditorState {
-  const _TemplateEditorState({required this.template, required  List<TemplateLayer> layers, this.side = CardSide.front, this.selectedGroupId, this.isSaving = false}): _layers = layers;
+  const _TemplateEditorState({required this.template, required  List<TemplateLayer> layers,  List<ExtractedField> sampleFields = const <ExtractedField>[], this.side = CardSide.front, this.selectedGroupId, this.isSaving = false}): _layers = layers,_sampleFields = sampleFields;
   
 
 @override final  CardTemplateDetail template;
@@ -228,6 +230,15 @@ class _TemplateEditorState implements TemplateEditorState {
   if (_layers is EqualUnmodifiableListView) return _layers;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_layers);
+}
+
+/// Fields extracted from the template's one sample PDF - the palette layers are added from.
+ final  List<ExtractedField> _sampleFields;
+/// Fields extracted from the template's one sample PDF - the palette layers are added from.
+@override@JsonKey() List<ExtractedField> get sampleFields {
+  if (_sampleFields is EqualUnmodifiableListView) return _sampleFields;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_sampleFields);
 }
 
 @override@JsonKey() final  CardSide side;
@@ -244,18 +255,18 @@ _$TemplateEditorStateCopyWith<_TemplateEditorState> get copyWith => __$TemplateE
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TemplateEditorState&&(identical(other.template, template) || other.template == template)&&const DeepCollectionEquality().equals(other.layers, _layers)&&(identical(other.side, side) || other.side == side)&&(identical(other.selectedGroupId, selectedGroupId) || other.selectedGroupId == selectedGroupId)&&(identical(other.isSaving, isSaving) || other.isSaving == isSaving));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TemplateEditorState&&(identical(other.template, template) || other.template == template)&&const DeepCollectionEquality().equals(other.layers, _layers)&&const DeepCollectionEquality().equals(other.sampleFields, _sampleFields)&&(identical(other.side, side) || other.side == side)&&(identical(other.selectedGroupId, selectedGroupId) || other.selectedGroupId == selectedGroupId)&&(identical(other.isSaving, isSaving) || other.isSaving == isSaving));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,template,const DeepCollectionEquality().hash(_layers),side,selectedGroupId,isSaving);
+    return Object.hash(runtimeType,template,const DeepCollectionEquality().hash(_layers),const DeepCollectionEquality().hash(_sampleFields),side,selectedGroupId,isSaving);
 }
 
 @override
 String toString() {
-    return 'TemplateEditorState(template: $template, layers: $layers, side: $side, selectedGroupId: $selectedGroupId, isSaving: $isSaving)';
+    return 'TemplateEditorState(template: $template, layers: $layers, sampleFields: $sampleFields, side: $side, selectedGroupId: $selectedGroupId, isSaving: $isSaving)';
 }
 
 
@@ -266,7 +277,7 @@ abstract mixin class _$TemplateEditorStateCopyWith<$Res> implements $TemplateEdi
   factory _$TemplateEditorStateCopyWith(_TemplateEditorState value, $Res Function(_TemplateEditorState) _then) = __$TemplateEditorStateCopyWithImpl;
 @override @useResult
 $Res call({
- CardTemplateDetail template, List<TemplateLayer> layers, CardSide side, String? selectedGroupId, bool isSaving
+ CardTemplateDetail template, List<TemplateLayer> layers, List<ExtractedField> sampleFields, CardSide side, String? selectedGroupId, bool isSaving
 });
 
 
@@ -283,11 +294,12 @@ class __$TemplateEditorStateCopyWithImpl<$Res>
 
 /// Create a copy of TemplateEditorState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? template = null,Object? layers = null,Object? side = null,Object? selectedGroupId = freezed,Object? isSaving = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? template = null,Object? layers = null,Object? sampleFields = null,Object? side = null,Object? selectedGroupId = freezed,Object? isSaving = null,}) {
   return _then(_TemplateEditorState(
 template: null == template ? _self.template : template // ignore: cast_nullable_to_non_nullable
 as CardTemplateDetail,layers: null == layers ? _self._layers : layers // ignore: cast_nullable_to_non_nullable
-as List<TemplateLayer>,side: null == side ? _self.side : side // ignore: cast_nullable_to_non_nullable
+as List<TemplateLayer>,sampleFields: null == sampleFields ? _self._sampleFields : sampleFields // ignore: cast_nullable_to_non_nullable
+as List<ExtractedField>,side: null == side ? _self.side : side // ignore: cast_nullable_to_non_nullable
 as CardSide,selectedGroupId: freezed == selectedGroupId ? _self.selectedGroupId : selectedGroupId // ignore: cast_nullable_to_non_nullable
 as String?,isSaving: null == isSaving ? _self.isSaving : isSaving // ignore: cast_nullable_to_non_nullable
 as bool,

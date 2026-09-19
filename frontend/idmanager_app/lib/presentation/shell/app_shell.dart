@@ -14,17 +14,18 @@ class _NavItem {
   final List<UserRole> allowedRoles;
 }
 
-const _allRoles = [UserRole.superAdmin, UserRole.admin, UserRole.distributor, UserRole.user];
-const _adminRoles = [UserRole.superAdmin, UserRole.admin];
-const _managerRoles = [UserRole.superAdmin, UserRole.admin, UserRole.distributor];
+// Who sees which menu item - docs/member-hierarchy.md, sections 2 and 7.
+const _allRoles = [UserRole.superAdmin, UserRole.distributor, UserRole.retailer, UserRole.user];
+const _superAdminOnly = [UserRole.superAdmin]; // templates, audit log
+const _managerRoles = [UserRole.superAdmin, UserRole.distributor, UserRole.retailer]; // members
 
 final _navItems = [
   const _NavItem('Dashboard', Icons.dashboard_outlined, AppRoutes.dashboard, _allRoles),
-  const _NavItem('Templates', Icons.badge_outlined, AppRoutes.templates, _adminRoles),
+  const _NavItem('Templates', Icons.badge_outlined, AppRoutes.templates, _superAdminOnly),
   const _NavItem('Generate Card', Icons.add_card_outlined, AppRoutes.generateCard, _allRoles),
   const _NavItem('Users', Icons.people_outline, AppRoutes.users, _managerRoles),
   const _NavItem('Points', Icons.stars_outlined, AppRoutes.points, _allRoles),
-  const _NavItem('Audit Log', Icons.history, AppRoutes.auditLog, _adminRoles),
+  const _NavItem('Audit Log', Icons.history, AppRoutes.auditLog, _superAdminOnly),
 ];
 
 /// The Menu Engine's persistent shell: a navigation rail plus Logout wraps every

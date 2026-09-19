@@ -63,7 +63,7 @@ final class AdjustPointsControllerProvider
 }
 
 String _$adjustPointsControllerHash() =>
-    r'8662443939a1b33f3e6cc5ab27a19f8ef78beffd';
+    r'84f8830e82c63f4228cf5d2655e65305824648f8';
 
 /// Backs the "Allocate / Reclaim points" dialog for a given target user.
 

@@ -13,6 +13,9 @@ abstract interface class CardRepository {
     required int templateId,
     required int combinationId,
     required UploadedFile file,
+
+    /// Images for the template's QR slots, keyed by the slot's key.
+    Map<String, UploadedFile> qrImages = const {},
   });
 
   /// Raw, print-ready PDF bytes.

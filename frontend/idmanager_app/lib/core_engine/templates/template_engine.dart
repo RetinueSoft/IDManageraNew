@@ -4,6 +4,7 @@ import '../common/uploaded_file.dart';
 import '../common/validation_exception.dart';
 import 'contracts/template_repository.dart';
 import 'domain/card_template.dart';
+import 'domain/field_group.dart';
 import 'domain/template_layer.dart';
 
 class TemplateEngineService {
@@ -29,6 +30,8 @@ class TemplateEngineService {
     if (name.trim().isEmpty) errors['name'] = 'Name is required.';
     if (frontFile == null) errors['frontImage'] = 'Front image is required.';
     if (backFile == null) errors['backImage'] = 'Back image is required.';
+    if (cardWidthMm <= 0) errors['cardWidthMm'] = 'Width must be greater than 0.';
+    if (cardHeightMm <= 0) errors['cardHeightMm'] = 'Height must be greater than 0.';
     if (errors.isNotEmpty) throw ValidationException(errors);
 
     try {
@@ -50,19 +53,26 @@ class TemplateEngineService {
   Future<CardTemplateDetail> update({
     required int id,
     required String name,
+    required double cardWidthMm,
+    required double cardHeightMm,
     required int pointCost,
     required bool isActive,
-    String groupsJson = '[]',
+    String? groupsJson,
     UploadedFile? frontFile,
     UploadedFile? backFile,
   }) async {
-    if (name.trim().isEmpty) {
-      throw ValidationException({'name': 'Name is required.'});
-    }
+    final errors = <String, String>{};
+    if (name.trim().isEmpty) errors['name'] = 'Name is required.';
+    if (cardWidthMm <= 0) errors['cardWidthMm'] = 'Width must be greater than 0.';
+    if (cardHeightMm <= 0) errors['cardHeightMm'] = 'Height must be greater than 0.';
+    if (errors.isNotEmpty) throw ValidationException(errors);
+
     try {
       return await _repository.update(
         id: id,
         name: name,
+        cardWidthMm: cardWidthMm,
+        cardHeightMm: cardHeightMm,
         pointCost: pointCost,
         isActive: isActive,
         groupsJson: groupsJson,
@@ -77,8 +87,8 @@ class TemplateEngineService {
 
   Future<void> setActive(int id, bool active) => _repository.setActive(id, active);
 
-  Future<void> saveLayers(int templateId, List<TemplateLayer> layers) =>
-      _repository.saveLayers(templateId, layers);
+  Future<void> saveLayers(int templateId, List<TemplateLayer> layers, {List<FieldGroup>? groups}) =>
+      _repository.saveLayers(templateId, layers, groups: groups);
 
   Future<Combination> addCombination({
     required int templateId,

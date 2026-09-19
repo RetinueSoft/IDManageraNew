@@ -3,7 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../business_service/providers.dart';
 import '../../core_engine/common/validation_exception.dart';
 import 'adjust_points_state.dart';
-import 'points_history_controller.dart';
+import 'points_refresh.dart';
 
 part 'adjust_points_controller.g.dart';
 
@@ -33,7 +33,7 @@ class AdjustPointsController extends _$AdjustPointsController {
         await service.reclaim(userId, state.points, state.reason);
       }
       state = state.copyWith(isSaving: false);
-      ref.invalidate(pointsHistoryControllerProvider(userId));
+      refreshPointsData(ref, alsoUserId: userId);
       return true;
     } on ValidationException catch (e) {
       state = state.copyWith(isSaving: false, errors: e.errors);

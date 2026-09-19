@@ -9,6 +9,7 @@ LayerSourceItem sourceItemFromJson(Map<String, dynamic> json) => LayerSourceItem
   value: json['value'] as String?,
   type: LayerFieldType.fromInt(json['type'] as int? ?? 1),
   separator: json['separator'] as String?,
+  emptyLine: json['emptyLine'] as bool? ?? false,
 );
 
 Map<String, dynamic> sourceItemToJson(LayerSourceItem s) => {
@@ -16,6 +17,7 @@ Map<String, dynamic> sourceItemToJson(LayerSourceItem s) => {
   'value': s.value,
   'type': s.type.toInt(),
   'separator': s.separator,
+  'emptyLine': s.emptyLine,
 };
 
 LayerGroup layerGroupFromJson(Map<String, dynamic> json) => LayerGroup(
@@ -32,6 +34,9 @@ LayerGroup layerGroupFromJson(Map<String, dynamic> json) => LayerGroup(
   valueWidthMm: (json['valueWidthMm'] as num?)?.toDouble(),
   bold: json['bold'] as bool? ?? false,
   isList: json['isList'] as bool? ?? false,
+  lineGapMm: (json['lineGapMm'] as num?)?.toDouble() ?? 0,
+  isQr: json['isQr'] as bool? ?? false,
+  bulletList: json['bulletList'] as bool? ?? false,
   emptyLineEveryAfter: json['emptyLineEveryAfter'] as bool? ?? false,
   newLineAfterFirst: json['newLineAfterFirst'] as bool? ?? false,
   newLineBeforeLast: json['newLineBeforeLast'] as bool? ?? false,
@@ -55,6 +60,9 @@ Map<String, dynamic> layerGroupToJson(LayerGroup g) => {
   'valueWidthMm': g.valueWidthMm,
   'bold': g.bold,
   'isList': g.isList,
+  'lineGapMm': g.lineGapMm,
+  'isQr': g.isQr,
+  'bulletList': g.bulletList,
   'emptyLineEveryAfter': g.emptyLineEveryAfter,
   'newLineAfterFirst': g.newLineAfterFirst,
   'newLineBeforeLast': g.newLineBeforeLast,
@@ -80,6 +88,18 @@ ExtractedField extractedFieldFromJson(Map<String, dynamic> json) => ExtractedFie
   value: json['value'] as String?,
   type: LayerFieldType.fromInt(json['type'] as int? ?? 1),
 );
+
+Map<String, dynamic> extractedFieldToJson(ExtractedField f) => {
+  'key': f.key,
+  'value': f.value,
+  'type': f.type.toInt(),
+};
+
+Map<String, dynamic> fieldGroupToJson(FieldGroup g) => {
+  'name': g.name,
+  'index': g.index,
+  'items': g.items.map(extractedFieldToJson).toList(),
+};
 
 FieldGroup fieldGroupFromJson(Map<String, dynamic> json) => FieldGroup(
   name: json['name'] as String? ?? '',

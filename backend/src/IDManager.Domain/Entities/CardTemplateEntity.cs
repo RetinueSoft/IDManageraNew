@@ -23,6 +23,10 @@ public class CardTemplateEntity
 
     public string? ParsedPdfJson { get; set; }
 
+    /// 0 = the Tamil text in the JSON above is still in glyph order (saved before the Tamil
+    /// fix); 1 = logical Unicode order. See TextOrderMigrationService. New rows are 1.
+    public int TextOrderVersion { get; set; } = 1;
+
     public int PointCost { get; set; } = 1;
     public bool IsActive { get; set; } = true;
 

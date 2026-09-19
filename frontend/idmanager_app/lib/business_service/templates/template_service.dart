@@ -2,6 +2,7 @@ import '../../core_engine/common/lookup_option.dart';
 import '../../core_engine/common/paged_result.dart';
 import '../../core_engine/common/uploaded_file.dart';
 import '../../core_engine/templates/domain/card_template.dart';
+import '../../core_engine/templates/domain/field_group.dart';
 import '../../core_engine/templates/domain/template_layer.dart';
 import '../../core_engine/templates/template_engine.dart';
 
@@ -43,14 +44,23 @@ class TemplateService {
   Future<CardTemplateDetail> updateTemplate({
     required int id,
     required String name,
+    required double cardWidthMm,
+    required double cardHeightMm,
     required int pointCost,
     required bool isActive,
-  }) => _engine.update(id: id, name: name, pointCost: pointCost, isActive: isActive);
+  }) => _engine.update(
+    id: id,
+    name: name,
+    cardWidthMm: cardWidthMm,
+    cardHeightMm: cardHeightMm,
+    pointCost: pointCost,
+    isActive: isActive,
+  );
 
   Future<void> setActive(int id, bool active) => _engine.setActive(id, active);
 
-  Future<void> saveLayers(int templateId, List<TemplateLayer> layers) =>
-      _engine.saveLayers(templateId, layers);
+  Future<void> saveLayers(int templateId, List<TemplateLayer> layers, {List<FieldGroup>? groups}) =>
+      _engine.saveLayers(templateId, layers, groups: groups);
 
   Future<Combination> addCombination({
     required int templateId,

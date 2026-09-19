@@ -49,6 +49,8 @@ public class TemplateService(IDManagerDbContext db)
         if (string.IsNullOrWhiteSpace(command.Name)) errors["name"] = "Name is required.";
         if (command.FrontImageBytes.Length == 0) errors["frontImage"] = "Front image is required.";
         if (command.BackImageBytes.Length == 0) errors["backImage"] = "Back image is required.";
+        if (command.CardWidthMm <= 0) errors["cardWidthMm"] = "Width must be greater than 0.";
+        if (command.CardHeightMm <= 0) errors["cardHeightMm"] = "Height must be greater than 0.";
         if (errors.Count > 0) return OperationResult<TemplateDetailDto>.Invalid(errors);
 
         var template = new CardTemplateEntity
@@ -80,10 +82,17 @@ public class TemplateService(IDManagerDbContext db)
             return OperationResult<TemplateDetailDto>.Invalid(new Dictionary<string, string> { ["name"] = "Name is required." });
         }
 
+        var sizeErrors = new Dictionary<string, string>();
+        if (command.CardWidthMm is <= 0) sizeErrors["cardWidthMm"] = "Width must be greater than 0.";
+        if (command.CardHeightMm is <= 0) sizeErrors["cardHeightMm"] = "Height must be greater than 0.";
+        if (sizeErrors.Count > 0) return OperationResult<TemplateDetailDto>.Invalid(sizeErrors);
+
         template.Name = command.Name;
         template.PointCost = command.PointCost;
         template.IsActive = command.IsActive;
-        template.GroupsJson = command.GroupsJson;
+        if (command.CardWidthMm is { } width) template.CardWidthMm = width;
+        if (command.CardHeightMm is { } height) template.CardHeightMm = height;
+        if (command.GroupsJson is not null) template.GroupsJson = command.GroupsJson;
         template.ModifiedAt = DateTime.UtcNow;
         if (command.FrontImageBytes is { Length: > 0 }) template.FrontImage = command.FrontImageBytes;
         if (command.BackImageBytes is { Length: > 0 }) template.BackImage = command.BackImageBytes;
@@ -109,6 +118,7 @@ public class TemplateService(IDManagerDbContext db)
         if (template is null) return OperationResult.NotFound("Template not found.");
 
         template.LayersJson = JsonSerializer.Serialize(request.Layers);
+        if (request.Groups is not null) template.GroupsJson = JsonSerializer.Serialize(request.Groups);
         template.ModifiedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
         return OperationResult.Success();
@@ -154,10 +164,20 @@ public class TemplateService(IDManagerDbContext db)
         {
             return OperationResult<(List<TemplateLayerDto>, byte[], byte[])>.NotFound("Template not found.");
         }
-        var combination = await db.TemplateCombinations.FindAsync([combinationId], ct);
-        if (combination is null)
+
+        // A template without combinations (or a card generated without picking one) uses
+        // the template's own front and back images.
+        var frontImage = template.FrontImage;
+        var backImage = template.BackImage;
+        if (combinationId > 0)
         {
-            return OperationResult<(List<TemplateLayerDto>, byte[], byte[])>.NotFound("Combination not found.");
+            var combination = await db.TemplateCombinations.FindAsync([combinationId], ct);
+            if (combination is null)
+            {
+                return OperationResult<(List<TemplateLayerDto>, byte[], byte[])>.NotFound("Combination not found.");
+            }
+            frontImage = combination.FrontImage;
+            backImage = combination.BackImage;
         }
 
         var layers = template.LayersJson != null
@@ -166,7 +186,7 @@ public class TemplateService(IDManagerDbContext db)
 
         MergeExtractedValues(layers, extractedFields);
 
-        return OperationResult<(List<TemplateLayerDto>, byte[], byte[])>.Success((layers, combination.FrontImage, combination.BackImage));
+        return OperationResult<(List<TemplateLayerDto>, byte[], byte[])>.Success((layers, frontImage, backImage));
     }
 
     /// Fills each layer source's Value from the matching extracted field: text
@@ -179,11 +199,58 @@ public class TemplateService(IDManagerDbContext db)
             .Where(f => f.Type == LayerFieldType.Text && !string.IsNullOrEmpty(f.Key))
             .GroupBy(f => f.Key!.Trim(), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
-        var imageFields = extractedFields.Where(f => f.Type == LayerFieldType.Image).ToList();
+
+        // QR slots are filled by key from the images the user picked in the card
+        // generator, so those images must not be handed out as the member's PDF images.
+        var qrKeys = layers.SelectMany(l => l.Groups)
+            .Where(g => g.IsQr)
+            .SelectMany(g => g.Sources)
+            .Where(s => !string.IsNullOrWhiteSpace(s.Key))
+            .Select(s => s.Key!.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var allImages = extractedFields.Where(f => f.Type == LayerFieldType.Image).ToList();
+        var qrImagesByKey = allImages
+            .Where(f => !string.IsNullOrWhiteSpace(f.Key) && qrKeys.Contains(f.Key!.Trim()))
+            .GroupBy(f => f.Key!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
+        var memberImages = allImages
+            .Where(f => string.IsNullOrWhiteSpace(f.Key) || !qrKeys.Contains(f.Key!.Trim()))
+            .ToList();
+
+        // Image layers are matched by key first. A layer imported from the sample PDF keeps
+        // that image's key (e.g. "image_p1_4"), so it gets the same image from the member's
+        // PDF - not whichever image happens to come first (often a black mask). Layers with
+        // no matching key take the remaining images in extraction order.
+        var imageSourceKeys = layers.SelectMany(l => l.Groups)
+            .Where(g => !g.IsQr)
+            .SelectMany(g => g.Sources)
+            .Where(s => s.Type == LayerFieldType.Image && !string.IsNullOrWhiteSpace(s.Key))
+            .Select(s => s.Key!.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var imagesByKey = memberImages
+            .Where(f => !string.IsNullOrWhiteSpace(f.Key) && imageSourceKeys.Contains(f.Key!.Trim()))
+            .GroupBy(f => f.Key!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
+        var imageFields = memberImages
+            .Where(f => string.IsNullOrWhiteSpace(f.Key) || !imagesByKey.ContainsKey(f.Key!.Trim()))
+            .ToList();
         var imageIndex = 0;
 
         foreach (var group in layers.SelectMany(l => l.Groups))
         {
+            if (group.IsQr)
+            {
+                foreach (var source in group.Sources)
+                {
+                    if (source.Type == LayerFieldType.Image && !string.IsNullOrWhiteSpace(source.Key)
+                        && qrImagesByKey.TryGetValue(source.Key.Trim(), out var qrValue))
+                    {
+                        source.Value = qrValue;
+                    }
+                }
+                continue;
+            }
+
             foreach (var source in group.Sources)
             {
                 if (source.Type == LayerFieldType.Text && source.Key != null
@@ -191,10 +258,17 @@ public class TemplateService(IDManagerDbContext db)
                 {
                     source.Value = value;
                 }
-                else if (source.Type == LayerFieldType.Image && imageIndex < imageFields.Count)
+                else if (source.Type == LayerFieldType.Image)
                 {
-                    source.Value = imageFields[imageIndex].Value;
-                    imageIndex++;
+                    if (!string.IsNullOrWhiteSpace(source.Key) && imagesByKey.TryGetValue(source.Key.Trim(), out var byKey))
+                    {
+                        source.Value = byKey;
+                    }
+                    else if (imageIndex < imageFields.Count)
+                    {
+                        source.Value = imageFields[imageIndex].Value;
+                        imageIndex++;
+                    }
                 }
             }
         }

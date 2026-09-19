@@ -91,14 +91,16 @@ class _ManageTemplateScreenState extends ConsumerState<ManageTemplateScreen> {
                   decoration: InputDecoration(labelText: 'Name', errorText: state.errors['name']),
                   onChanged: (v) => controller.updateFields((s) => s.copyWith(name: v)),
                 ),
-                if (!_isEditMode)
-                  Row(
+                Row(
                     children: [
                       Expanded(
                         child: TextField(
                           controller: _width,
-                          decoration: const InputDecoration(labelText: 'Width (mm)'),
-                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Width (mm)',
+                            errorText: state.errors['cardWidthMm'],
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           onChanged: (v) => controller.updateFields(
                             (s) => s.copyWith(cardWidthMm: double.tryParse(v) ?? s.cardWidthMm),
                           ),
@@ -108,8 +110,11 @@ class _ManageTemplateScreenState extends ConsumerState<ManageTemplateScreen> {
                       Expanded(
                         child: TextField(
                           controller: _height,
-                          decoration: const InputDecoration(labelText: 'Height (mm)'),
-                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Height (mm)',
+                            errorText: state.errors['cardHeightMm'],
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           onChanged: (v) => controller.updateFields(
                             (s) => s.copyWith(cardHeightMm: double.tryParse(v) ?? s.cardHeightMm),
                           ),

@@ -1,6 +1,7 @@
 import '../../common/paged_result.dart';
 import '../../common/uploaded_file.dart';
 import '../domain/card_template.dart';
+import '../domain/field_group.dart';
 import '../domain/template_layer.dart';
 
 abstract interface class TemplateRepository {
@@ -20,16 +21,22 @@ abstract interface class TemplateRepository {
   Future<CardTemplateDetail> update({
     required int id,
     required String name,
+    required double cardWidthMm,
+    required double cardHeightMm,
     required int pointCost,
     required bool isActive,
-    String groupsJson = '[]',
+
+    /// Null leaves the sample-PDF fields saved from the designer untouched.
+    String? groupsJson,
     UploadedFile? frontFile,
     UploadedFile? backFile,
   });
 
   Future<void> setActive(int id, bool active);
 
-  Future<void> saveLayers(int templateId, List<TemplateLayer> layers);
+  /// [groups] are the fields extracted from the template's sample PDF; omit to
+  /// leave the stored ones unchanged.
+  Future<void> saveLayers(int templateId, List<TemplateLayer> layers, {List<FieldGroup>? groups});
 
   Future<Combination> addCombination({
     required int templateId,

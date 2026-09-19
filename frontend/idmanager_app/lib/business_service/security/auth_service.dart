@@ -34,6 +34,15 @@ class AuthService {
     return userFromJson(jsonDecode(userJson) as Map<String, dynamic>);
   }
 
+  /// Registers what to do when the API rejects the saved token (expired/invalid):
+  /// the session is cleared from storage and [onExpired] is called.
+  void onSessionExpired(void Function() onExpired) {
+    _apiClient.onUnauthorized = () {
+      _tokenStorage.clear();
+      onExpired();
+    };
+  }
+
   Future<void> logout() async {
     _apiClient.setToken(null);
     await _tokenStorage.clear();

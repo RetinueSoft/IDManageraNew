@@ -24,12 +24,26 @@ class ApiClient {
           }
           handler.next(options);
         },
+        onError: (error, handler) {
+          // A 401 on an authenticated call means the saved token is expired or no
+          // longer valid; tell the app so it can drop back to the login screen.
+          // (A 401 from the login call itself is just wrong credentials.)
+          final isLogin = error.requestOptions.path.endsWith('/auth/login');
+          if (error.response?.statusCode == 401 && _token != null && !isLogin) {
+            _token = null;
+            onUnauthorized?.call();
+          }
+          handler.next(error);
+        },
       ),
     );
   }
 
   final Dio dio;
   String? _token;
+
+  /// Called once when the API rejects the current token (HTTP 401).
+  void Function()? onUnauthorized;
 
   void setToken(String? token) => _token = token;
 

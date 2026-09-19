@@ -18,9 +18,15 @@ class CardsEngineService {
     required int templateId,
     required int combinationId,
     required UploadedFile file,
+    Map<String, UploadedFile> qrImages = const {},
   }) async {
     try {
-      return await _repository.generate(templateId: templateId, combinationId: combinationId, file: file);
+      return await _repository.generate(
+        templateId: templateId,
+        combinationId: combinationId,
+        file: file,
+        qrImages: qrImages,
+      );
     } on ApiException catch (e) {
       throw ValidationException(e.fieldErrors ?? {'file': e.message});
     }

@@ -48,7 +48,7 @@ final class SessionControllerProvider
   SessionController create() => SessionController();
 }
 
-String _$sessionControllerHash() => r'7ed8f4bf0d79517b1d9af07700d91a4f9e250f37';
+String _$sessionControllerHash() => r'ad6e3f9985da61e88ff57e253bc54d6a327ba7b2';
 
 /// Who's currently logged in. Unlike a memory-only session, this app persists the
 /// session (AuthService.restoreSession) so a returning user isn't dropped back to

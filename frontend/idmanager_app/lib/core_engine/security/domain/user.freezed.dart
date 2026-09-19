@@ -15,7 +15,9 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$User {
 
- int get id; String get name; String get phone; UserRole get role; bool get isActive; int get points; DateTime get createdAt;
+ int get id; String get name; String get phone; UserRole get role; bool get isActive; int get points; DateTime get createdAt;/// The member who created this one - only when the viewer may see them (a viewer
+/// never sees their own upline, see docs/member-hierarchy.md).
+ int? get parentId; String? get parentName; UserRole? get parentRole;
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -27,20 +29,20 @@ $UserCopyWith<User> get copyWith => _$UserCopyWithImpl<User>(this as User, _$ide
 @override
 bool operator ==(Object other) {
   final _this = this as User;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is User&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.phone, _this.phone) || other.phone == _this.phone)&&(identical(other.role, _this.role) || other.role == _this.role)&&(identical(other.isActive, _this.isActive) || other.isActive == _this.isActive)&&(identical(other.points, _this.points) || other.points == _this.points)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is User&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.phone, _this.phone) || other.phone == _this.phone)&&(identical(other.role, _this.role) || other.role == _this.role)&&(identical(other.isActive, _this.isActive) || other.isActive == _this.isActive)&&(identical(other.points, _this.points) || other.points == _this.points)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.parentId, _this.parentId) || other.parentId == _this.parentId)&&(identical(other.parentName, _this.parentName) || other.parentName == _this.parentName)&&(identical(other.parentRole, _this.parentRole) || other.parentRole == _this.parentRole));
 }
 
 
 @override
 int get hashCode {
   final _this = this as User;
-  return Object.hash(runtimeType,_this.id,_this.name,_this.phone,_this.role,_this.isActive,_this.points,_this.createdAt);
+  return Object.hash(runtimeType,_this.id,_this.name,_this.phone,_this.role,_this.isActive,_this.points,_this.createdAt,_this.parentId,_this.parentName,_this.parentRole);
 }
 
 @override
 String toString() {
   final _this = this as User;
-  return 'User(id: ${_this.id}, name: ${_this.name}, phone: ${_this.phone}, role: ${_this.role}, isActive: ${_this.isActive}, points: ${_this.points}, createdAt: ${_this.createdAt})';
+  return 'User(id: ${_this.id}, name: ${_this.name}, phone: ${_this.phone}, role: ${_this.role}, isActive: ${_this.isActive}, points: ${_this.points}, createdAt: ${_this.createdAt}, parentId: ${_this.parentId}, parentName: ${_this.parentName}, parentRole: ${_this.parentRole})';
 }
 
 
@@ -51,7 +53,7 @@ abstract mixin class $UserCopyWith<$Res>  {
   factory $UserCopyWith(User value, $Res Function(User) _then) = _$UserCopyWithImpl;
 @useResult
 $Res call({
- int id, String name, String phone, UserRole role, bool isActive, int points, DateTime createdAt
+ int id, String name, String phone, UserRole role, bool isActive, int points, DateTime createdAt, int? parentId, String? parentName, UserRole? parentRole
 });
 
 
@@ -68,7 +70,7 @@ class _$UserCopyWithImpl<$Res>
 
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? phone = null,Object? role = null,Object? isActive = null,Object? points = null,Object? createdAt = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? phone = null,Object? role = null,Object? isActive = null,Object? points = null,Object? createdAt = null,Object? parentId = freezed,Object? parentName = freezed,Object? parentRole = freezed,}) {
   return _then(User(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -77,7 +79,10 @@ as String,role: null == role ? _self.role : role // ignore: cast_nullable_to_non
 as UserRole,isActive: null == isActive ? _self.isActive : isActive // ignore: cast_nullable_to_non_nullable
 as bool,points: null == points ? _self.points : points // ignore: cast_nullable_to_non_nullable
 as int,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,
+as DateTime,parentId: freezed == parentId ? _self.parentId : parentId // ignore: cast_nullable_to_non_nullable
+as int?,parentName: freezed == parentName ? _self.parentName : parentName // ignore: cast_nullable_to_non_nullable
+as String?,parentRole: freezed == parentRole ? _self.parentRole : parentRole // ignore: cast_nullable_to_non_nullable
+as UserRole?,
   ));
 }
 
@@ -159,10 +164,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  String phone,  UserRole role,  bool isActive,  int points,  DateTime createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  String phone,  UserRole role,  bool isActive,  int points,  DateTime createdAt,  int? parentId,  String? parentName,  UserRole? parentRole)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _User() when $default != null:
-return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.points,_that.createdAt);case _:
+return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.points,_that.createdAt,_that.parentId,_that.parentName,_that.parentRole);case _:
   return orElse();
 
 }
@@ -180,10 +185,10 @@ return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  String phone,  UserRole role,  bool isActive,  int points,  DateTime createdAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  String phone,  UserRole role,  bool isActive,  int points,  DateTime createdAt,  int? parentId,  String? parentName,  UserRole? parentRole)  $default,) {final _that = this;
 switch (_that) {
 case _User():
-return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.points,_that.createdAt);}
+return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.points,_that.createdAt,_that.parentId,_that.parentName,_that.parentRole);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -197,10 +202,10 @@ return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  String phone,  UserRole role,  bool isActive,  int points,  DateTime createdAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  String phone,  UserRole role,  bool isActive,  int points,  DateTime createdAt,  int? parentId,  String? parentName,  UserRole? parentRole)?  $default,) {final _that = this;
 switch (_that) {
 case _User() when $default != null:
-return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.points,_that.createdAt);case _:
+return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.points,_that.createdAt,_that.parentId,_that.parentName,_that.parentRole);case _:
   return null;
 
 }
@@ -212,7 +217,7 @@ return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.
 
 
 class _User implements User {
-  const _User({required this.id, required this.name, required this.phone, required this.role, required this.isActive, required this.points, required this.createdAt});
+  const _User({required this.id, required this.name, required this.phone, required this.role, required this.isActive, required this.points, required this.createdAt, this.parentId, this.parentName, this.parentRole});
   
 
 @override final  int id;
@@ -222,6 +227,11 @@ class _User implements User {
 @override final  bool isActive;
 @override final  int points;
 @override final  DateTime createdAt;
+/// The member who created this one - only when the viewer may see them (a viewer
+/// never sees their own upline, see docs/member-hierarchy.md).
+@override final  int? parentId;
+@override final  String? parentName;
+@override final  UserRole? parentRole;
 
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
@@ -233,18 +243,18 @@ _$UserCopyWith<_User> get copyWith => __$UserCopyWithImpl<_User>(this, _$identit
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _User&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.role, role) || other.role == role)&&(identical(other.isActive, isActive) || other.isActive == isActive)&&(identical(other.points, points) || other.points == points)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _User&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.role, role) || other.role == role)&&(identical(other.isActive, isActive) || other.isActive == isActive)&&(identical(other.points, points) || other.points == points)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.parentId, parentId) || other.parentId == parentId)&&(identical(other.parentName, parentName) || other.parentName == parentName)&&(identical(other.parentRole, parentRole) || other.parentRole == parentRole));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,name,phone,role,isActive,points,createdAt);
+    return Object.hash(runtimeType,id,name,phone,role,isActive,points,createdAt,parentId,parentName,parentRole);
 }
 
 @override
 String toString() {
-    return 'User(id: $id, name: $name, phone: $phone, role: $role, isActive: $isActive, points: $points, createdAt: $createdAt)';
+    return 'User(id: $id, name: $name, phone: $phone, role: $role, isActive: $isActive, points: $points, createdAt: $createdAt, parentId: $parentId, parentName: $parentName, parentRole: $parentRole)';
 }
 
 
@@ -255,7 +265,7 @@ abstract mixin class _$UserCopyWith<$Res> implements $UserCopyWith<$Res> {
   factory _$UserCopyWith(_User value, $Res Function(_User) _then) = __$UserCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String name, String phone, UserRole role, bool isActive, int points, DateTime createdAt
+ int id, String name, String phone, UserRole role, bool isActive, int points, DateTime createdAt, int? parentId, String? parentName, UserRole? parentRole
 });
 
 
@@ -272,7 +282,7 @@ class __$UserCopyWithImpl<$Res>
 
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? phone = null,Object? role = null,Object? isActive = null,Object? points = null,Object? createdAt = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? phone = null,Object? role = null,Object? isActive = null,Object? points = null,Object? createdAt = null,Object? parentId = freezed,Object? parentName = freezed,Object? parentRole = freezed,}) {
   return _then(_User(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -281,7 +291,10 @@ as String,role: null == role ? _self.role : role // ignore: cast_nullable_to_non
 as UserRole,isActive: null == isActive ? _self.isActive : isActive // ignore: cast_nullable_to_non_nullable
 as bool,points: null == points ? _self.points : points // ignore: cast_nullable_to_non_nullable
 as int,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,
+as DateTime,parentId: freezed == parentId ? _self.parentId : parentId // ignore: cast_nullable_to_non_nullable
+as int?,parentName: freezed == parentName ? _self.parentName : parentName // ignore: cast_nullable_to_non_nullable
+as String?,parentRole: freezed == parentRole ? _self.parentRole : parentRole // ignore: cast_nullable_to_non_nullable
+as UserRole?,
   ));
 }
 

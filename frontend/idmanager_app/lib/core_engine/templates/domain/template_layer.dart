@@ -13,7 +13,13 @@ sealed class LayerSourceItem with _$LayerSourceItem {
     String? key,
     String? value,
     @Default(LayerFieldType.text) LayerFieldType type,
+
+    /// In a combined (List) layer: how this field joins the NEXT one - a
+    /// JoinSeparator wire name ('comma', 'dash', 'space', 'newline'). Null means comma.
     String? separator,
+
+    /// In a combined layer: this entry is not a field but one empty line.
+    @Default(false) bool emptyLine,
   }) = _LayerSourceItem;
 }
 
@@ -34,7 +40,20 @@ sealed class LayerGroup with _$LayerGroup {
     double? keyWidthMm,
     double? valueWidthMm,
     @Default(false) bool bold,
+    /// A combined group: all [sources] render as one text, each joined to the next by
+    /// its own separator.
     @Default(false) bool isList,
+
+    /// In a combined layer: extra space (mm) added between all of its lines, common
+    /// to the whole layer. 0 keeps the normal line spacing.
+    @Default(0) double lineGapMm,
+
+    /// An image layer left empty in the template; the card generator fills it with an
+    /// image the user picks (a QR code). Its source's key names the slot, e.g. 'QR 1'.
+    @Default(false) bool isQr,
+
+    /// In a combined layer: print each field on its own line with a bullet point.
+    @Default(false) bool bulletList,
     @Default(false) bool emptyLineEveryAfter,
     @Default(false) bool newLineAfterFirst,
     @Default(false) bool newLineBeforeLast,

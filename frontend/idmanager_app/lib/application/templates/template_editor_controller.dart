@@ -3,6 +3,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../business_service/providers.dart';
 import '../../core_engine/common/enums.dart';
 import '../../core_engine/common/id_generator.dart';
+import '../../core_engine/common/uploaded_file.dart';
+import '../../core_engine/templates/domain/field_group.dart';
 import '../../core_engine/templates/domain/template_layer.dart';
 import 'template_editor_state.dart';
 
@@ -27,7 +29,11 @@ class TemplateEditorController extends _$TemplateEditorController {
       }
     }
 
-    return TemplateEditorState(template: detail, layers: layers);
+    return TemplateEditorState(
+      template: detail,
+      layers: layers,
+      sampleFields: [for (final g in detail.groups) ...g.items],
+    );
   }
 
   TemplateLayer _currentLayer(TemplateEditorState s) =>
@@ -71,6 +77,159 @@ class TemplateEditorController extends _$TemplateEditorController {
       layers: _replaceCurrentGroups(current, [..._currentLayer(current).groups, group]),
       selectedGroupId: id,
     ));
+  }
+
+  /// A template has exactly one sample PDF: importing replaces the stored field
+  /// palette (already-placed layers are left alone). The fields are persisted with
+  /// the template on save. Returns the number of fields found, or null if the PDF
+  /// couldn't be read.
+  Future<int?> importSamplePdf(UploadedFile file) async {
+    final current = state.value;
+    if (current == null) return null;
+
+    final List<ExtractedField> fields;
+    try {
+      fields = await ref.read(cardGenerationServiceProvider).parsePdf(file);
+    } catch (_) {
+      return null;
+    }
+
+    state = AsyncData(current.copyWith(sampleFields: fields));
+    return fields.length;
+  }
+
+  /// Adds one layer for a field from the sample PDF palette to the current side,
+  /// roughly placed (text in a top-down grid, images along the top-right edge)
+  /// with default properties, and selects it so the designer sets its properties.
+  void addLayerFromField(ExtractedField field) {
+    final current = state.value;
+    if (current == null) return;
+
+    final template = current.template.template;
+    final existing = _currentLayer(current).groups;
+    const margin = 2.0;
+    const textStepMm = 6.0;
+    const textColumnMm = 40.0;
+    const imageSizeMm = 20.0;
+
+    final id = IdGenerator.generate();
+    final LayerGroup group;
+    if (field.type == LayerFieldType.image) {
+      final index = existing.where((g) => g.fieldType == LayerFieldType.image).length;
+      group = LayerGroup(
+        id: id,
+        name: field.key ?? 'Image',
+        fieldType: LayerFieldType.image,
+        xMm: (template.cardWidthMm - margin - imageSizeMm - index * (imageSizeMm + margin))
+            .clamp(0, template.cardWidthMm - 1),
+        yMm: margin,
+        widthMm: imageSizeMm,
+        heightMm: imageSizeMm,
+        sources: [LayerSourceItem(key: field.key, value: field.value, type: LayerFieldType.image)],
+      );
+    } else {
+      final index = existing.where((g) => g.fieldType == LayerFieldType.text).length;
+      final rowsPerColumn = ((template.cardHeightMm - margin) / textStepMm).floor().clamp(1, 1000);
+      group = LayerGroup(
+        id: id,
+        name: field.key ?? 'Text',
+        xMm: (margin + (index ~/ rowsPerColumn) * textColumnMm).clamp(0, template.cardWidthMm - 1),
+        yMm: margin + (index % rowsPerColumn) * textStepMm,
+        widthMm: textColumnMm - margin,
+        sources: [LayerSourceItem(key: field.key, value: field.value)],
+      );
+    }
+
+    state = AsyncData(current.copyWith(
+      layers: _replaceCurrentGroups(current, [...existing, group]),
+      selectedGroupId: id,
+    ));
+  }
+
+  void deleteGroup(String groupId) {
+    final current = state.value;
+    if (current == null) return;
+
+    final groups = _currentLayer(current).groups.where((g) => g.id != groupId).toList();
+    state = AsyncData(current.copyWith(
+      layers: _replaceCurrentGroups(current, groups),
+      selectedGroupId: current.selectedGroupId == groupId ? null : current.selectedGroupId,
+    ));
+  }
+
+  /// Adds an empty QR code image layer. Nothing is picked here: the card generator
+  /// lets the user choose the image for each QR slot (identified by the source key).
+  void addQrLayer() {
+    final current = state.value;
+    if (current == null) return;
+
+    final usedKeys = {
+      for (final layer in current.layers)
+        for (final g in layer.groups)
+          if (g.isQr && g.sources.isNotEmpty) g.sources.first.key,
+    };
+    var n = usedKeys.length + 1;
+    while (usedKeys.contains('QR $n')) {
+      n++;
+    }
+
+    final id = IdGenerator.generate();
+    final group = LayerGroup(
+      id: id,
+      name: 'QR $n',
+      fieldType: LayerFieldType.image,
+      isQr: true,
+      xMm: current.template.template.cardWidthMm - 22,
+      yMm: 2,
+      widthMm: 20,
+      heightMm: 20,
+      sources: [LayerSourceItem(key: 'QR $n', type: LayerFieldType.image)],
+    );
+    state = AsyncData(current.copyWith(
+      layers: _replaceCurrentGroups(current, [..._currentLayer(current).groups, group]),
+      selectedGroupId: id,
+    ));
+  }
+
+  /// Adds an empty combined (List) text layer - its fields are added from the
+  /// properties panel and rendered as one text joined by a separator.
+  void addCombinedGroup() {
+    final current = state.value;
+    if (current == null) return;
+
+    final id = IdGenerator.generate();
+    final group = LayerGroup(
+      id: id,
+      name: 'Combined',
+      xMm: current.template.template.cardWidthMm / 2 - 20,
+      yMm: current.template.template.cardHeightMm / 2 - 5,
+      widthMm: 40,
+      isList: true,
+    );
+    state = AsyncData(current.copyWith(
+      layers: _replaceCurrentGroups(current, [..._currentLayer(current).groups, group]),
+      selectedGroupId: id,
+    ));
+  }
+
+  /// Moves the text fields of another layer on the current side into a combined
+  /// group, and removes that layer - so existing layers can be combined into one.
+  void mergeLayerInto(String groupId, String otherId) {
+    final current = state.value;
+    if (current == null || groupId == otherId) return;
+
+    final groups = _currentLayer(current).groups;
+    final other = groups.where((g) => g.id == otherId).firstOrNull;
+    if (other == null) return;
+
+    final merged = [
+      for (final g in groups)
+        if (g.id == groupId)
+          g.copyWith(sources: [...g.sources, ...other.sources.where((s) => s.type == LayerFieldType.text)])
+        else if (g.id != otherId)
+          g,
+    ];
+    state = AsyncData(current.copyWith(layers: _replaceCurrentGroups(current, merged)));
   }
 
   void deleteSelected() {
@@ -118,7 +277,11 @@ class TemplateEditorController extends _$TemplateEditorController {
 
     state = AsyncData(current.copyWith(isSaving: true));
     try {
-      await ref.read(templateServiceProvider).saveLayers(templateId, current.layers);
+      await ref.read(templateServiceProvider).saveLayers(
+        templateId,
+        current.layers,
+        groups: [FieldGroup(name: 'Sample PDF', items: current.sampleFields)],
+      );
       state = AsyncData(current.copyWith(isSaving: false));
       return true;
     } catch (_) {

@@ -6,6 +6,14 @@ is .NET Core; frontend is Flutter (web + Windows desktop from one codebase). The
 is fully online - every screen talks to the API directly; there is no offline mode,
 local database, or sync engine.
 
+## Members, users and points
+
+The system is an MLM-style network of four member types (SuperAdmin, Distributor,
+Retailer, User). Who can add whom, who can see whom, and how points move are defined in
+**[docs/member-hierarchy.md](docs/member-hierarchy.md)** - read it before changing
+anything that involves members, the Users or Points screens, or an endpoint that takes a
+user id.
+
 ## Architecture
 
 Both stacks follow the same layered-segregation pattern (adapted from RetinueSoft's

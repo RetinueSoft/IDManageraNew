@@ -14,5 +14,11 @@ sealed class User with _$User {
     required bool isActive,
     required int points,
     required DateTime createdAt,
+
+    /// The member who created this one - only when the viewer may see them (a viewer
+    /// never sees their own upline, see docs/member-hierarchy.md).
+    int? parentId,
+    String? parentName,
+    UserRole? parentRole,
   }) = _User;
 }

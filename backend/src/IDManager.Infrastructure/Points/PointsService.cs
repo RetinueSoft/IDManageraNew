@@ -2,20 +2,34 @@ using IDManager.Domain.Common;
 using IDManager.Domain.Dtos;
 using IDManager.Domain.Entities;
 using IDManager.Domain.Enums;
+using IDManager.Infrastructure.Members;
 using Microsoft.EntityFrameworkCore;
 
 namespace IDManager.Infrastructure.Points;
 
+/// Points. Whose points a caller may see or change is decided by MemberHierarchyService
+/// (docs/member-hierarchy.md) - this class only applies it.
 public class PointsService(IDManagerDbContext db)
 {
+    private readonly MemberHierarchyService _hierarchy = new(db);
+
     public async Task<int> GetUserPointsAsync(int userId, CancellationToken ct)
     {
         var user = await db.Users.FindAsync([userId], ct);
         return user?.Points ?? 0;
     }
 
-    public async Task<PagedResult<PointTransactionDto>> GetAllAsync(GetPointsRequest request, CancellationToken ct)
+    /// A member's points history: the caller's own, or a member they can see. Anyone
+    /// else's is reported as not found.
+    public async Task<OperationResult<PagedResult<PointTransactionDto>>> GetAllAsync(
+        int requestedById, GetPointsRequest request, CancellationToken ct)
     {
+        var requester = await db.Users.FindAsync([requestedById], ct);
+        if (requester is null || !await _hierarchy.CanViewAsync(requester, request.UserId, ct))
+        {
+            return OperationResult<PagedResult<PointTransactionDto>>.NotFound("User not found.");
+        }
+
         var query = db.PointTransactions
             .Where(t => t.UserId == request.UserId && (request.IncludeIncompleteAlso || t.Status == PointStatus.Completed))
             .OrderByDescending(t => t.CreatedAt);
@@ -34,37 +48,43 @@ public class PointsService(IDManagerDbContext db)
             })
             .ToListAsync(ct);
 
-        return new PagedResult<PointTransactionDto>
+        return OperationResult<PagedResult<PointTransactionDto>>.Success(new PagedResult<PointTransactionDto>
         {
             Items = items,
             TotalCount = totalCount,
             PageIndex = request.PageIndex,
             PageSize = request.PageSize,
-        };
+        });
     }
 
-    /// A distributor gives points to (or reclaims points from) a user beneath them,
-    /// spending/earning their own balance in the opposite direction. SuperAdmin has
-    /// an unlimited pool and doesn't spend its own balance.
+    /// Moves points between members (docs/member-hierarchy.md, section 5). Allocating
+    /// debits the caller and credits the target; reclaiming debits the target and credits
+    /// the caller. That holds for the SuperAdmin too: their balance is debited when they
+    /// allocate. The SuperAdmin is the source of all points, so they alone can add points
+    /// to their own balance (top-up); nobody else can adjust their own points.
     public async Task<OperationResult<int>> AdjustPointsAsync(int requestedById, AdjustPointsRequest request, bool increase, CancellationToken ct)
     {
+        if (request.Points <= 0) return OperationResult<int>.Invalid("Points must be greater than zero.");
+
         var requester = await db.Users.FindAsync([requestedById], ct);
         if (requester is null) return OperationResult<int>.NotFound("Requesting user not found.");
 
         var target = await db.Users.FindAsync([request.UserId], ct);
         if (target is null) return OperationResult<int>.NotFound("Target user not found.");
 
-        if (!target.IsActive) return OperationResult<int>.Invalid("Target user is not active.");
         if (requester.Id == target.Id)
         {
+            if (requester.Role == UserRole.SuperAdmin && increase) return await TopUpAsync(requester, request, ct);
             return OperationResult<int>.Invalid("Cannot adjust your own points.");
         }
+        if (!MemberHierarchyService.CanAllocatePointsTo(requester, target))
+        {
+            return OperationResult<int>.Forbidden("You can only manage points for your own members.");
+        }
+        if (!target.IsActive) return OperationResult<int>.Invalid("Target user is not active.");
 
-        // SuperAdmin is the platform's point source - it hands out an unlimited
-        // pool and never spends its own balance. Everyone else redistributes from
-        // (or back into) their own balance in the opposite direction.
-        var requesterIsUnlimited = requester.Role == UserRole.SuperAdmin;
-        if (increase && !requesterIsUnlimited && requester.Points < request.Points)
+        // Allocating spends the caller's own balance (the SuperAdmin's included).
+        if (increase && requester.Points < request.Points)
         {
             return OperationResult<int>.Invalid("You do not have enough points.");
         }
@@ -87,19 +107,16 @@ public class PointsService(IDManagerDbContext db)
             Status = PointStatus.Completed,
         });
 
-        if (!requesterIsUnlimited)
+        requester.Points -= delta;
+        db.PointTransactions.Add(new PointTransactionEntity
         {
-            requester.Points -= delta;
-            db.PointTransactions.Add(new PointTransactionEntity
-            {
-                ByUserId = requestedById,
-                Points = request.Points,
-                Reason = request.Reason,
-                Type = increase ? PointTransType.Spend : PointTransType.Earn,
-                UserId = requester.Id,
-                Status = PointStatus.Completed,
-            });
-        }
+            ByUserId = requestedById,
+            Points = request.Points,
+            Reason = request.Reason,
+            Type = increase ? PointTransType.Spend : PointTransType.Earn,
+            UserId = requester.Id,
+            Status = PointStatus.Completed,
+        });
 
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
@@ -107,10 +124,37 @@ public class PointsService(IDManagerDbContext db)
         return OperationResult<int>.Success(target.Points);
     }
 
+    /// Records a card generation: the points are debited from the generating member and
+    /// credited to the SuperAdmin - always the SuperAdmin, not the member's parent - so
+    /// the SuperAdmin's balance is the running total of points spent on cards and easy
+    /// to verify (docs/member-hierarchy.md, section 5). Both entries stay pending until
+    /// the PDF is downloaded (CompletePaymentTransactionAsync).
+    /// The SuperAdmin adding points to their own balance - the only way points enter the
+    /// system. Recorded as an Earn on themselves so it shows in their history.
+    private async Task<OperationResult<int>> TopUpAsync(UserEntity superAdmin, AdjustPointsRequest request, CancellationToken ct)
+    {
+        superAdmin.Points += request.Points;
+        db.PointTransactions.Add(new PointTransactionEntity
+        {
+            ByUserId = superAdmin.Id,
+            UserId = superAdmin.Id,
+            Points = request.Points,
+            Reason = string.IsNullOrWhiteSpace(request.Reason) ? "Top-up" : request.Reason,
+            Type = PointTransType.Earn,
+            Status = PointStatus.Completed,
+        });
+        await db.SaveChangesAsync(ct);
+        return OperationResult<int>.Success(superAdmin.Points);
+    }
+
     public async Task<int> CreateIdCardAsync(IDCardEntity idCard, string forName, CancellationToken ct)
     {
         var user = await db.Users.FindAsync([idCard.UserId], ct) ?? throw new InvalidOperationException("User not found.");
-        var adminId = user.CreatedById ?? user.Id;
+        var superAdmin = await db.Users
+            .Where(u => u.Role == UserRole.SuperAdmin)
+            .OrderBy(u => u.Id)
+            .FirstOrDefaultAsync(ct);
+        var adminId = superAdmin?.Id ?? user.CreatedById ?? user.Id;
 
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
 

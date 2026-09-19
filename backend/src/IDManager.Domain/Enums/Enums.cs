@@ -4,9 +4,10 @@ public enum UserRole
 {
     Unknown = 0,
     SuperAdmin = 1,
-    Admin = 2,
+    // 2 was Admin - removed; existing rows were migrated to Distributor. Don't reuse it.
     Distributor = 3,
     User = 4,
+    Retailer = 5,
 }
 
 public enum LayerFieldType

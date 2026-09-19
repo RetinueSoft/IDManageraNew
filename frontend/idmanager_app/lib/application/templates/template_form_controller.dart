@@ -61,6 +61,8 @@ class TemplateFormController extends _$TemplateFormController {
         await service.updateTemplate(
           id: templateId!,
           name: current.name,
+          cardWidthMm: current.cardWidthMm,
+          cardHeightMm: current.cardHeightMm,
           pointCost: current.pointCost,
           isActive: current.isActive,
         );

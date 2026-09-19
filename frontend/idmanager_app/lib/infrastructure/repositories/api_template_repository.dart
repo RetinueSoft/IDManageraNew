@@ -4,6 +4,7 @@ import '../../core_engine/common/paged_result.dart';
 import '../../core_engine/common/uploaded_file.dart';
 import '../../core_engine/templates/contracts/template_repository.dart';
 import '../../core_engine/templates/domain/card_template.dart';
+import '../../core_engine/templates/domain/field_group.dart';
 import '../../core_engine/templates/domain/template_layer.dart';
 import '../../foundation/network/api_client.dart';
 import 'template_mappers.dart';
@@ -56,17 +57,21 @@ class ApiTemplateRepository implements TemplateRepository {
   Future<CardTemplateDetail> update({
     required int id,
     required String name,
+    required double cardWidthMm,
+    required double cardHeightMm,
     required int pointCost,
     required bool isActive,
-    String groupsJson = '[]',
+    String? groupsJson,
     UploadedFile? frontFile,
     UploadedFile? backFile,
   }) => _client.guard(() async {
     final form = FormData.fromMap({
       'name': name,
+      'cardWidthMm': cardWidthMm,
+      'cardHeightMm': cardHeightMm,
       'pointCost': pointCost,
       'isActive': isActive,
-      'groupsJson': groupsJson,
+      if (groupsJson != null) 'groupsJson': groupsJson,
       if (frontFile != null)
         'frontFile': MultipartFile.fromBytes(frontFile.bytes, filename: frontFile.name),
       if (backFile != null) 'backFile': MultipartFile.fromBytes(backFile.bytes, filename: backFile.name),
@@ -81,12 +86,17 @@ class ApiTemplateRepository implements TemplateRepository {
   );
 
   @override
-  Future<void> saveLayers(int templateId, List<TemplateLayer> layers) => _client.guard(
-    () => _client.dio.post(
-      '/templates/layers',
-      data: {'templateId': templateId, 'layers': layers.map(templateLayerToJson).toList()},
-    ),
-  );
+  Future<void> saveLayers(int templateId, List<TemplateLayer> layers, {List<FieldGroup>? groups}) =>
+      _client.guard(
+        () => _client.dio.post(
+          '/templates/layers',
+          data: {
+            'templateId': templateId,
+            'layers': layers.map(templateLayerToJson).toList(),
+            if (groups != null) 'groups': groups.map(fieldGroupToJson).toList(),
+          },
+        ),
+      );
 
   @override
   Future<Combination> addCombination({

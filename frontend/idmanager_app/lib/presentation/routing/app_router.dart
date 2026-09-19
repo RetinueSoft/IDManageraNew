@@ -20,16 +20,16 @@ GoRouter appRouter(Ref ref) {
   return GoRouter(
     initialLocation: AppRoutes.dashboard,
     routes: [
-      // The layer designer is a full-screen canvas - it deliberately sits outside
-      // the persistent nav rail shell so it gets the full window.
-      GoRoute(
-        path: AppRoutes.templateDesignPattern,
-        builder: (context, state) =>
-            TemplateEditorScreen(templateId: int.parse(state.pathParameters['templateId']!)),
-      ),
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
         routes: [
+          // The layer designer stays inside the shell so the navigation menu is
+          // always reachable from it.
+          GoRoute(
+            path: AppRoutes.templateDesignPattern,
+            builder: (context, state) =>
+                TemplateEditorScreen(templateId: int.parse(state.pathParameters['templateId']!)),
+          ),
           GoRoute(path: AppRoutes.dashboard, builder: (context, state) => const DashboardScreen()),
           GoRoute(path: AppRoutes.generateCard, builder: (context, state) => const GenerateCardScreen()),
           GoRoute(path: AppRoutes.points, builder: (context, state) => const PointsScreen()),

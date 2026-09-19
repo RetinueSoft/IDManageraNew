@@ -1,3 +1,4 @@
+using System.Globalization;
 using IDManager.Api.Security;
 using IDManager.Domain.Dtos;
 using IDManager.Infrastructure.AuditLog;
@@ -7,7 +8,8 @@ namespace IDManager.Api.Endpoints;
 
 public static class TemplateEndpoints
 {
-    private static readonly string[] AdminRoles = ["SuperAdmin", "Admin"];
+    // Templates are SuperAdmin-only (the Admin role no longer exists).
+    private static readonly string[] AdminRoles = ["SuperAdmin"];
 
     public static void MapTemplateEndpoints(this WebApplication app)
     {
@@ -50,7 +52,9 @@ public static class TemplateEndpoints
                 Name = form["name"].ToString(),
                 PointCost = int.TryParse(form["pointCost"], out var p) ? p : 0,
                 IsActive = bool.TryParse(form["isActive"], out var active) && active,
-                GroupsJson = form["groupsJson"].ToString() is { Length: > 0 } g ? g : "[]",
+                CardWidthMm = double.TryParse(form["cardWidthMm"], NumberStyles.Float, CultureInfo.InvariantCulture, out var cw) ? cw : null,
+                CardHeightMm = double.TryParse(form["cardHeightMm"], NumberStyles.Float, CultureInfo.InvariantCulture, out var ch) ? ch : null,
+                GroupsJson = form["groupsJson"].ToString() is { Length: > 0 } g ? g : null,
                 FrontImageBytes = form.Files.GetFile("frontFile") is { } front ? await ReadFileBytesAsync(front, ct) : null,
                 BackImageBytes = form.Files.GetFile("backFile") is { } back ? await ReadFileBytesAsync(back, ct) : null,
             };

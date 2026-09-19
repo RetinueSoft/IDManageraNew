@@ -7,6 +7,7 @@ import 'package:idmanager_app/core_engine/common/uploaded_file.dart';
 import 'package:idmanager_app/core_engine/common/validation_exception.dart';
 import 'package:idmanager_app/core_engine/templates/contracts/template_repository.dart';
 import 'package:idmanager_app/core_engine/templates/domain/card_template.dart';
+import 'package:idmanager_app/core_engine/templates/domain/field_group.dart';
 import 'package:idmanager_app/core_engine/templates/domain/template_layer.dart';
 import 'package:idmanager_app/core_engine/templates/template_engine.dart';
 import 'package:idmanager_app/foundation/network/api_exception.dart';
@@ -58,9 +59,11 @@ class _FakeTemplateRepository implements TemplateRepository {
   Future<CardTemplateDetail> update({
     required int id,
     required String name,
+    required double cardWidthMm,
+    required double cardHeightMm,
     required int pointCost,
     required bool isActive,
-    String groupsJson = '[]',
+    String? groupsJson,
     UploadedFile? frontFile,
     UploadedFile? backFile,
   }) async => _detail(id: id, name: name);
@@ -69,7 +72,7 @@ class _FakeTemplateRepository implements TemplateRepository {
   Future<void> setActive(int id, bool active) async {}
 
   @override
-  Future<void> saveLayers(int templateId, List<TemplateLayer> layers) async {
+  Future<void> saveLayers(int templateId, List<TemplateLayer> layers, {List<FieldGroup>? groups}) async {
     savedTemplateId = templateId;
     savedLayers = layers;
   }
@@ -141,6 +144,41 @@ void main() {
       } on ValidationException catch (e) {
         expect(e.errors['name'], 'Name already used.');
       }
+    });
+  });
+
+  group('TemplateEngineService.update', () {
+    test('rejects a card size that is not greater than zero', () async {
+      final engine = TemplateEngineService(_FakeTemplateRepository());
+
+      try {
+        await engine.update(
+          id: 1,
+          name: 'Card',
+          cardWidthMm: 0,
+          cardHeightMm: -5,
+          pointCost: 1,
+          isActive: true,
+        );
+        fail('expected a ValidationException');
+      } on ValidationException catch (e) {
+        expect(e.errors.keys, containsAll(['cardWidthMm', 'cardHeightMm']));
+      }
+    });
+
+    test('passes the new size through to the repository', () async {
+      final engine = TemplateEngineService(_FakeTemplateRepository());
+
+      final result = await engine.update(
+        id: 1,
+        name: 'Card',
+        cardWidthMm: 100,
+        cardHeightMm: 60,
+        pointCost: 1,
+        isActive: true,
+      );
+
+      expect(result.template.name, 'Card');
     });
   });
 

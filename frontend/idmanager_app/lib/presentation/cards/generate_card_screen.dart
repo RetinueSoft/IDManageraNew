@@ -10,6 +10,8 @@ import '../../core_engine/cards/domain/generated_card.dart';
 import '../../core_engine/common/enums.dart';
 import '../../core_engine/common/uploaded_file.dart';
 import '../../core_engine/templates/domain/template_layer.dart';
+import '../shared/widgets/card_text_layer.dart';
+import '../shared/widgets/zoomable_canvas.dart';
 
 class GenerateCardScreen extends ConsumerStatefulWidget {
   const GenerateCardScreen({super.key});
@@ -19,8 +21,8 @@ class GenerateCardScreen extends ConsumerStatefulWidget {
 }
 
 class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
-  static const double pxPerMm = 4.0;
-  static const double ptToMm = 25.4 / 72;
+  // Same fine base scale as the designer (see TemplateEditorScreen.pxPerMm).
+  static const double pxPerMm = 12.0;
 
   CardSide _side = CardSide.front;
   PlatformFile? _pickedFile;
@@ -33,15 +35,41 @@ class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
     );
     if (result == null || result.files.isEmpty) return;
     setState(() => _pickedFile = result.files.first);
-    controller.setPdfFile(UploadedFile(result.files.first.bytes!, result.files.first.name));
+    controller.setPdfFile(
+      UploadedFile(result.files.first.bytes!, result.files.first.name),
+    );
+  }
+
+  Future<void> _pickQr(
+    GenerateCardController controller,
+    String slotKey,
+  ) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    if (result == null ||
+        result.files.isEmpty ||
+        result.files.first.bytes == null)
+      return;
+    controller.setQrFile(
+      slotKey,
+      UploadedFile(result.files.first.bytes!, result.files.first.name),
+    );
   }
 
   Future<void> _download(GenerateCardController controller) async {
     final bytes = await controller.downloadPdf();
     if (bytes == null) return;
-    await FileSaver.instance.saveFile(name: 'card', bytes: bytes, ext: 'pdf', mimeType: MimeType.pdf);
+    await FileSaver.instance.saveFile(
+      name: 'card',
+      bytes: bytes,
+      ext: 'pdf',
+      mimeType: MimeType.pdf,
+    );
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Card PDF saved.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Card PDF saved.')));
     }
   }
 
@@ -72,11 +100,21 @@ class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
                     ],
                     onChanged: controller.selectTemplate,
                   ),
+                  if (state.selectedTemplateId != null &&
+                      state.combinationOptions.isEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      "This template has no combinations, so its own front and back images are used.",
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                   if (state.combinationOptions.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     DropdownButtonFormField<int>(
                       initialValue: state.selectedCombinationId,
-                      decoration: const InputDecoration(labelText: 'Combination'),
+                      decoration: const InputDecoration(
+                        labelText: 'Combination',
+                      ),
                       items: [
                         for (final c in state.combinationOptions)
                           DropdownMenuItem(value: c.id, child: Text(c.label)),
@@ -90,21 +128,44 @@ class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
                     icon: const Icon(Icons.picture_as_pdf_outlined),
                     label: Text(_pickedFile?.name ?? 'Choose member PDF'),
                   ),
+                  for (final slot in state.qrSlots) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () => _pickQr(controller, slot.key),
+                      icon: const Icon(Icons.qr_code_2),
+                      label: Text(
+                        state.qrFiles[slot.key]?.name ??
+                            'Choose QR image - ${slot.label}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   FilledButton(
                     onPressed: state.isBusy ? null : controller.generate,
                     child: state.isBusy
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Text('Preview card'),
                   ),
                   if (state.error != null) ...[
                     const SizedBox(height: 12),
-                    Text(state.error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                    Text(
+                      state.error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
                   ],
                   if (state.result != null) ...[
                     const SizedBox(height: 24),
                     FilledButton.icon(
-                      onPressed: state.isBusy ? null : () => _download(controller),
+                      onPressed: state.isBusy
+                          ? null
+                          : () => _download(controller),
                       icon: const Icon(Icons.download),
                       label: const Text('Download print-ready PDF'),
                     ),
@@ -115,27 +176,38 @@ class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
             const VerticalDivider(width: 1),
             Expanded(
               child: state.result == null
-                  ? const Center(child: Text('Preview will appear here after parsing the PDF.'))
+                  ? const Center(
+                      child: Text(
+                        'Preview will appear here after parsing the PDF.',
+                      ),
+                    )
                   : Column(
                       children: [
                         Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: SegmentedButton<CardSide>(
                             segments: const [
-                              ButtonSegment(value: CardSide.front, label: Text('Front')),
-                              ButtonSegment(value: CardSide.back, label: Text('Back')),
+                              ButtonSegment(
+                                value: CardSide.front,
+                                label: Text('Front'),
+                              ),
+                              ButtonSegment(
+                                value: CardSide.back,
+                                label: Text('Back'),
+                              ),
                             ],
                             selected: {_side},
-                            onSelectionChanged: (s) => setState(() => _side = s.first),
+                            onSelectionChanged: (s) =>
+                                setState(() => _side = s.first),
                           ),
                         ),
                         Expanded(
-                          child: Center(
-                            child: InteractiveViewer(
-                              minScale: 0.3,
-                              maxScale: 6,
-                              child: _buildPreview(state.result!),
+                          child: ZoomableCanvas(
+                            contentSize: Size(
+                              state.result!.cardWidthMm * pxPerMm,
+                              state.result!.cardHeightMm * pxPerMm,
                             ),
+                            child: _buildPreview(state.result!),
                           ),
                         ),
                       ],
@@ -150,7 +222,9 @@ class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
   Widget _buildPreview(GeneratedCard result) {
     final widthPx = result.cardWidthMm * pxPerMm;
     final heightPx = result.cardHeightMm * pxPerMm;
-    final imageBase64 = _side == CardSide.front ? result.frontImageBase64 : result.backImageBase64;
+    final imageBase64 = _side == CardSide.front
+        ? result.frontImageBase64
+        : result.backImageBase64;
     final layer = result.layers.firstWhere(
       (l) => l.side == _side,
       orElse: () => TemplateLayer(side: _side),
@@ -159,11 +233,16 @@ class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
     return Container(
       width: widthPx,
       height: heightPx,
-      decoration: BoxDecoration(border: Border.all(color: Colors.black26), color: Colors.white),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.black26),
+        color: Colors.white,
+      ),
       child: Stack(
         children: [
           if (imageBase64.isNotEmpty)
-            Positioned.fill(child: Image.memory(base64Decode(imageBase64), fit: BoxFit.fill)),
+            Positioned.fill(
+              child: Image.memory(base64Decode(imageBase64), fit: BoxFit.fill),
+            ),
           for (final group in layer.groups)
             Positioned(
               left: group.xMm * pxPerMm,
@@ -172,19 +251,16 @@ class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
                   ? SizedBox(
                       width: (group.widthMm ?? 20) * pxPerMm,
                       height: (group.heightMm ?? 20) * pxPerMm,
-                      child: group.sources.isNotEmpty && (group.sources.first.value ?? '').isNotEmpty
-                          ? Image.memory(base64Decode(group.sources.first.value!), fit: BoxFit.contain)
+                      child:
+                          group.sources.isNotEmpty &&
+                              (group.sources.first.value ?? '').isNotEmpty
+                          ? Image.memory(
+                              base64Decode(group.sources.first.value!),
+                              fit: BoxFit.fill,
+                            )
                           : const ColoredBox(color: Colors.black12),
                     )
-                  : Text(
-                      group.sources
-                          .map((s) => [s.key, s.value].where((v) => v != null && v.isNotEmpty).join(': '))
-                          .join('  '),
-                      style: TextStyle(
-                        fontSize: group.fontSizePt * ptToMm * pxPerMm,
-                        fontWeight: group.bold ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
+                  : CardTextLayer(group: group, pxPerMm: pxPerMm),
             ),
         ],
       ),

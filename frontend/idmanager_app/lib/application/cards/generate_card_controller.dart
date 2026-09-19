@@ -4,6 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../business_service/providers.dart';
 import '../../core_engine/common/uploaded_file.dart';
+import '../points/points_refresh.dart';
 import 'generate_card_state.dart';
 
 part 'generate_card_controller.g.dart';
@@ -24,16 +25,21 @@ class GenerateCardController extends _$GenerateCardController {
       selectedTemplateId: templateId,
       combinationOptions: const [],
       selectedCombinationId: null,
+      qrSlots: const [],
+      qrFiles: const {},
       result: null,
     ));
     if (templateId == null) return;
 
-    final options = await ref.read(cardGenerationServiceProvider).getCombinationOptions(templateId);
+    final service = ref.read(cardGenerationServiceProvider);
+    final options = await service.getCombinationOptions(templateId);
+    final slots = await service.getQrSlots(templateId);
     final refreshed = state.value;
     if (refreshed == null) return;
     state = AsyncData(refreshed.copyWith(
       combinationOptions: options,
       selectedCombinationId: options.isNotEmpty ? options.first.id : null,
+      qrSlots: slots,
     ));
   }
 
@@ -49,11 +55,27 @@ class GenerateCardController extends _$GenerateCardController {
     state = AsyncData(current.copyWith(pdfFile: file, error: null));
   }
 
+  /// Sets the image the user picked for one of the template's QR slots.
+  void setQrFile(String slotKey, UploadedFile file) {
+    final current = state.value;
+    if (current == null) return;
+    state = AsyncData(current.copyWith(qrFiles: {...current.qrFiles, slotKey: file}, error: null));
+  }
+
   Future<void> generate() async {
     final current = state.value;
     if (current == null) return;
-    if (current.selectedTemplateId == null || current.selectedCombinationId == null || current.pdfFile == null) {
-      state = AsyncData(current.copyWith(error: 'Select a template, a combination and a PDF file.'));
+    // A combination is only needed when the template has some; otherwise the
+    // template's own front and back images are used.
+    final needsCombination = current.combinationOptions.isNotEmpty;
+    if (current.selectedTemplateId == null ||
+        (needsCombination && current.selectedCombinationId == null) ||
+        current.pdfFile == null) {
+      state = AsyncData(current.copyWith(
+        error: needsCombination
+            ? 'Select a template, a combination and a PDF file.'
+            : 'Select a template and a PDF file.',
+      ));
       return;
     }
 
@@ -61,10 +83,12 @@ class GenerateCardController extends _$GenerateCardController {
     try {
       final result = await ref.read(cardGenerationServiceProvider).generate(
         templateId: current.selectedTemplateId!,
-        combinationId: current.selectedCombinationId!,
+        combinationId: current.selectedCombinationId ?? 0,
         file: current.pdfFile!,
+        qrImages: current.qrFiles,
       );
       state = AsyncData(current.copyWith(isBusy: false, result: result));
+      refreshPointsData(ref); // the card's points are recorded (pending) now
     } catch (e) {
       state = AsyncData(current.copyWith(isBusy: false, error: e.toString()));
     }
@@ -78,6 +102,7 @@ class GenerateCardController extends _$GenerateCardController {
     try {
       final bytes = await ref.read(cardGenerationServiceProvider).downloadPdf(current.result!.idCardId);
       state = AsyncData(current.copyWith(isBusy: false));
+      refreshPointsData(ref); // the points are applied when the PDF is downloaded
       return bytes;
     } catch (e) {
       state = AsyncData(current.copyWith(isBusy: false, error: e.toString()));

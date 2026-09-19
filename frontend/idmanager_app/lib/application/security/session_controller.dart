@@ -13,7 +13,13 @@ part 'session_controller.g.dart';
 @Riverpod(keepAlive: true)
 class SessionController extends _$SessionController {
   @override
-  Future<User?> build() => ref.watch(authServiceProvider).restoreSession();
+  Future<User?> build() {
+    final auth = ref.watch(authServiceProvider);
+    // An expired/invalid saved token must send the user back to the login screen
+    // instead of leaving every screen stuck on a 401 error.
+    auth.onSessionExpired(() => state = const AsyncData(null));
+    return auth.restoreSession();
+  }
 
   Future<void> login(String phone, String password) async {
     state = const AsyncLoading();

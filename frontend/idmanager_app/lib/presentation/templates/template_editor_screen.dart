@@ -1,13 +1,22 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../application/templates/template_editor_controller.dart';
 import '../../application/templates/template_editor_state.dart';
 import '../../core_engine/common/enums.dart';
+import '../../core_engine/common/uploaded_file.dart';
+import '../../core_engine/templates/domain/field_group.dart';
+import '../../core_engine/templates/domain/layer_text.dart';
 import '../../core_engine/templates/domain/template_layer.dart';
+import '../shared/widgets/card_text_layer.dart';
+import '../shared/widgets/zoomable_canvas.dart';
+import '../routing/app_routes.dart';
 
 /// The core editor: a background card image with zoom (InteractiveViewer) and
 /// draggable text/image layers positioned in millimeters. Screen zoom is purely a
@@ -19,8 +28,10 @@ class TemplateEditorScreen extends ConsumerWidget {
 
   final int templateId;
 
-  static const double pxPerMm = 4.0;
-  static const double ptToMm = 25.4 / 72;
+  /// Screen pixels per millimeter at 100%. Flutter rounds each text line's height to a whole
+  /// pixel, so the card is laid out at a fine scale (the error is at most half a pixel = 0.04 mm
+  /// per line) and then zoomed as a view transform, keeping the screen within a hair of the PDF.
+  static const double pxPerMm = 12.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -29,8 +40,10 @@ class TemplateEditorScreen extends ConsumerWidget {
     final controller = ref.read(provider.notifier);
 
     return stateAsync.when(
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (e, _) => Scaffold(body: Center(child: Text('Failed to load template: $e'))),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, _) =>
+          Scaffold(body: Center(child: Text('Failed to load template: $e'))),
       data: (state) => _EditorBody(state: state, controller: controller),
     );
   }
@@ -43,9 +56,9 @@ class _EditorBody extends StatelessWidget {
   final TemplateEditorController controller;
 
   static const double pxPerMm = TemplateEditorScreen.pxPerMm;
-  static const double ptToMm = TemplateEditorScreen.ptToMm;
 
-  TemplateLayer get _currentLayer => state.layers.firstWhere((l) => l.side == state.side);
+  TemplateLayer get _currentLayer =>
+      state.layers.firstWhere((l) => l.side == state.side);
 
   LayerGroup? get _selectedGroup {
     final id = state.selectedGroupId;
@@ -56,7 +69,8 @@ class _EditorBody extends StatelessWidget {
     return null;
   }
 
-  Uint8List _decodeImage(String base64Str) => base64Str.isEmpty ? Uint8List(0) : base64Decode(base64Str);
+  Uint8List _decodeImage(String base64Str) =>
+      base64Str.isEmpty ? Uint8List(0) : base64Decode(base64Str);
 
   Future<void> _save(BuildContext context) async {
     final ok = await controller.save();
@@ -66,17 +80,49 @@ class _EditorBody extends StatelessWidget {
     );
   }
 
+  Future<void> _importPdf(BuildContext context) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+      withData: true,
+    );
+    if (result == null ||
+        result.files.isEmpty ||
+        result.files.first.bytes == null)
+      return;
+
+    final picked = result.files.first;
+    final count = await controller.importSamplePdf(
+      UploadedFile(picked.bytes!, picked.name),
+    );
+    if (!context.mounted) return;
+    final message = count == null
+        ? 'Could not read the PDF.'
+        : count == 0
+        ? 'No text or images found in the PDF.'
+        : 'Found $count fields in ${picked.name}. Add the ones you need from the Fields panel, then Save.';
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final template = state.template.template;
     final cardWidthPx = template.cardWidthMm * pxPerMm;
     final cardHeightPx = template.cardHeightMm * pxPerMm;
     final imageBytes = _decodeImage(
-      state.side == CardSide.front ? template.frontImageBase64 : template.backImageBase64,
+      state.side == CardSide.front
+          ? template.frontImageBase64
+          : template.backImageBase64,
     );
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Back to templates',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go(AppRoutes.templates),
+        ),
         title: Text('Design: ${template.name}'),
         actions: [
           IconButton(
@@ -85,15 +131,35 @@ class _EditorBody extends StatelessWidget {
             onPressed: () => controller.addGroup(LayerFieldType.text),
           ),
           IconButton(
+            tooltip:
+                'Add combined group (several fields joined by , or - or space)',
+            icon: const Icon(Icons.join_inner),
+            onPressed: controller.addCombinedGroup,
+          ),
+          IconButton(
             tooltip: 'Add image layer',
             icon: const Icon(Icons.image_outlined),
             onPressed: () => controller.addGroup(LayerFieldType.image),
+          ),
+          IconButton(
+            tooltip: 'Add empty QR code image (chosen in the card generator)',
+            icon: const Icon(Icons.qr_code_2),
+            onPressed: controller.addQrLayer,
+          ),
+          IconButton(
+            tooltip: 'Import sample PDF (replaces the fields list)',
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            onPressed: () => _importPdf(context),
           ),
           const SizedBox(width: 8),
           FilledButton.icon(
             onPressed: state.isSaving ? null : () => _save(context),
             icon: state.isSaving
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.save),
             label: const Text('Save'),
           ),
@@ -109,7 +175,10 @@ class _EditorBody extends StatelessWidget {
                   padding: const EdgeInsets.all(8.0),
                   child: SegmentedButton<CardSide>(
                     segments: const [
-                      ButtonSegment(value: CardSide.front, label: Text('Front')),
+                      ButtonSegment(
+                        value: CardSide.front,
+                        label: Text('Front'),
+                      ),
                       ButtonSegment(value: CardSide.back, label: Text('Back')),
                     ],
                     selected: {state.side},
@@ -119,11 +188,8 @@ class _EditorBody extends StatelessWidget {
                 Expanded(
                   child: Container(
                     color: Colors.grey.shade300,
-                    child: InteractiveViewer(
-                      minScale: 0.3,
-                      maxScale: 6,
-                      constrained: false,
-                      boundaryMargin: const EdgeInsets.all(200),
+                    child: ZoomableCanvas(
+                      contentSize: Size(cardWidthPx, cardHeightPx),
                       child: GestureDetector(
                         onTap: () => controller.selectGroup(null),
                         child: Container(
@@ -131,14 +197,22 @@ class _EditorBody extends StatelessWidget {
                           height: cardHeightPx,
                           decoration: BoxDecoration(
                             border: Border.all(color: Colors.black26),
-                            boxShadow: const [BoxShadow(blurRadius: 8, color: Colors.black26)],
+                            boxShadow: const [
+                              BoxShadow(blurRadius: 8, color: Colors.black26),
+                            ],
                           ),
                           child: Stack(
                             clipBehavior: Clip.none,
                             children: [
                               if (imageBytes.isNotEmpty)
-                                Positioned.fill(child: Image.memory(imageBytes, fit: BoxFit.fill)),
-                              for (final group in _currentLayer.groups) _buildLayerWidget(group),
+                                Positioned.fill(
+                                  child: Image.memory(
+                                    imageBytes,
+                                    fit: BoxFit.fill,
+                                  ),
+                                ),
+                              for (final group in _currentLayer.groups)
+                                _buildLayerWidget(group),
                             ],
                           ),
                         ),
@@ -150,13 +224,38 @@ class _EditorBody extends StatelessWidget {
             ),
           ),
           SizedBox(
+            width: 260,
+            child: _FieldsAndLayersPanel(
+              fields: state.sampleFields,
+              layers: _currentLayer.groups,
+              selectedId: state.selectedGroupId,
+              onImport: () => _importPdf(context),
+              onAddField: controller.addLayerFromField,
+              onSelectLayer: controller.selectGroup,
+              onDeleteLayer: controller.deleteGroup,
+            ),
+          ),
+          SizedBox(
             width: 300,
             child: _selectedGroup == null
-                ? const Center(child: Text('Select a layer to edit its properties'))
+                ? const Center(
+                    child: Text('Select a layer to edit its properties'),
+                  )
                 : _PropertiesPanel(
                     key: ValueKey(_selectedGroup!.id),
                     group: _selectedGroup!,
-                    onChanged: (update) => controller.updateGroup(_selectedGroup!.id, update),
+                    sampleFields: state.sampleFields,
+                    otherLayers: [
+                      for (final g in _currentLayer.groups)
+                        if (g.id != _selectedGroup!.id &&
+                            g.fieldType == LayerFieldType.text &&
+                            !g.isList)
+                          g,
+                    ],
+                    onMergeLayer: (otherId) =>
+                        controller.mergeLayerInto(_selectedGroup!.id, otherId),
+                    onChanged: (update) =>
+                        controller.updateGroup(_selectedGroup!.id, update),
                     onDelete: controller.deleteSelected,
                   ),
           ),
@@ -174,22 +273,39 @@ class _EditorBody extends StatelessWidget {
     if (group.fieldType == LayerFieldType.image) {
       final widthPx = (group.widthMm ?? 20) * pxPerMm;
       final heightPx = (group.heightMm ?? 20) * pxPerMm;
+      final sample = group.sources.isNotEmpty
+          ? group.sources.first.value
+          : null;
+      final sampleBytes = _decodeImage(sample ?? '');
       content = Container(
         width: widthPx,
         height: heightPx,
         alignment: Alignment.center,
         decoration: BoxDecoration(border: Border.all(color: Colors.blueGrey)),
-        child: const Icon(Icons.image, color: Colors.blueGrey),
+        // Images are stretched to exactly the layer's width x height.
+        child: sampleBytes.isEmpty
+            ? LayoutBuilder(
+                builder: (_, box) => Icon(
+                  group.isQr ? Icons.qr_code_2 : Icons.image,
+                  color: Colors.blueGrey,
+                  size: box.biggest.shortestSide * 0.8,
+                ),
+              )
+            : Image.memory(
+                sampleBytes,
+                fit: BoxFit.fill,
+                width: widthPx,
+                height: heightPx,
+                errorBuilder: (_, _, _) => const Icon(Icons.broken_image),
+              ),
       );
     } else {
-      final fontSizePx = group.fontSizePt * ptToMm * pxPerMm;
-      final source = group.sources.isNotEmpty ? group.sources.first : null;
-      final text = source?.key != null && source!.key!.isNotEmpty
-          ? '${source.key}: ${source.value ?? ''}'
-          : (source?.value ?? group.name);
-      content = Text(
-        text,
-        style: TextStyle(fontSize: fontSizePx, fontWeight: group.bold ? FontWeight.bold : FontWeight.normal),
+      // The same widget the card preview uses, following the backend's PDF layout, so the
+      // canvas shows exactly what prints.
+      content = CardTextLayer(
+        group: group,
+        pxPerMm: pxPerMm,
+        emptyText: group.isList ? '(${group.name}: add fields)' : group.name,
       );
     }
 
@@ -198,12 +314,19 @@ class _EditorBody extends StatelessWidget {
       top: top,
       child: GestureDetector(
         onTap: () => controller.selectGroup(group.id),
-        onPanUpdate: (details) =>
-            controller.moveGroup(group.id, details.delta.dx / pxPerMm, details.delta.dy / pxPerMm),
+        onPanUpdate: (details) => controller.moveGroup(
+          group.id,
+          details.delta.dx / pxPerMm,
+          details.delta.dy / pxPerMm,
+        ),
+        // No padding or border around the content: the layer's top-left is exactly (x, y), as
+        // in the PDF. The selection outline is painted over the content instead of around it.
         child: Container(
-          padding: const EdgeInsets.all(2),
-          decoration: BoxDecoration(
-            border: Border.all(color: isSelected ? Colors.blue : Colors.transparent, width: 1.5),
+          foregroundDecoration: BoxDecoration(
+            border: Border.all(
+              color: isSelected ? Colors.blue : Colors.transparent,
+              width: 1,
+            ),
           ),
           child: content,
         ),
@@ -213,9 +336,20 @@ class _EditorBody extends StatelessWidget {
 }
 
 class _PropertiesPanel extends StatefulWidget {
-  const _PropertiesPanel({super.key, required this.group, required this.onChanged, required this.onDelete});
+  const _PropertiesPanel({
+    super.key,
+    required this.group,
+    required this.sampleFields,
+    required this.otherLayers,
+    required this.onMergeLayer,
+    required this.onChanged,
+    required this.onDelete,
+  });
 
   final LayerGroup group;
+  final List<ExtractedField> sampleFields;
+  final List<LayerGroup> otherLayers;
+  final void Function(String otherId) onMergeLayer;
   final void Function(LayerGroup Function(LayerGroup current) update) onChanged;
   final VoidCallback onDelete;
 
@@ -224,26 +358,32 @@ class _PropertiesPanel extends StatefulWidget {
 }
 
 class _PropertiesPanelState extends State<_PropertiesPanel> {
+  late TextEditingController _nameCtrl;
   late TextEditingController _keyCtrl;
   late TextEditingController _valueCtrl;
 
   @override
   void initState() {
     super.initState();
-    final source = widget.group.sources.isNotEmpty ? widget.group.sources.first : null;
+    final source = widget.group.sources.isNotEmpty
+        ? widget.group.sources.first
+        : null;
+    _nameCtrl = TextEditingController(text: widget.group.name);
     _keyCtrl = TextEditingController(text: source?.key ?? '');
     _valueCtrl = TextEditingController(text: source?.value ?? '');
   }
 
   @override
   void dispose() {
+    _nameCtrl.dispose();
     _keyCtrl.dispose();
     _valueCtrl.dispose();
     super.dispose();
   }
 
-  LayerSourceItem _firstSourceOrDefault(LayerGroup g) =>
-      g.sources.isNotEmpty ? g.sources.first : LayerSourceItem(type: g.fieldType);
+  LayerSourceItem _firstSourceOrDefault(LayerGroup g) => g.sources.isNotEmpty
+      ? g.sources.first
+      : LayerSourceItem(type: g.fieldType);
 
   void _updateFirstSource(LayerSourceItem Function(LayerSourceItem) update) {
     widget.onChanged((g) {
@@ -263,36 +403,114 @@ class _PropertiesPanelState extends State<_PropertiesPanel> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Layer properties', style: Theme.of(context).textTheme.titleMedium),
-              IconButton(icon: const Icon(Icons.delete_outline), onPressed: widget.onDelete),
+              Text(
+                'Layer properties',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                onPressed: widget.onDelete,
+              ),
             ],
           ),
           const SizedBox(height: 8),
           if (group.fieldType == LayerFieldType.text) ...[
             TextField(
-              controller: _keyCtrl,
-              decoration: const InputDecoration(labelText: 'Field key (matches source PDF)'),
-              onChanged: (v) => _updateFirstSource((s) => s.copyWith(key: v)),
+              controller: _nameCtrl,
+              decoration: const InputDecoration(labelText: 'Layer name'),
+              onChanged: (v) => widget.onChanged((g) => g.copyWith(name: v)),
             ),
             const SizedBox(height: 8),
-            TextField(
-              controller: _valueCtrl,
-              decoration: const InputDecoration(labelText: 'Sample value'),
-              onChanged: (v) => _updateFirstSource((s) => s.copyWith(value: v)),
-            ),
+            if (group.isList)
+              _CombinedFieldsEditor(
+                group: group,
+                sampleFields: widget.sampleFields,
+                otherLayers: widget.otherLayers,
+                onMergeLayer: widget.onMergeLayer,
+                onChanged: widget.onChanged,
+              )
+            else ...[
+              TextField(
+                controller: _keyCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Field key (matches source PDF)',
+                ),
+                onChanged: (v) => _updateFirstSource((s) => s.copyWith(key: v)),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _valueCtrl,
+                decoration: const InputDecoration(labelText: 'Sample value'),
+                onChanged: (v) =>
+                    _updateFirstSource((s) => s.copyWith(value: v)),
+              ),
+            ],
             const SizedBox(height: 8),
             _NumberField(
               label: 'Font size (pt)',
+              step: 1,
               value: group.fontSizePt,
-              onChanged: (v) => widget.onChanged((g) => g.copyWith(fontSizePt: v)),
+              onChanged: (v) =>
+                  widget.onChanged((g) => g.copyWith(fontSizePt: v)),
             ),
+            _NumberField(
+              label: 'Max width for wrap (mm)',
+              value: group.widthMm ?? 30,
+              onChanged: (v) => widget.onChanged((g) => g.copyWith(widthMm: v)),
+            ),
+            _NumberField(
+              label: group.isList
+                  ? 'Key width (mm) - common for all fields'
+                  : 'Key width (mm) - empty: value follows key',
+              value: group.keyWidthMm,
+              onChanged: (v) =>
+                  widget.onChanged((g) => g.copyWith(keyWidthMm: v)),
+              onCleared: () =>
+                  widget.onChanged((g) => g.copyWith(keyWidthMm: null)),
+            ),
+            if (group.isList)
+              _NumberField(
+                label: 'Line gap (mm) - common for all lines',
+                value: group.lineGapMm,
+                onChanged: (v) =>
+                    widget.onChanged((g) => g.copyWith(lineGapMm: v)),
+              ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Bold'),
+              title: const Text('Bold (B)'),
               value: group.bold,
               onChanged: (v) => widget.onChanged((g) => g.copyWith(bold: v)),
             ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Combine several fields'),
+              value: group.isList,
+              onChanged: (v) => widget.onChanged((g) => g.copyWith(isList: v)),
+            ),
+            if (group.isList)
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('List (L)'),
+                subtitle: const Text('Bullet points, one field per line'),
+                value: group.bulletList,
+                onChanged: (v) =>
+                    widget.onChanged((g) => g.copyWith(bulletList: v)),
+              ),
           ] else ...[
+            TextField(
+              controller: _nameCtrl,
+              decoration: const InputDecoration(labelText: 'Layer name'),
+              onChanged: (v) => widget.onChanged((g) => g.copyWith(name: v)),
+            ),
+            if (group.isQr)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Empty QR code image. The image itself is chosen in the card generator; '
+                  'it is stretched to the width and height below.',
+                ),
+              ),
+            const SizedBox(height: 8),
             _NumberField(
               label: 'Width (mm)',
               value: group.widthMm ?? 20,
@@ -302,7 +520,8 @@ class _PropertiesPanelState extends State<_PropertiesPanel> {
             _NumberField(
               label: 'Height (mm)',
               value: group.heightMm ?? 20,
-              onChanged: (v) => widget.onChanged((g) => g.copyWith(heightMm: v)),
+              onChanged: (v) =>
+                  widget.onChanged((g) => g.copyWith(heightMm: v)),
             ),
           ],
           const Divider(height: 32),
@@ -323,24 +542,504 @@ class _PropertiesPanelState extends State<_PropertiesPanel> {
   }
 }
 
-class _NumberField extends StatelessWidget {
-  const _NumberField({required this.label, required this.value, required this.onChanged});
+/// A numeric input with up/down buttons (and mouse-wheel support). Applies every
+/// change immediately - typing, the buttons, or the wheel - so the canvas updates
+/// live.
+class _NumberField extends StatefulWidget {
+  const _NumberField({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    this.onCleared,
+    this.step = 0.5,
+  });
 
   final String label;
-  final double value;
+  final double? value;
   final ValueChanged<double> onChanged;
+
+  /// When set, the field is optional: clearing the text calls this (value = null).
+  final VoidCallback? onCleared;
+  final double step;
+
+  @override
+  State<_NumberField> createState() => _NumberFieldState();
+}
+
+class _NumberFieldState extends State<_NumberField> {
+  late final TextEditingController _ctrl = TextEditingController(
+    text: _format(widget.value),
+  );
+
+  static String _format(double? v) => v == null ? '' : v.toStringAsFixed(1);
+
+  @override
+  void didUpdateWidget(_NumberField old) {
+    super.didUpdateWidget(old);
+    // Sync when the value changed from outside (e.g. dragging the layer on the
+    // canvas) but never fight what's being typed.
+    final typed = double.tryParse(_ctrl.text);
+    final external = widget.value;
+    if (external == null) {
+      if (typed != null && _ctrl.text.isNotEmpty && widget.onCleared != null)
+        return;
+      if (_ctrl.text.isNotEmpty) _ctrl.text = '';
+    } else if (typed == null || (typed - external).abs() > 0.05) {
+      _ctrl.text = _format(external);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _nudge(int direction) {
+    final base = double.tryParse(_ctrl.text) ?? widget.value ?? 0;
+    final next = (base + direction * widget.step)
+        .clamp(0, double.infinity)
+        .toDouble();
+    _ctrl.text = _format(next);
+    widget.onChanged(double.parse(_format(next)));
+  }
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
-      key: ValueKey('$label-${value.toStringAsFixed(1)}'),
-      initialValue: value.toStringAsFixed(1),
-      decoration: InputDecoration(labelText: label),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      onFieldSubmitted: (v) {
-        final parsed = double.tryParse(v);
-        if (parsed != null) onChanged(parsed);
+    return Listener(
+      onPointerSignal: (event) {
+        if (event is PointerScrollEvent && FocusScope.of(context).hasFocus) {
+          _nudge(event.scrollDelta.dy < 0 ? 1 : -1);
+        }
       },
+      child: TextField(
+        controller: _ctrl,
+        decoration: InputDecoration(
+          labelText: widget.label,
+          suffixIcon: SizedBox(
+            width: 32,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _SpinButton(
+                  icon: Icons.keyboard_arrow_up,
+                  onTap: () => _nudge(1),
+                ),
+                _SpinButton(
+                  icon: Icons.keyboard_arrow_down,
+                  onTap: () => _nudge(-1),
+                ),
+              ],
+            ),
+          ),
+        ),
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        onChanged: (v) {
+          if (v.trim().isEmpty && widget.onCleared != null) {
+            widget.onCleared!();
+            return;
+          }
+          final parsed = double.tryParse(v);
+          if (parsed != null && parsed >= 0) widget.onChanged(parsed);
+        },
+      ),
+    );
+  }
+}
+
+class _SpinButton extends StatelessWidget {
+  const _SpinButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    child: SizedBox(height: 18, width: 32, child: Icon(icon, size: 18)),
+  );
+}
+
+/// Right-hand palette: the fields extracted from the template's one sample PDF
+/// (add any of them as a layer, any time), and the current side's layers (select
+/// or delete).
+class _FieldsAndLayersPanel extends StatelessWidget {
+  const _FieldsAndLayersPanel({
+    required this.fields,
+    required this.layers,
+    required this.selectedId,
+    required this.onImport,
+    required this.onAddField,
+    required this.onSelectLayer,
+    required this.onDeleteLayer,
+  });
+
+  final List<ExtractedField> fields;
+  final List<LayerGroup> layers;
+  final String? selectedId;
+  final VoidCallback onImport;
+  final void Function(ExtractedField field) onAddField;
+  final void Function(String groupId) onSelectLayer;
+  final void Function(String groupId) onDeleteLayer;
+
+  Widget _fieldTitle(ExtractedField f) {
+    if (f.type == LayerFieldType.image) {
+      Uint8List bytes;
+      try {
+        bytes = (f.value ?? '').isEmpty ? Uint8List(0) : base64Decode(f.value!);
+      } catch (_) {
+        bytes = Uint8List(0);
+      }
+      return Row(
+        children: [
+          SizedBox(
+            width: 36,
+            height: 36,
+            child: bytes.isEmpty
+                ? const Icon(Icons.image)
+                : Image.memory(
+                    bytes,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const Icon(Icons.broken_image),
+                  ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(f.key ?? 'Image', overflow: TextOverflow.ellipsis),
+          ),
+        ],
+      );
+    }
+    return Text(
+      '${f.key ?? ''}: ${f.value ?? ''}',
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      color: theme.colorScheme.surfaceContainerLowest,
+      child: Column(
+        children: [
+          _sectionHeader(
+            context,
+            'Fields from PDF (${fields.length})',
+            TextButton.icon(
+              onPressed: onImport,
+              icon: const Icon(Icons.upload_file, size: 18),
+              label: Text(fields.isEmpty ? 'Import' : 'Replace'),
+            ),
+          ),
+          Expanded(
+            child: fields.isEmpty
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        "Import the template's sample PDF to list its text and image fields.",
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: fields.length,
+                    itemBuilder: (_, i) => ListTile(
+                      dense: true,
+                      leading: Icon(
+                        fields[i].type == LayerFieldType.image
+                            ? Icons.image_outlined
+                            : Icons.text_fields,
+                        size: 18,
+                      ),
+                      title: _fieldTitle(fields[i]),
+                      trailing: IconButton(
+                        tooltip: 'Add as layer',
+                        icon: const Icon(Icons.add_circle_outline),
+                        onPressed: () => onAddField(fields[i]),
+                      ),
+                    ),
+                  ),
+          ),
+          _sectionHeader(context, 'Layers (${layers.length})', null),
+          Expanded(
+            child: layers.isEmpty
+                ? const Center(child: Text('No layers on this side'))
+                : ListView.builder(
+                    itemCount: layers.length,
+                    itemBuilder: (_, i) {
+                      final g = layers[i];
+                      return ListTile(
+                        dense: true,
+                        selected: g.id == selectedId,
+                        leading: Icon(
+                          g.fieldType == LayerFieldType.image
+                              ? Icons.image_outlined
+                              : Icons.text_fields,
+                          size: 18,
+                        ),
+                        title: Text(
+                          g.name.isEmpty ? '(unnamed)' : g.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        onTap: () => onSelectLayer(g.id),
+                        trailing: IconButton(
+                          tooltip: 'Delete layer',
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => onDeleteLayer(g.id),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionHeader(BuildContext context, String title, Widget? action) {
+    return Container(
+      color: Theme.of(context).colorScheme.surfaceContainerHigh,
+      padding: const EdgeInsets.only(left: 12, right: 4),
+      height: 44,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(title, style: Theme.of(context).textTheme.titleSmall),
+          ),
+          if (action != null) action,
+        ],
+      ),
+    );
+  }
+}
+
+/// Edits a combined (List) layer: the separator that joins its fields, and the
+/// fields themselves. Each field has a key (used to match the member's PDF, and
+/// printed before the value unless empty) and a value, which is always printed, plus
+/// its own separator to the next field.
+/// Fields can be added blank, from the sample PDF, or by merging in a layer already
+/// on the canvas.
+class _CombinedFieldsEditor extends StatelessWidget {
+  const _CombinedFieldsEditor({
+    required this.group,
+    required this.sampleFields,
+    required this.otherLayers,
+    required this.onMergeLayer,
+    required this.onChanged,
+  });
+
+  final LayerGroup group;
+  final List<ExtractedField> sampleFields;
+  final List<LayerGroup> otherLayers;
+  final void Function(String otherId) onMergeLayer;
+  final void Function(LayerGroup Function(LayerGroup current) update) onChanged;
+
+  void _addSource(LayerSourceItem item) =>
+      onChanged((g) => g.copyWith(sources: [...g.sources, item]));
+
+  void _updateAt(int index, LayerSourceItem Function(LayerSourceItem) update) =>
+      onChanged(
+        (g) => g.copyWith(
+          sources: [
+            for (var i = 0; i < g.sources.length; i++)
+              if (i == index) update(g.sources[i]) else g.sources[i],
+          ],
+        ),
+      );
+
+  void _removeAt(int index) => onChanged(
+    (g) => g.copyWith(
+      sources: [
+        for (var i = 0; i < g.sources.length; i++)
+          if (i != index) g.sources[i],
+      ],
+    ),
+  );
+
+  void _onAddSelected(Object choice) {
+    if (choice is ExtractedField) {
+      _addSource(LayerSourceItem(key: choice.key, value: choice.value));
+    } else if (choice is LayerGroup) {
+      onMergeLayer(choice.id);
+    } else if (choice == 'emptyline') {
+      _addSource(const LayerSourceItem(emptyLine: true));
+    } else {
+      _addSource(const LayerSourceItem(key: '', value: ''));
+    }
+  }
+
+  String _layerLabel(LayerGroup g) {
+    final source = g.sources.isNotEmpty ? g.sources.first : null;
+    return '${g.name}: ${source?.key ?? ''} = ${source?.value ?? ''}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textFields = [
+      for (final f in sampleFields)
+        if (f.type == LayerFieldType.text) f,
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Fields (${group.sources.length})',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+            PopupMenuButton<Object>(
+              tooltip: 'Add a field to this group',
+              onSelected: _onAddSelected,
+              itemBuilder: (_) => [
+                const PopupMenuItem<Object>(
+                  value: 'blank',
+                  child: Text('Blank field (type key and value)'),
+                ),
+                const PopupMenuItem<Object>(
+                  value: 'emptyline',
+                  child: Text('Empty line'),
+                ),
+                if (textFields.isNotEmpty) ...[
+                  const PopupMenuDivider(),
+                  const PopupMenuItem<Object>(
+                    enabled: false,
+                    child: Text('From the sample PDF'),
+                  ),
+                  for (final f in textFields)
+                    PopupMenuItem<Object>(
+                      value: f,
+                      child: Text(
+                        '${f.key ?? ''}: ${f.value ?? ''}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                if (otherLayers.isNotEmpty) ...[
+                  const PopupMenuDivider(),
+                  const PopupMenuItem<Object>(
+                    enabled: false,
+                    child: Text('Merge an existing layer'),
+                  ),
+                  for (final l in otherLayers)
+                    PopupMenuItem<Object>(
+                      value: l,
+                      child: Text(
+                        _layerLabel(l),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+              ],
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_circle_outline, size: 18),
+                    SizedBox(width: 4),
+                    Text('Add field'),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        for (var i = 0; i < group.sources.length; i++)
+          group.sources[i].emptyLine
+              ? Padding(
+                  key: ValueKey('${group.sources.length}-$i'),
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.space_bar, size: 18),
+                      const SizedBox(width: 8),
+                      const Expanded(child: Text('Empty line')),
+                      IconButton(
+                        tooltip: 'Remove empty line',
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: () => _removeAt(i),
+                      ),
+                    ],
+                  ),
+                )
+              : Padding(
+                  // Keyed on the field count so rows rebuild (with the right text) after an
+                  // add/remove, but keep focus while typing.
+                  key: ValueKey('${group.sources.length}-$i'),
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              initialValue: group.sources[i].key ?? '',
+                              decoration: const InputDecoration(
+                                labelText: 'Key',
+                                isDense: true,
+                              ),
+                              onChanged: (v) =>
+                                  _updateAt(i, (s) => s.copyWith(key: v)),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Remove field',
+                            icon: const Icon(Icons.close, size: 18),
+                            onPressed: () => _removeAt(i),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        initialValue: group.sources[i].value ?? '',
+                        decoration: const InputDecoration(
+                          labelText: 'Value',
+                          isDense: true,
+                        ),
+                        onChanged: (v) =>
+                            _updateAt(i, (s) => s.copyWith(value: v)),
+                      ),
+                      if (i < group.sources.length - 1) ...[
+                        const SizedBox(height: 6),
+                        DropdownButtonFormField<String>(
+                          initialValue:
+                              (JoinSeparator.tryFromWireName(
+                                        group.sources[i].separator,
+                                      ) ??
+                                      JoinSeparator.comma)
+                                  .wireName,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Join with next field',
+                            isDense: true,
+                          ),
+                          items: [
+                            for (final s in JoinSeparator.values)
+                              DropdownMenuItem<String>(
+                                value: s.wireName,
+                                child: Text(s.label),
+                              ),
+                          ],
+                          onChanged: (v) {
+                            if (v != null)
+                              _updateAt(i, (s) => s.copyWith(separator: v));
+                          },
+                        ),
+                      ],
+                      const Divider(height: 1),
+                    ],
+                  ),
+                ),
+      ],
     );
   }
 }

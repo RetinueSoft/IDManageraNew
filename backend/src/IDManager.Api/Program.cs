@@ -8,6 +8,7 @@ using IDManager.Infrastructure.Cards;
 using IDManager.Infrastructure.Points;
 using IDManager.Infrastructure.Security;
 using IDManager.Infrastructure.Templates;
+using IDManager.Infrastructure.Text;
 using IDManager.Infrastructure.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -80,8 +81,16 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<IDManagerDbContext>();
     await db.Database.MigrateAsync();
 
+    // One-time: turn Tamil text saved in glyph order into logical order (each row is marked, so
+    // this never converts anything twice).
+    var (convertedTemplates, convertedCards) = await new TextOrderMigrationService(db).RunAsync(CancellationToken.None);
+    if (convertedTemplates + convertedCards > 0)
+    {
+        app.Logger.LogInformation("Converted Tamil text order for {Templates} template(s) and {Cards} card(s).", convertedTemplates, convertedCards);
+    }
+
     // Bootstraps the role hierarchy on a brand new database - without this there
-    // would be no way to log in and create the first Admin/Distributor accounts.
+    // would be no way to log in and create the first Distributor/Retailer accounts.
     if (!await db.Users.AnyAsync())
     {
         db.Users.Add(new UserEntity

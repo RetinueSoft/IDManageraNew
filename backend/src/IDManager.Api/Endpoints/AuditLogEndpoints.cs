@@ -9,6 +9,6 @@ public static class AuditLogEndpoints
     {
         app.MapPost("/api/audit-log/list", async (PagedRequest request, AuditLogService service, CancellationToken ct) =>
             Results.Ok(await service.GetAllAsync(request, ct)))
-            .RequireAuthorization(p => p.RequireRole("SuperAdmin", "Admin"));
+            .RequireAuthorization(p => p.RequireRole("SuperAdmin"));
     }
 }

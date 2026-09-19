@@ -7,25 +7,24 @@ import '../../application/security/session_controller.dart';
 import '../../application/security/user_list_controller.dart';
 import '../../core_engine/common/enums.dart';
 import '../../core_engine/points/domain/point_transaction.dart';
+import '../../core_engine/security/domain/user.dart';
 
 class PointsScreen extends ConsumerWidget {
   const PointsScreen({super.key});
-
-  static const _managerRoles = [UserRole.superAdmin, UserRole.admin, UserRole.distributor];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(sessionControllerProvider).value;
     if (user == null) return const SizedBox.shrink();
 
-    final isManager = _managerRoles.contains(user.role);
+    final isManager = user.role.canManageMembers;
     final historyAsync = ref.watch(pointsHistoryControllerProvider(user.id));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Points')),
       body: Column(
         children: [
-          if (isManager) const _AllocatePointsPanel(),
+          if (isManager) _AllocatePointsPanel(myUserId: user.id, isSuperAdmin: user.role == UserRole.superAdmin),
           Expanded(
             child: historyAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -71,7 +70,13 @@ class _TransactionTile extends StatelessWidget {
 /// Lets a Distributor/Admin/SuperAdmin allocate or reclaim points for a user
 /// beneath them.
 class _AllocatePointsPanel extends ConsumerStatefulWidget {
-  const _AllocatePointsPanel();
+  const _AllocatePointsPanel({required this.myUserId, required this.isSuperAdmin});
+
+  final int myUserId;
+
+  /// The SuperAdmin is the source of all points, so they can add points to their own
+  /// balance (top-up); nobody else can adjust their own points.
+  final bool isSuperAdmin;
 
   @override
   ConsumerState<_AllocatePointsPanel> createState() => _AllocatePointsPanelState();
@@ -108,7 +113,16 @@ class _AllocatePointsPanelState extends ConsumerState<_AllocatePointsPanel> {
   @override
   Widget build(BuildContext context) {
     final usersAsync = ref.watch(userListControllerProvider);
-    final users = usersAsync.value ?? const [];
+    // Only the logged-in user and the members they created directly: points move one
+    // level at a time (docs/member-hierarchy.md, section 5).
+    final users = [
+      for (final u in usersAsync.value ?? const <User>[])
+        if (u.id == widget.myUserId || u.parentId == widget.myUserId) u,
+    ];
+    // You appear in the list, but your own points can't be adjusted (a SuperAdmin's
+    // pool is unlimited; everyone else's balance is changed by the user above them).
+    final selectedIsMe = _targetUserId == widget.myUserId;
+    final isTopUp = selectedIsMe && widget.isSuperAdmin;
     final state = _targetUserId == null
         ? null
         : ref.watch(adjustPointsControllerProvider(_targetUserId!));
@@ -128,7 +142,17 @@ class _AllocatePointsPanelState extends ConsumerState<_AllocatePointsPanel> {
                   child: DropdownButtonFormField<int>(
                     initialValue: _targetUserId,
                     decoration: const InputDecoration(labelText: 'User'),
-                    items: [for (final u in users) DropdownMenuItem(value: u.id, child: Text(u.name))],
+                    items: [
+                      for (final u in users)
+                        DropdownMenuItem(
+                          value: u.id,
+                          child: Text(
+                            u.id == widget.myUserId
+                                ? '${u.name} (You) · ${u.points} pt'
+                                : '${u.name} (${u.role.label}) · ${u.points} pt',
+                          ),
+                        ),
+                    ],
                     onChanged: (v) => setState(() => _targetUserId = v),
                   ),
                 ),
@@ -142,6 +166,15 @@ class _AllocatePointsPanelState extends ConsumerState<_AllocatePointsPanel> {
                 ),
               ],
             ),
+            if (selectedIsMe) ...[
+              const SizedBox(height: 8),
+              Text(
+                isTopUp
+                    ? 'This adds points to your own balance. Points you allocate to members are deducted from it.'
+                    : 'You cannot allocate or reclaim your own points. Your history is listed below.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
             const SizedBox(height: 12),
             TextField(controller: _reasonCtrl, decoration: const InputDecoration(labelText: 'Reason')),
             const SizedBox(height: 12),
@@ -149,15 +182,15 @@ class _AllocatePointsPanelState extends ConsumerState<_AllocatePointsPanel> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: (state?.isSaving ?? false) ? null : () => _submit(false),
+                    onPressed: (state?.isSaving ?? false) || selectedIsMe ? null : () => _submit(false),
                     child: const Text('Reclaim'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: FilledButton(
-                    onPressed: (state?.isSaving ?? false) ? null : () => _submit(true),
-                    child: const Text('Allocate'),
+                    onPressed: (state?.isSaving ?? false) || (selectedIsMe && !isTopUp) ? null : () => _submit(true),
+                    child: Text(isTopUp ? 'Add to my balance' : 'Allocate'),
                   ),
                 ),
               ],

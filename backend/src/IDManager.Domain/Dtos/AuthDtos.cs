@@ -23,6 +23,12 @@ public class UserDto
     public bool IsActive { get; set; }
     public int Points { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    /// The member who created this one, when the viewer is allowed to see them (see
+    /// docs/member-hierarchy.md - a viewer never sees their own upline).
+    public int? ParentId { get; set; }
+    public string? ParentName { get; set; }
+    public UserRole? ParentRole { get; set; }
 }
 
 public class CreateUserRequest

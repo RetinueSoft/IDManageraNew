@@ -30,11 +30,15 @@ class ApiCardRepository implements CardRepository {
     required int templateId,
     required int combinationId,
     required UploadedFile file,
+    Map<String, UploadedFile> qrImages = const {},
   }) => _client.guard(() async {
     final form = FormData.fromMap({
       'templateId': templateId,
       'combinationId': combinationId,
       'file': MultipartFile.fromBytes(file.bytes, filename: file.name),
+      // Each QR slot's image goes as a file named "qr:<slot key>".
+      for (final entry in qrImages.entries)
+        'qr:${entry.key}': MultipartFile.fromBytes(entry.value.bytes, filename: entry.value.name),
     });
     final response = await _client.dio.post('/cards/generate', data: form);
     final body = response.data as Map<String, dynamic>;

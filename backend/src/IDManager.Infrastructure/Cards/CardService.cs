@@ -33,12 +33,25 @@ public class CardService(
 
         var user = await db.Users.FindAsync([userId], ct);
         if (user is null) return OperationResult<GenerateCardResponse>.NotFound("User not found.");
-        if (user.Points < template.PointCost)
+        // The SuperAdmin's pool is unlimited (docs/member-hierarchy.md, section 5): they are
+        // never blocked by a balance, and cannot allocate points to themselves anyway.
+        if (user.Role != UserRole.SuperAdmin && user.Points < template.PointCost)
         {
             return OperationResult<GenerateCardResponse>.Invalid("You don't have enough points. Contact your admin.");
         }
 
         var extractedFields = pdfExtractionService.ExtractFields(command.PdfBytes);
+
+        // QR images the user picked are stored with the extracted data (as image fields
+        // keyed by their slot), so the final download re-matches them too.
+        extractedFields.AddRange(command.QrImages
+            .Where(q => q.Bytes.Length > 0 && !string.IsNullOrWhiteSpace(q.Key))
+            .Select(q => new ExtractedFieldDto
+            {
+                Key = q.Key,
+                Type = LayerFieldType.Image,
+                Value = Convert.ToBase64String(q.Bytes),
+            }));
 
         var matchResult = await templateService.MatchToTemplateAsync(command.TemplateId, command.CombinationId, extractedFields, ct);
         if (matchResult.Status != ResultStatus.Success)
@@ -51,7 +64,7 @@ public class CardService(
         {
             UserId = userId,
             TemplateId = command.TemplateId,
-            CombinationId = command.CombinationId,
+            CombinationId = command.CombinationId > 0 ? command.CombinationId : null,
             ExtractedDataJson = JsonSerializer.Serialize(extractedFields),
             PointsDeducted = template.PointCost,
         };

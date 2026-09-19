@@ -7,7 +7,9 @@ namespace IDManager.Api.Endpoints;
 
 public static class PointsEndpoints
 {
-    private static readonly string[] ManagerRoles = ["SuperAdmin", "Admin", "Distributor"];
+    // Roles that can allocate/reclaim points (docs/member-hierarchy.md). Which members a
+    // caller may touch is decided by the service, not by the role alone.
+    private static readonly string[] ManagerRoles = ["SuperAdmin", "Distributor", "Retailer"];
 
     public static void MapPointsEndpoints(this WebApplication app)
     {
@@ -16,8 +18,8 @@ public static class PointsEndpoints
         group.MapGet("/balance", async (PointsService service, HttpContext http, CancellationToken ct) =>
             Results.Ok(await service.GetUserPointsAsync(http.User.GetUserId(), ct)));
 
-        group.MapPost("/list", async (GetPointsRequest request, PointsService service, CancellationToken ct) =>
-            Results.Ok(await service.GetAllAsync(request, ct)));
+        group.MapPost("/list", async (GetPointsRequest request, PointsService service, HttpContext http, CancellationToken ct) =>
+            (await service.GetAllAsync(http.User.GetUserId(), request, ct)).ToHttpResult());
 
         group.MapPost("/increase", async (AdjustPointsRequest request, PointsService service, AuditLogService auditLog, HttpContext http, CancellationToken ct) =>
         {

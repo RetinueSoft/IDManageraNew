@@ -1,5 +1,6 @@
 using IDManager.Domain.Dtos;
 using IDManager.Domain.Enums;
+using IDManager.Infrastructure.Text;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
 
@@ -21,10 +22,12 @@ public class PdfExtractionService
         var result = new List<ExtractedFieldDto>();
         using (var stream = new MemoryStream(pdfBytes))
         {
+            // A PDF stores Tamil in glyph order; convert it to logical order once, here, so
+            // everything downstream (matching, the designer, the printed card) gets real Unicode.
             result.AddRange(ExtractText(stream).Select(kv => new ExtractedFieldDto
             {
-                Key = kv.Key,
-                Value = kv.Value,
+                Key = TamilTextNormalizer.GlyphOrderToLogical(kv.Key),
+                Value = TamilTextNormalizer.GlyphOrderToLogical(kv.Value),
                 Type = LayerFieldType.Text,
             }));
         }

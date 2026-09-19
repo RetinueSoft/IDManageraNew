@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../application/security/session_controller.dart';
 import '../../application/security/user_form_controller.dart';
 import '../../core_engine/common/enums.dart';
 import '../routing/app_routes.dart';
@@ -39,6 +40,11 @@ class _ManageUserScreenState extends ConsumerState<ManageUserScreen> {
     final provider = userFormControllerProvider(widget.userId);
     final formAsync = ref.watch(provider);
     final controller = ref.read(provider.notifier);
+    final myRole =
+        ref.watch(sessionControllerProvider).value?.role ?? UserRole.unknown;
+    final isSelf =
+        _isEditMode &&
+        ref.watch(sessionControllerProvider).value?.id == widget.userId;
 
     return formAsync.when(
       loading: () => Scaffold(
@@ -70,40 +76,66 @@ class _ManageUserScreenState extends ConsumerState<ManageUserScreen> {
               children: [
                 TextField(
                   controller: _name,
-                  decoration: InputDecoration(labelText: 'Name', errorText: state.errors['name']),
-                  onChanged: (v) => controller.updateFields((s) => s.copyWith(name: v)),
+                  decoration: InputDecoration(
+                    labelText: 'Name',
+                    errorText: state.errors['name'],
+                  ),
+                  onChanged: (v) =>
+                      controller.updateFields((s) => s.copyWith(name: v)),
                 ),
                 TextField(
                   controller: _phone,
                   enabled: !_isEditMode,
-                  decoration: InputDecoration(labelText: 'Phone', errorText: state.errors['phone']),
-                  onChanged: (v) => controller.updateFields((s) => s.copyWith(phone: v)),
-                ),
-                TextField(
-                  controller: _password,
-                  obscureText: true,
                   decoration: InputDecoration(
-                    labelText: _isEditMode ? 'Password (leave blank to keep unchanged)' : 'Password',
-                    errorText: state.errors['password'],
+                    labelText: 'Phone',
+                    errorText: state.errors['phone'],
                   ),
-                  onChanged: (v) => controller.updateFields((s) => s.copyWith(password: v)),
+                  onChanged: (v) =>
+                      controller.updateFields((s) => s.copyWith(phone: v)),
                 ),
+                // A password can be changed only by the member themselves or a Super
+                // Admin (setting the first password when adding a member is fine).
+                if (!_isEditMode || isSelf || myRole == UserRole.superAdmin)
+                  TextField(
+                    controller: _password,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: _isEditMode
+                          ? 'Password (leave blank to keep unchanged)'
+                          : 'Password',
+                      errorText: state.errors['password'],
+                    ),
+                    onChanged: (v) =>
+                        controller.updateFields((s) => s.copyWith(password: v)),
+                  ),
                 if (!_isEditMode)
                   DropdownButtonFormField<UserRole>(
                     initialValue: state.role,
                     decoration: const InputDecoration(labelText: 'Role'),
-                    items: [UserRole.admin, UserRole.distributor, UserRole.user]
-                        .map((r) => DropdownMenuItem(value: r, child: Text(r.label)))
+                    items: myRole.creatableRoles
+                        .map(
+                          (r) =>
+                              DropdownMenuItem(value: r, child: Text(r.label)),
+                        )
                         .toList(),
-                    onChanged: (v) =>
-                        controller.updateFields((s) => s.copyWith(role: v ?? UserRole.user)),
+                    onChanged: (v) => controller.updateFields(
+                      (s) => s.copyWith(role: v ?? UserRole.user),
+                    ),
                   ),
-                if (_isEditMode)
+                // Only a Super Admin activates or deactivates a member.
+                if (_isEditMode && myRole == UserRole.superAdmin)
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Active'),
+                    subtitle: isSelf
+                        ? const Text('You cannot deactivate your own account.')
+                        : null,
                     value: state.isActive,
-                    onChanged: (v) => controller.updateFields((s) => s.copyWith(isActive: v)),
+                    onChanged: isSelf
+                        ? null
+                        : (v) => controller.updateFields(
+                            (s) => s.copyWith(isActive: v),
+                          ),
                   ),
               ],
             ),

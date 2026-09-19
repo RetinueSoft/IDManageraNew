@@ -32,7 +32,7 @@ public class AuthServiceTests
             Name = "Alice",
             Phone = "9000000000",
             PasswordHash = PasswordHasher.Hash("Correct@123"),
-            Role = UserRole.Admin,
+            Role = UserRole.Distributor,
             IsActive = true,
         };
         db.Users.Add(user);
@@ -47,7 +47,7 @@ public class AuthServiceTests
         Assert.NotNull(result.Value);
         Assert.False(string.IsNullOrEmpty(result.Value!.AccessToken));
         Assert.Equal("Alice", result.Value.User.Name);
-        Assert.Equal(UserRole.Admin, result.Value.User.Role);
+        Assert.Equal(UserRole.Distributor, result.Value.User.Role);
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public class AuthServiceTests
             Name = "Alice",
             Phone = "9000000000",
             PasswordHash = PasswordHasher.Hash("Correct@123"),
-            Role = UserRole.Admin,
+            Role = UserRole.Distributor,
             IsActive = true,
         });
         await db.SaveChangesAsync();

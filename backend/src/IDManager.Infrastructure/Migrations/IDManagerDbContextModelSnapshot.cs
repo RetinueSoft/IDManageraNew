@@ -106,6 +106,9 @@ namespace IDManager.Infrastructure.Migrations
                     b.Property<int>("PointCost")
                         .HasColumnType("integer");
 
+                    b.Property<int>("TextOrderVersion")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.ToTable("CardTemplates");
@@ -136,6 +139,9 @@ namespace IDManager.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.Property<int>("TemplateId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TextOrderVersion")
                         .HasColumnType("integer");
 
                     b.Property<int>("UserId")

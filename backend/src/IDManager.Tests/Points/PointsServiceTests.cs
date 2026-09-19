@@ -9,7 +9,7 @@ namespace IDManager.Tests.Points;
 
 public class PointsServiceTests
 {
-    private static UserEntity NewUser(UserRole role, int points = 0, bool isActive = true) => new()
+    private static UserEntity NewUser(UserRole role, int points = 0, bool isActive = true, UserEntity? parent = null) => new()
     {
         Name = $"{role} user",
         Phone = Guid.NewGuid().ToString("N")[..10],
@@ -17,16 +17,20 @@ public class PointsServiceTests
         Role = role,
         Points = points,
         IsActive = isActive,
+        CreatedById = parent?.Id,
     };
 
     [Fact]
-    public async Task AdjustPointsAsync_Increase_SuperAdminRequester_DoesNotSpendOwnBalance()
+    public async Task AdjustPointsAsync_Increase_SuperAdminRequester_DebitsTheirOwnBalance()
     {
         using var testDb = TestDb.Create();
         var db = testDb.Context;
-        var superAdmin = NewUser(UserRole.SuperAdmin, points: 0);
+        var superAdmin = NewUser(UserRole.SuperAdmin, points: 100);
         var distributor = NewUser(UserRole.Distributor, points: 0);
-        db.Users.AddRange(superAdmin, distributor);
+        db.Users.Add(superAdmin);
+        await db.SaveChangesAsync();
+        distributor.CreatedById = superAdmin.Id; // the SuperAdmin's own member
+        db.Users.Add(distributor);
         await db.SaveChangesAsync();
 
         var service = new PointsService(db);
@@ -39,7 +43,8 @@ public class PointsServiceTests
         Assert.Equal(ResultStatus.Success, result.Status);
         Assert.Equal(50, result.Value);
         Assert.Equal(50, distributor.Points);
-        Assert.Equal(0, superAdmin.Points); // SuperAdmin's pool is unlimited - never debited.
+        Assert.Equal(50, superAdmin.Points); // 100 - 50: the SuperAdmin's balance is debited like anyone's.
+        Assert.Equal(2, db.PointTransactions.Count()); // one leg for the member, one for the SuperAdmin
     }
 
     [Fact]
@@ -47,9 +52,11 @@ public class PointsServiceTests
     {
         using var testDb = TestDb.Create();
         var db = testDb.Context;
-        var admin = NewUser(UserRole.Admin, points: 100);
-        var user = NewUser(UserRole.User, points: 0);
-        db.Users.AddRange(admin, user);
+        var admin = NewUser(UserRole.Distributor, points: 100);
+        db.Users.Add(admin);
+        await db.SaveChangesAsync();
+        var user = NewUser(UserRole.User, points: 0, parent: admin);
+        db.Users.Add(user);
         await db.SaveChangesAsync();
 
         var service = new PointsService(db);
@@ -69,9 +76,11 @@ public class PointsServiceTests
     {
         using var testDb = TestDb.Create();
         var db = testDb.Context;
-        var admin = NewUser(UserRole.Admin, points: 10);
-        var user = NewUser(UserRole.User, points: 0);
-        db.Users.AddRange(admin, user);
+        var admin = NewUser(UserRole.Distributor, points: 10);
+        db.Users.Add(admin);
+        await db.SaveChangesAsync();
+        var user = NewUser(UserRole.User, points: 0, parent: admin);
+        db.Users.Add(user);
         await db.SaveChangesAsync();
 
         var service = new PointsService(db);
@@ -87,7 +96,26 @@ public class PointsServiceTests
     }
 
     [Fact]
-    public async Task AdjustPointsAsync_SelfAdjust_ReturnsInvalid()
+    public async Task AdjustPointsAsync_NonSuperAdmin_CannotAdjustTheirOwnPoints()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var distributor = NewUser(UserRole.Distributor, points: 100);
+        db.Users.Add(distributor);
+        await db.SaveChangesAsync();
+
+        var result = await new PointsService(db).AdjustPointsAsync(
+            distributor.Id,
+            new AdjustPointsRequest { UserId = distributor.Id, Points = 10, Reason = "test" },
+            increase: true,
+            CancellationToken.None);
+
+        Assert.Equal(ResultStatus.ValidationFailed, result.Status);
+        Assert.Equal(100, distributor.Points);
+    }
+
+    [Fact]
+    public async Task AdjustPointsAsync_SuperAdmin_CanTopUpTheirOwnBalance()
     {
         using var testDb = TestDb.Create();
         var db = testDb.Context;
@@ -95,14 +123,110 @@ public class PointsServiceTests
         db.Users.Add(superAdmin);
         await db.SaveChangesAsync();
 
-        var service = new PointsService(db);
-        var result = await service.AdjustPointsAsync(
+        var result = await new PointsService(db).AdjustPointsAsync(
+            superAdmin.Id,
+            new AdjustPointsRequest { UserId = superAdmin.Id, Points = 1000, Reason = "initial stock" },
+            increase: true,
+            CancellationToken.None);
+
+        Assert.Equal(ResultStatus.Success, result.Status);
+        Assert.Equal(1000, result.Value);
+        Assert.Equal(1000, superAdmin.Points);
+        var entry = Assert.Single(db.PointTransactions);
+        Assert.Equal(PointTransType.Earn, entry.Type);
+        Assert.Equal(superAdmin.Id, entry.UserId);
+    }
+
+    [Fact]
+    public async Task AdjustPointsAsync_SuperAdmin_CannotDeductFromTheirOwnBalance()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var superAdmin = NewUser(UserRole.SuperAdmin, points: 100);
+        db.Users.Add(superAdmin);
+        await db.SaveChangesAsync();
+
+        var result = await new PointsService(db).AdjustPointsAsync(
             superAdmin.Id,
             new AdjustPointsRequest { UserId = superAdmin.Id, Points = 10, Reason = "test" },
+            increase: false,
+            CancellationToken.None);
+
+        Assert.Equal(ResultStatus.ValidationFailed, result.Status);
+        Assert.Equal(100, superAdmin.Points);
+    }
+
+    [Fact]
+    public async Task AdjustPointsAsync_SuperAdminWithInsufficientBalance_CannotAllocate()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var superAdmin = NewUser(UserRole.SuperAdmin, points: 5);
+        var distributor = NewUser(UserRole.Distributor);
+        db.Users.Add(superAdmin);
+        await db.SaveChangesAsync();
+        distributor.CreatedById = superAdmin.Id; // the SuperAdmin's own member
+        db.Users.Add(distributor);
+        await db.SaveChangesAsync();
+
+        var result = await new PointsService(db).AdjustPointsAsync(
+            superAdmin.Id,
+            new AdjustPointsRequest { UserId = distributor.Id, Points = 10, Reason = "x" },
             increase: true,
             CancellationToken.None);
 
         Assert.Equal(ResultStatus.ValidationFailed, result.Status);
+        Assert.Equal(0, distributor.Points);
+        Assert.Equal(5, superAdmin.Points);
+    }
+
+    [Fact]
+    public async Task AdjustPointsAsync_SuperAdminReclaim_CreditsTheirBalance()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var superAdmin = NewUser(UserRole.SuperAdmin, points: 0);
+        var distributor = NewUser(UserRole.Distributor, points: 40);
+        db.Users.Add(superAdmin);
+        await db.SaveChangesAsync();
+        distributor.CreatedById = superAdmin.Id; // the SuperAdmin's own member
+        db.Users.Add(distributor);
+        await db.SaveChangesAsync();
+
+        var result = await new PointsService(db).AdjustPointsAsync(
+            superAdmin.Id,
+            new AdjustPointsRequest { UserId = distributor.Id, Points = 15, Reason = "reclaim" },
+            increase: false,
+            CancellationToken.None);
+
+        Assert.Equal(ResultStatus.Success, result.Status);
+        Assert.Equal(25, distributor.Points);
+        Assert.Equal(15, superAdmin.Points);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public async Task AdjustPointsAsync_NonPositivePoints_IsInvalid(int points)
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var superAdmin = NewUser(UserRole.SuperAdmin, points: 100);
+        var distributor = NewUser(UserRole.Distributor);
+        db.Users.Add(superAdmin);
+        await db.SaveChangesAsync();
+        distributor.CreatedById = superAdmin.Id; // the SuperAdmin's own member
+        db.Users.Add(distributor);
+        await db.SaveChangesAsync();
+
+        var result = await new PointsService(db).AdjustPointsAsync(
+            superAdmin.Id,
+            new AdjustPointsRequest { UserId = distributor.Id, Points = points, Reason = "x" },
+            increase: true,
+            CancellationToken.None);
+
+        Assert.Equal(ResultStatus.ValidationFailed, result.Status);
+        Assert.Equal(100, superAdmin.Points);
     }
 
     [Fact]
@@ -112,7 +236,10 @@ public class PointsServiceTests
         var db = testDb.Context;
         var superAdmin = NewUser(UserRole.SuperAdmin);
         var inactiveUser = NewUser(UserRole.User, isActive: false);
-        db.Users.AddRange(superAdmin, inactiveUser);
+        db.Users.Add(superAdmin);
+        await db.SaveChangesAsync();
+        inactiveUser.CreatedById = superAdmin.Id; // the SuperAdmin's own member
+        db.Users.Add(inactiveUser);
         await db.SaveChangesAsync();
 
         var service = new PointsService(db);
@@ -132,7 +259,10 @@ public class PointsServiceTests
         var db = testDb.Context;
         var superAdmin = NewUser(UserRole.SuperAdmin);
         var user = NewUser(UserRole.User, points: 5);
-        db.Users.AddRange(superAdmin, user);
+        db.Users.Add(superAdmin);
+        await db.SaveChangesAsync();
+        user.CreatedById = superAdmin.Id; // the SuperAdmin's own member
+        db.Users.Add(user);
         await db.SaveChangesAsync();
 
         var service = new PointsService(db);
@@ -151,9 +281,11 @@ public class PointsServiceTests
     {
         using var testDb = TestDb.Create();
         var db = testDb.Context;
-        var admin = NewUser(UserRole.Admin, points: 0);
-        var user = NewUser(UserRole.User, points: 40);
-        db.Users.AddRange(admin, user);
+        var admin = NewUser(UserRole.Distributor, points: 0);
+        db.Users.Add(admin);
+        await db.SaveChangesAsync();
+        var user = NewUser(UserRole.User, points: 40, parent: admin);
+        db.Users.Add(user);
         await db.SaveChangesAsync();
 
         var service = new PointsService(db);
@@ -188,15 +320,17 @@ public class PointsServiceTests
     }
 
     [Fact]
-    public async Task CreateIdCardAsync_CreatesCardAndPendingTransactionsForUserAndCreator()
+    public async Task CreateIdCardAsync_CreatesCardAndPendingTransactionsForUserAndSuperAdmin()
     {
         using var testDb = TestDb.Create();
         var db = testDb.Context;
-        var admin = NewUser(UserRole.Admin);
+        var admin = NewUser(UserRole.SuperAdmin);
         db.Users.Add(admin);
         await db.SaveChangesAsync();
-        var user = NewUser(UserRole.User);
-        user.CreatedById = admin.Id;
+        var distributor = NewUser(UserRole.Distributor, parent: admin);
+        db.Users.Add(distributor);
+        await db.SaveChangesAsync();
+        var user = NewUser(UserRole.User, parent: distributor);
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
@@ -208,7 +342,9 @@ public class PointsServiceTests
         var transactions = db.PointTransactions.Where(t => t.ForIdCardId == cardId).ToList();
         Assert.Equal(2, transactions.Count);
         Assert.Contains(transactions, t => t.UserId == user.Id && t.Type == PointTransType.SpendForCard && t.Status == PointStatus.Pending);
+        // Credited to the SuperAdmin - not to the member's parent (the distributor).
         Assert.Contains(transactions, t => t.UserId == admin.Id && t.Type == PointTransType.EarnForCard && t.Status == PointStatus.Pending);
+        Assert.DoesNotContain(transactions, t => t.UserId == distributor.Id);
     }
 
     [Fact]
@@ -216,11 +352,10 @@ public class PointsServiceTests
     {
         using var testDb = TestDb.Create();
         var db = testDb.Context;
-        var admin = NewUser(UserRole.Admin, points: 10);
+        var admin = NewUser(UserRole.SuperAdmin, points: 10);
         db.Users.Add(admin);
         await db.SaveChangesAsync();
-        var user = NewUser(UserRole.User, points: 5);
-        user.CreatedById = admin.Id; // CreateIdCardAsync credits the card's *creator*, found via this link.
+        var user = NewUser(UserRole.User, points: 5); // any member: the credit always goes to the SuperAdmin
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
@@ -256,11 +391,126 @@ public class PointsServiceTests
         await db.SaveChangesAsync();
 
         var service = new PointsService(db);
-        var page = await service.GetAllAsync(
+        var result = await service.GetAllAsync(
+            user.Id,
             new GetPointsRequest { UserId = user.Id, IncludeIncompleteAlso = false, PageIndex = 1, PageSize = 20 },
             CancellationToken.None);
 
+        Assert.Equal(ResultStatus.Success, result.Status);
+        var page = result.Value!;
         Assert.Single(page.Items);
         Assert.Equal("a", page.Items[0].Description);
+    }
+
+    // ---- who can see / change whose points (docs/member-hierarchy.md) ----
+
+    [Fact]
+    public async Task AdjustPointsAsync_MemberOutsideTheCallersNetwork_IsForbidden()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var d1 = await TestUsers.AddAsync(db, "D1", UserRole.Distributor, points: 100);
+        var d2 = await TestUsers.AddAsync(db, "D2", UserRole.Distributor);
+        var d2User = await TestUsers.AddAsync(db, "D2 user", UserRole.User, d2);
+
+        var result = await new PointsService(db).AdjustPointsAsync(
+            d1.Id, new AdjustPointsRequest { UserId = d2User.Id, Points = 10, Reason = "x" }, increase: true, CancellationToken.None);
+
+        Assert.Equal(ResultStatus.Forbidden, result.Status);
+        Assert.Equal(0, d2User.Points);
+        Assert.Equal(100, d1.Points);
+    }
+
+    [Fact]
+    public async Task AdjustPointsAsync_Distributor_OnlyReachesTheirOwnMembers_NotDeeperInTheBranch()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var d = await TestUsers.AddAsync(db, "D", UserRole.Distributor, points: 100);
+        var r = await TestUsers.AddAsync(db, "R", UserRole.Retailer, d);
+        var u = await TestUsers.AddAsync(db, "U", UserRole.User, r);
+        var service = new PointsService(db);
+
+        var own = await service.AdjustPointsAsync(
+            d.Id, new AdjustPointsRequest { UserId = r.Id, Points = 10, Reason = "x" }, increase: true, CancellationToken.None);
+        var deeper = await service.AdjustPointsAsync(
+            d.Id, new AdjustPointsRequest { UserId = u.Id, Points = 10, Reason = "x" }, increase: true, CancellationToken.None);
+
+        Assert.Equal(ResultStatus.Success, own.Status);
+        Assert.Equal(ResultStatus.Forbidden, deeper.Status); // U belongs to R, not to D
+        Assert.Equal(0, u.Points);
+    }
+
+    [Fact]
+    public async Task AdjustPointsAsync_SuperAdmin_OnlyReachesTheirOwnMembers()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin, points: 100);
+        var d = await TestUsers.AddAsync(db, "D", UserRole.Distributor, sa);
+        var deeper = await TestUsers.AddAsync(db, "Deeper", UserRole.User, d);
+        var service = new PointsService(db);
+
+        var own = await service.AdjustPointsAsync(
+            sa.Id, new AdjustPointsRequest { UserId = d.Id, Points = 10, Reason = "x" }, increase: true, CancellationToken.None);
+        var notOwn = await service.AdjustPointsAsync(
+            sa.Id, new AdjustPointsRequest { UserId = deeper.Id, Points = 10, Reason = "x" }, increase: true, CancellationToken.None);
+
+        Assert.Equal(ResultStatus.Success, own.Status);
+        Assert.Equal(ResultStatus.Forbidden, notOwn.Status);
+    }
+
+    [Fact]
+    public async Task AdjustPointsAsync_Retailer_OnlyReachesImmediateChildren()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var a = await TestUsers.AddAsync(db, "A", UserRole.Retailer, points: 100);
+        var b = await TestUsers.AddAsync(db, "B", UserRole.Retailer, a);
+        var c = await TestUsers.AddAsync(db, "C", UserRole.Retailer, b);
+        var service = new PointsService(db);
+
+        var child = await service.AdjustPointsAsync(
+            a.Id, new AdjustPointsRequest { UserId = b.Id, Points = 10, Reason = "x" }, increase: true, CancellationToken.None);
+        var grandchild = await service.AdjustPointsAsync(
+            a.Id, new AdjustPointsRequest { UserId = c.Id, Points = 10, Reason = "x" }, increase: true, CancellationToken.None);
+        var upline = await service.AdjustPointsAsync(
+            b.Id, new AdjustPointsRequest { UserId = a.Id, Points = 1, Reason = "x" }, increase: true, CancellationToken.None);
+
+        Assert.Equal(ResultStatus.Success, child.Status);
+        Assert.Equal(ResultStatus.Forbidden, grandchild.Status);
+        Assert.Equal(ResultStatus.Forbidden, upline.Status);
+        Assert.Equal(0, c.Points);
+    }
+
+    [Fact]
+    public async Task AdjustPointsAsync_AUserCannotAdjustAnyonesPoints()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var u = await TestUsers.AddAsync(db, "U", UserRole.User, points: 50);
+        var other = await TestUsers.AddAsync(db, "Other", UserRole.User);
+
+        var result = await new PointsService(db).AdjustPointsAsync(
+            u.Id, new AdjustPointsRequest { UserId = other.Id, Points = 5, Reason = "x" }, increase: true, CancellationToken.None);
+
+        Assert.Equal(ResultStatus.Forbidden, result.Status);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_HistoryOfAMemberOutsideTheNetwork_IsNotFound()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var d1 = await TestUsers.AddAsync(db, "D1", UserRole.Distributor);
+        var d2 = await TestUsers.AddAsync(db, "D2", UserRole.Distributor);
+        var mine = await TestUsers.AddAsync(db, "Mine", UserRole.User, d1);
+        var service = new PointsService(db);
+
+        var own = await service.GetAllAsync(d1.Id, new GetPointsRequest { UserId = mine.Id, PageIndex = 1, PageSize = 10 }, CancellationToken.None);
+        var stranger = await service.GetAllAsync(d1.Id, new GetPointsRequest { UserId = d2.Id, PageIndex = 1, PageSize = 10 }, CancellationToken.None);
+
+        Assert.Equal(ResultStatus.Success, own.Status);
+        Assert.Equal(ResultStatus.NotFound, stranger.Status);
     }
 }

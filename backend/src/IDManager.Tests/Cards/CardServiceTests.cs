@@ -133,4 +133,56 @@ public class CardServiceTests
 
         Assert.Equal(ResultStatus.Forbidden, result.Status);
     }
+
+    // ---- points on card generation (docs/member-hierarchy.md, section 5) ----
+
+    // A 1x1 PNG, used to render a real (empty) PDF as the member's source document.
+    private static readonly byte[] Png = Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
+
+    private static byte[] ValidPdf() => new PdfGenerationService().GenerateCardPdf(Png, Png, 85.6, 54, []);
+
+    [Fact]
+    public async Task GenerateAsync_SuperAdminWithNoPoints_IsNotBlocked_AndTheirBalanceStaysUnchanged()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (templateId, combinationId) = await CreateTemplateWithCombinationAsync(db, pointCost: 5);
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin, points: 0);
+
+        var service = NewService(db);
+        var result = await service.GenerateAsync(
+            sa.Id,
+            new GenerateCardCommand { TemplateId = templateId, CombinationId = combinationId, PdfBytes = ValidPdf() },
+            CancellationToken.None);
+
+        Assert.Equal(ResultStatus.Success, result.Status);
+        // The SuperAdmin pays and receives the same amount, so the net is zero.
+        await new PointsService(db).CompletePaymentTransactionAsync(result.Value!.IdCardId, CancellationToken.None);
+        Assert.Equal(0, sa.Points);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_MemberPays_AndTheSuperAdminReceives_NotTheParent()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (templateId, combinationId) = await CreateTemplateWithCombinationAsync(db, pointCost: 3);
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var distributor = await TestUsers.AddAsync(db, "D", UserRole.Distributor, sa, points: 50);
+        var retailer = await TestUsers.AddAsync(db, "R", UserRole.Retailer, distributor, points: 20);
+
+        var service = NewService(db);
+        var result = await service.GenerateAsync(
+            retailer.Id,
+            new GenerateCardCommand { TemplateId = templateId, CombinationId = combinationId, PdfBytes = ValidPdf() },
+            CancellationToken.None);
+        Assert.Equal(ResultStatus.Success, result.Status);
+
+        await new PointsService(db).CompletePaymentTransactionAsync(result.Value!.IdCardId, CancellationToken.None);
+
+        Assert.Equal(17, retailer.Points);   // paid 3
+        Assert.Equal(3, sa.Points);          // received 3
+        Assert.Equal(50, distributor.Points); // the parent gets nothing
+    }
 }

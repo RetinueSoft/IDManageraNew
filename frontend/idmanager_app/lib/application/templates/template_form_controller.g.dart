@@ -61,7 +61,7 @@ final class TemplateFormControllerProvider
 }
 
 String _$templateFormControllerHash() =>
-    r'ed23dfb9c260f5ad71447e7a562dd6541f6af11a';
+    r'd7ba605dc83afe6c851273d1c3ca0f3467515991';
 
 /// Backs the Add/Edit Template screen (base fields only - layer positions are
 /// edited separately on the designer canvas once the template exists).
