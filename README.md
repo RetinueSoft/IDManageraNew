@@ -89,6 +89,19 @@ flutter build windows --dart-define=API_BASE_URL=https://your-api-host/api
 `API_BASE_URL` defaults to `http://localhost:5080/api` if not specified. Re-run the
 `build_runner` command after changing any `@freezed` model or `@riverpod` provider.
 
+## Running the tests
+
+```bash
+# Backend (xUnit, against a real transaction-capable SQLite in-memory database -
+# not EF Core's InMemory provider, which doesn't support the transactions
+# PointsService relies on):
+cd backend && dotnet test
+
+# Frontend (core_engine services against fake repositories, plus JSON round-trip
+# tests for the backend contract in template_mappers.dart):
+cd frontend/idmanager_app && flutter test
+```
+
 ## What's implemented in this skeleton
 
 - Full role hierarchy (SuperAdmin/Admin/Distributor/User), JWT auth, points economy
@@ -102,6 +115,10 @@ flutter build windows --dart-define=API_BASE_URL=https://your-api-host/api
 - End-user card generation flow: pick template + combination, upload a PDF, preview
   the matched card, download a true vector, exact-size PDF (no screenshot/rasterize
   step - see "Why physical units" above).
+- Unit tests: backend (`PointsService`'s SuperAdmin-unlimited-pool rule and its edge
+  cases, `TemplateService`'s layer-matching logic, `AuthService`, `CardService`'s
+  guard clauses) and frontend (`core_engine` services against fake repositories,
+  `template_mappers.dart` JSON round-trips against the backend's exact DTO shape).
 
 ## Known gaps / next iteration
 
@@ -110,7 +127,9 @@ flutter build windows --dart-define=API_BASE_URL=https://your-api-host/api
   using a script/language PdfPig extracts imperfectly may need extra text-reordering
   fixups layered on top - deliberately left out here, see the comment in
   `PdfExtractionService.cs`.
-- No automated test coverage yet beyond a basic Flutter widget smoke test.
+- Test coverage stops at the service/engine layer - no Endpoint-level (WebApplicationFactory)
+  or widget/screen-level tests yet, and `CardService`'s real PDF-extraction happy path
+  is only exercised via manual/live testing, not a unit test fixture.
 - `Jwt:Key` and the seed admin password are development defaults in
   `appsettings.json` - replace them (env vars / secret manager) before any real
   deployment.
