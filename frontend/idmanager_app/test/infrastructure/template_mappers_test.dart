@@ -6,7 +6,13 @@ import 'package:idmanager_app/infrastructure/repositories/template_mappers.dart'
 void main() {
   group('LayerSourceItem JSON', () {
     test('round-trips every field', () {
-      final source = LayerSourceItem(key: 'Name', value: 'Jane', type: LayerFieldType.text, separator: '-');
+      final source = LayerSourceItem(
+        key: 'Name',
+        sourceKey: 'Full name',
+        value: 'Jane',
+        type: LayerFieldType.text,
+        separator: '-',
+      );
 
       final json = sourceItemToJson(source);
       final back = sourceItemFromJson(json);

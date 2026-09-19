@@ -53,7 +53,15 @@ public class LayerGroupDto
 
 public class LayerSourceItemDto
 {
+    /// What is printed before the value ("key: value"); empty prints the value alone. Also
+    /// the PDF field this source reads, unless SourceKey says otherwise.
     public string? Key { get; set; }
+
+    /// The field of the member's PDF this source reads its value from, when that is not
+    /// Key - so a label can be hidden or different without losing the link to the PDF.
+    /// Null means "read Key". A source with neither is fixed text and is never overwritten.
+    public string? SourceKey { get; set; }
+
     public string? Value { get; set; }
     public LayerFieldType Type { get; set; } = LayerFieldType.Text;
 

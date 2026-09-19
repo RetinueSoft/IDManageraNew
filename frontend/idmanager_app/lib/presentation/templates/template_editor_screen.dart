@@ -433,9 +433,19 @@ class _PropertiesPanelState extends State<_PropertiesPanel> {
               TextField(
                 controller: _keyCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Field key (matches source PDF)',
+                  labelText: 'Key (label printed before the value)',
                 ),
                 onChanged: (v) => _updateFirstSource((s) => s.copyWith(key: v)),
+              ),
+              const SizedBox(height: 8),
+              _PdfFieldPicker(
+                value: _firstSourceOrDefault(group).sourceKey,
+                fields: widget.sampleFields,
+                isFixedText:
+                    (_firstSourceOrDefault(group).key ?? '').trim().isEmpty &&
+                    (_firstSourceOrDefault(group).sourceKey ?? '').isEmpty,
+                onChanged: (v) =>
+                    _updateFirstSource((s) => s.copyWith(sourceKey: v)),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -984,7 +994,7 @@ class _CombinedFieldsEditor extends StatelessWidget {
                             child: TextFormField(
                               initialValue: group.sources[i].key ?? '',
                               decoration: const InputDecoration(
-                                labelText: 'Key',
+                                labelText: 'Key (label)',
                                 isDense: true,
                               ),
                               onChanged: (v) =>
@@ -1007,6 +1017,16 @@ class _CombinedFieldsEditor extends StatelessWidget {
                         ),
                         onChanged: (v) =>
                             _updateAt(i, (s) => s.copyWith(value: v)),
+                      ),
+                      const SizedBox(height: 6),
+                      _PdfFieldPicker(
+                        value: group.sources[i].sourceKey,
+                        fields: sampleFields,
+                        isFixedText:
+                            (group.sources[i].key ?? '').trim().isEmpty &&
+                            (group.sources[i].sourceKey ?? '').isEmpty,
+                        onChanged: (v) =>
+                            _updateAt(i, (s) => s.copyWith(sourceKey: v)),
                       ),
                       if (i < group.sources.length - 1) ...[
                         const SizedBox(height: 6),
@@ -1040,6 +1060,58 @@ class _CombinedFieldsEditor extends StatelessWidget {
                   ),
                 ),
       ],
+    );
+  }
+}
+
+/// Which field of the member's PDF a layer field reads its value from. By default the key
+/// itself is looked up; choosing another field lets the key stay empty (value only on the
+/// card) or read differently, without breaking the link to the PDF. A field with neither a
+/// key nor a PDF field is fixed text and always prints what is typed.
+class _PdfFieldPicker extends StatelessWidget {
+  const _PdfFieldPicker({
+    required this.value,
+    required this.fields,
+    required this.isFixedText,
+    required this.onChanged,
+  });
+
+  final String? value;
+  final List<ExtractedField> fields;
+  final bool isFixedText;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final keys = <String>{
+      for (final f in fields)
+        if (f.type == LayerFieldType.text && (f.key ?? '').trim().isNotEmpty)
+          f.key!.trim(),
+      if ((value ?? '').isNotEmpty) value!,
+    }.toList();
+
+    return DropdownButtonFormField<String?>(
+      initialValue: (value ?? '').isEmpty ? null : value,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: 'Read from PDF field',
+        isDense: true,
+        helperText: isFixedText
+            ? 'Fixed text: not read from the PDF'
+            : null,
+      ),
+      items: [
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('Same as key'),
+        ),
+        for (final k in keys)
+          DropdownMenuItem<String?>(
+            value: k,
+            child: Text(k, overflow: TextOverflow.ellipsis),
+          ),
+      ],
+      onChanged: onChanged,
     );
   }
 }

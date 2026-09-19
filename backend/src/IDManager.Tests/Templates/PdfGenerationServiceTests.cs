@@ -251,4 +251,55 @@ public class PdfGenerationServiceTests
         // Wrapped at the layer's 25 mm width (a single long word could overflow slightly).
         Assert.True(rightEdge < (5 + 25) * MmToPt + 12, $"text ran past its width: right edge {rightEdge}");
     }
+
+    // ---- a combined field with a key but no value still prints its key ----
+
+    private static LayerGroupDto Combined(bool bullets, double? keyWidth, params LayerSourceItemDto[] sources) => new()
+    {
+        IsList = true, BulletList = bullets, KeyWidthMm = keyWidth, XMm = 5, YMm = 5, WidthMm = 70, FontSizePt = 10,
+        Sources = sources.ToList(),
+    };
+
+    [Fact]
+    public void CombinedField_WithAKeyAndNoValue_PrintsItsKey()
+    {
+        var group = Combined(false, null,
+            new LayerSourceItemDto { Key = "Heading", Value = "", Separator = "space" },
+            new LayerSourceItemDto { Value = "Body" });
+
+        using var pdf = PdfDocument.Open(Render(group));
+        var text = pdf.GetPage(1).Text;
+
+        Assert.Contains("Heading:", text);
+        Assert.Contains("Body", text);
+    }
+
+    [Fact]
+    public void CombinedField_WithNeitherKeyNorValue_PrintsNothing()
+    {
+        var group = Combined(false, null,
+            new LayerSourceItemDto { Value = "First", Separator = "dash" },
+            new LayerSourceItemDto { Key = "", Value = "" },
+            new LayerSourceItemDto { Value = "Last" });
+
+        using var pdf = PdfDocument.Open(Render(group));
+
+        // No stray separators from the empty field in the middle.
+        Assert.Contains("First - Last", pdf.GetPage(1).Text.Replace("\n", " "));
+    }
+
+    [Fact]
+    public void AlignedCombinedRow_WithAKeyAndNoValue_StillPrintsItsKeyAndSeparator()
+    {
+        var group = Combined(true, 20,
+            new LayerSourceItemDto { Key = "Address", Value = "" },
+            new LayerSourceItemDto { Key = "City", Value = "Pune" });
+
+        using var pdf = PdfDocument.Open(Render(group));
+        var words = pdf.GetPage(1).GetWords().Select(w => w.Text).ToList();
+
+        Assert.Contains("Address", words);
+        Assert.Contains("City", words);
+        Assert.Contains("Pune", words);
+    }
 }

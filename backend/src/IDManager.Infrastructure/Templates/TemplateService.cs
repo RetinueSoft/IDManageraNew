@@ -189,10 +189,18 @@ public class TemplateService(IDManagerDbContext db)
         return OperationResult<(List<TemplateLayerDto>, byte[], byte[])>.Success((layers, frontImage, backImage));
     }
 
-    /// Fills each layer source's Value from the matching extracted field: text
-    /// sources are matched by key (the field name captured while designing the
-    /// layout), image sources are assigned in extraction order since a scanned
-    /// photo/QR has no key.
+    /// The PDF field a source reads: its SourceKey if it has one, else its Key. Null for fixed
+    /// text (neither set), which is never overwritten.
+    private static string? ReadKey(LayerSourceItemDto source) =>
+        !string.IsNullOrWhiteSpace(source.SourceKey) ? source.SourceKey.Trim()
+        : !string.IsNullOrWhiteSpace(source.Key) ? source.Key.Trim()
+        : null;
+
+    /// Fills each layer source's Value from the member's PDF. A source reads the PDF field
+    /// named by its ReadKey; if the member's PDF does not have that field the value is
+    /// cleared, never left as the template's sample text (that would print someone else's
+    /// details on the card). Fixed text (no key) is left as designed. Image sources with no
+    /// matching key take the remaining images in extraction order.
     private static void MergeExtractedValues(List<TemplateLayerDto> layers, List<ExtractedFieldDto> extractedFields)
     {
         var textFieldsByKey = extractedFields
@@ -224,8 +232,8 @@ public class TemplateService(IDManagerDbContext db)
         var imageSourceKeys = layers.SelectMany(l => l.Groups)
             .Where(g => !g.IsQr)
             .SelectMany(g => g.Sources)
-            .Where(s => s.Type == LayerFieldType.Image && !string.IsNullOrWhiteSpace(s.Key))
-            .Select(s => s.Key!.Trim())
+            .Where(s => s.Type == LayerFieldType.Image && ReadKey(s) != null)
+            .Select(s => ReadKey(s)!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var imagesByKey = memberImages
             .Where(f => !string.IsNullOrWhiteSpace(f.Key) && imageSourceKeys.Contains(f.Key!.Trim()))
@@ -253,14 +261,18 @@ public class TemplateService(IDManagerDbContext db)
 
             foreach (var source in group.Sources)
             {
-                if (source.Type == LayerFieldType.Text && source.Key != null
-                    && textFieldsByKey.TryGetValue(source.Key.Trim(), out var value))
+                if (source.Type == LayerFieldType.Text)
                 {
-                    source.Value = value;
+                    var readKey = ReadKey(source);
+                    if (readKey is not null)
+                    {
+                        source.Value = textFieldsByKey.TryGetValue(readKey, out var value) ? value ?? "" : "";
+                    }
                 }
                 else if (source.Type == LayerFieldType.Image)
                 {
-                    if (!string.IsNullOrWhiteSpace(source.Key) && imagesByKey.TryGetValue(source.Key.Trim(), out var byKey))
+                    var readKey = ReadKey(source);
+                    if (readKey is not null && imagesByKey.TryGetValue(readKey, out var byKey))
                     {
                         source.Value = byKey;
                     }
@@ -268,6 +280,10 @@ public class TemplateService(IDManagerDbContext db)
                     {
                         source.Value = imageFields[imageIndex].Value;
                         imageIndex++;
+                    }
+                    else
+                    {
+                        source.Value = null; // not in the member's PDF: never keep the sample photo
                     }
                 }
             }

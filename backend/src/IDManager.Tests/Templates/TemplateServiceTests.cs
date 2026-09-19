@@ -493,4 +493,131 @@ public class TemplateServiceTests
 
         Assert.Equal("FIRST", result.Value.Layers.Single().Groups.Single().Sources.Single().Value);
     }
+
+    // ---- what a field reads from the member's PDF: its SourceKey, else its Key ----
+
+    private static async Task<(TemplateService service, int templateId, int combinationId)> TemplateWithFrontGroupAsync(
+        TestDb testDb, params LayerGroupDto[] groups)
+    {
+        var service = new TemplateService(testDb.Context);
+        var created = (await service.CreateAsync(1, ValidCommand(), CancellationToken.None)).Value!;
+        var combination = (await service.AddCombinationAsync(
+            new AddCombinationCommand { TemplateId = created.Id, Name = "Default", FrontImageBytes = [1], BackImageBytes = [2] },
+            CancellationToken.None)).Value!;
+        await service.SaveLayersAsync(new SaveLayersRequest
+        {
+            TemplateId = created.Id,
+            Layers = [new TemplateLayerDto { Side = CardSide.Front, Groups = groups.ToList() }],
+        }, CancellationToken.None);
+        return (service, created.Id, combination.Id);
+    }
+
+    private static async Task<List<LayerSourceItemDto>> MatchAsync(
+        (TemplateService service, int templateId, int combinationId) t, List<ExtractedFieldDto> extracted)
+    {
+        var result = await t.service.MatchToTemplateAsync(t.templateId, t.combinationId, extracted, CancellationToken.None);
+        return result.Value.Layers.Single().Groups.SelectMany(g => g.Sources).ToList();
+    }
+
+    [Fact]
+    public async Task MatchToTemplateAsync_ASourceKeyLetsAFieldReadFromThePdfWhileShowingADifferentLabel()
+    {
+        using var testDb = TestDb.Create();
+        var t = await TemplateWithFrontGroupAsync(testDb, new LayerGroupDto
+        {
+            Name = "address",
+            Sources =
+            [
+                // Prints "Address: <value>" but reads the PDF's "Address line 2".
+                new LayerSourceItemDto { Key = "Address", SourceKey = "Address line 2", Value = "sample", Type = LayerFieldType.Text },
+                // No label at all (value only), still read from the PDF.
+                new LayerSourceItemDto { Key = "", SourceKey = "Village", Value = "sample", Type = LayerFieldType.Text },
+            ],
+        });
+
+        var sources = await MatchAsync(t, [
+            new() { Key = "Address line 2", Value = "Palace Colony", Type = LayerFieldType.Text },
+            new() { Key = "Village", Value = "Mannargudi", Type = LayerFieldType.Text },
+        ]);
+
+        Assert.Equal("Palace Colony", sources[0].Value);
+        Assert.Equal("Address", sources[0].Key);           // the label is untouched
+        Assert.Equal("Mannargudi", sources[1].Value);
+    }
+
+    [Fact]
+    public async Task MatchToTemplateAsync_WithoutASourceKey_TheKeyIsStillWhatIsRead()
+    {
+        using var testDb = TestDb.Create();
+        var t = await TemplateWithFrontGroupAsync(testDb, new LayerGroupDto
+        {
+            Sources = [new LayerSourceItemDto { Key = "Name", Value = "sample", Type = LayerFieldType.Text }],
+        });
+
+        var sources = await MatchAsync(t, [new() { Key = "Name", Value = "Jane", Type = LayerFieldType.Text }]);
+
+        Assert.Equal("Jane", sources.Single().Value);
+    }
+
+    [Fact]
+    public async Task MatchToTemplateAsync_AFieldThatReadsThePdfButFindsNothing_PrintsEmptyNotTheSampleText()
+    {
+        using var testDb = TestDb.Create();
+        var t = await TemplateWithFrontGroupAsync(testDb, new LayerGroupDto
+        {
+            Sources =
+            [
+                new LayerSourceItemDto { Key = "Name", Value = "SOMEONE ELSE", Type = LayerFieldType.Text },
+                new LayerSourceItemDto { Key = "", SourceKey = "Village", Value = "SOMEONE ELSE", Type = LayerFieldType.Text },
+            ],
+        });
+
+        // The member's PDF has neither field.
+        var sources = await MatchAsync(t, [new() { Key = "Something else", Value = "x", Type = LayerFieldType.Text }]);
+
+        Assert.All(sources, s => Assert.True(string.IsNullOrEmpty(s.Value), $"sample text leaked into the card: {s.Value}"));
+    }
+
+    [Fact]
+    public async Task MatchToTemplateAsync_FixedTextWithNoKeyAtAll_IsLeftAlone()
+    {
+        using var testDb = TestDb.Create();
+        var t = await TemplateWithFrontGroupAsync(testDb, new LayerGroupDto
+        {
+            Sources = [new LayerSourceItemDto { Key = "", Value = "Address:", Type = LayerFieldType.Text }],
+        });
+
+        var sources = await MatchAsync(t, [new() { Key = "Name", Value = "Jane", Type = LayerFieldType.Text }]);
+
+        Assert.Equal("Address:", sources.Single().Value);
+    }
+
+    [Fact]
+    public async Task MatchToTemplateAsync_APdfFieldThatIsPresentButEmpty_ClearsTheSample()
+    {
+        using var testDb = TestDb.Create();
+        var t = await TemplateWithFrontGroupAsync(testDb, new LayerGroupDto
+        {
+            Sources = [new LayerSourceItemDto { Key = "", SourceKey = "Address line 1", Value = "sample", Type = LayerFieldType.Text }],
+        });
+
+        var sources = await MatchAsync(t, [new() { Key = "Address line 1", Value = "", Type = LayerFieldType.Text }]);
+
+        Assert.Equal("", sources.Single().Value);
+    }
+
+    [Fact]
+    public async Task MatchToTemplateAsync_AnImageThatIsNotInTheMembersPdf_DoesNotKeepTheSamplePhoto()
+    {
+        using var testDb = TestDb.Create();
+        var t = await TemplateWithFrontGroupAsync(testDb, new LayerGroupDto
+        {
+            FieldType = LayerFieldType.Image,
+            Sources = [new LayerSourceItemDto { Key = "image_p1_4", Value = "SAMPLE-PHOTO-BASE64", Type = LayerFieldType.Image }],
+        });
+
+        var sources = await MatchAsync(t, []); // the member's PDF has no images at all
+
+        Assert.True(string.IsNullOrEmpty(sources.Single().Value));
+    }
 }

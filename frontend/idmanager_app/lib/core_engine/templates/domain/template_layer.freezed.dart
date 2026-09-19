@@ -15,7 +15,12 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$LayerSourceItem {
 
- String? get key; String? get value; LayerFieldType get type;/// In a combined (List) layer: how this field joins the NEXT one - a
+/// What is printed before the value ("key: value"); empty prints the value alone. Also the
+/// PDF field this source reads, unless [sourceKey] says otherwise.
+ String? get key;/// The field of the member's PDF this source reads its value from, when that is not
+/// [key] - so a label can be hidden or different without losing the link to the PDF.
+/// Null means "read [key]". A source with neither is fixed text, never overwritten.
+ String? get sourceKey; String? get value; LayerFieldType get type;/// In a combined (List) layer: how this field joins the NEXT one - a
 /// JoinSeparator wire name ('comma', 'dash', 'space', 'newline'). Null means comma.
  String? get separator;/// In a combined layer: this entry is not a field but one empty line.
  bool get emptyLine;
@@ -30,20 +35,20 @@ $LayerSourceItemCopyWith<LayerSourceItem> get copyWith => _$LayerSourceItemCopyW
 @override
 bool operator ==(Object other) {
   final _this = this as LayerSourceItem;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LayerSourceItem&&(identical(other.key, _this.key) || other.key == _this.key)&&(identical(other.value, _this.value) || other.value == _this.value)&&(identical(other.type, _this.type) || other.type == _this.type)&&(identical(other.separator, _this.separator) || other.separator == _this.separator)&&(identical(other.emptyLine, _this.emptyLine) || other.emptyLine == _this.emptyLine));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LayerSourceItem&&(identical(other.key, _this.key) || other.key == _this.key)&&(identical(other.sourceKey, _this.sourceKey) || other.sourceKey == _this.sourceKey)&&(identical(other.value, _this.value) || other.value == _this.value)&&(identical(other.type, _this.type) || other.type == _this.type)&&(identical(other.separator, _this.separator) || other.separator == _this.separator)&&(identical(other.emptyLine, _this.emptyLine) || other.emptyLine == _this.emptyLine));
 }
 
 
 @override
 int get hashCode {
   final _this = this as LayerSourceItem;
-  return Object.hash(runtimeType,_this.key,_this.value,_this.type,_this.separator,_this.emptyLine);
+  return Object.hash(runtimeType,_this.key,_this.sourceKey,_this.value,_this.type,_this.separator,_this.emptyLine);
 }
 
 @override
 String toString() {
   final _this = this as LayerSourceItem;
-  return 'LayerSourceItem(key: ${_this.key}, value: ${_this.value}, type: ${_this.type}, separator: ${_this.separator}, emptyLine: ${_this.emptyLine})';
+  return 'LayerSourceItem(key: ${_this.key}, sourceKey: ${_this.sourceKey}, value: ${_this.value}, type: ${_this.type}, separator: ${_this.separator}, emptyLine: ${_this.emptyLine})';
 }
 
 
@@ -54,7 +59,7 @@ abstract mixin class $LayerSourceItemCopyWith<$Res>  {
   factory $LayerSourceItemCopyWith(LayerSourceItem value, $Res Function(LayerSourceItem) _then) = _$LayerSourceItemCopyWithImpl;
 @useResult
 $Res call({
- String? key, String? value, LayerFieldType type, String? separator, bool emptyLine
+ String? key, String? sourceKey, String? value, LayerFieldType type, String? separator, bool emptyLine
 });
 
 
@@ -71,9 +76,10 @@ class _$LayerSourceItemCopyWithImpl<$Res>
 
 /// Create a copy of LayerSourceItem
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? key = freezed,Object? value = freezed,Object? type = null,Object? separator = freezed,Object? emptyLine = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? key = freezed,Object? sourceKey = freezed,Object? value = freezed,Object? type = null,Object? separator = freezed,Object? emptyLine = null,}) {
   return _then(LayerSourceItem(
 key: freezed == key ? _self.key : key // ignore: cast_nullable_to_non_nullable
+as String?,sourceKey: freezed == sourceKey ? _self.sourceKey : sourceKey // ignore: cast_nullable_to_non_nullable
 as String?,value: freezed == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
 as String?,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
 as LayerFieldType,separator: freezed == separator ? _self.separator : separator // ignore: cast_nullable_to_non_nullable
@@ -160,10 +166,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? key,  String? value,  LayerFieldType type,  String? separator,  bool emptyLine)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? key,  String? sourceKey,  String? value,  LayerFieldType type,  String? separator,  bool emptyLine)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LayerSourceItem() when $default != null:
-return $default(_that.key,_that.value,_that.type,_that.separator,_that.emptyLine);case _:
+return $default(_that.key,_that.sourceKey,_that.value,_that.type,_that.separator,_that.emptyLine);case _:
   return orElse();
 
 }
@@ -181,10 +187,10 @@ return $default(_that.key,_that.value,_that.type,_that.separator,_that.emptyLine
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? key,  String? value,  LayerFieldType type,  String? separator,  bool emptyLine)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? key,  String? sourceKey,  String? value,  LayerFieldType type,  String? separator,  bool emptyLine)  $default,) {final _that = this;
 switch (_that) {
 case _LayerSourceItem():
-return $default(_that.key,_that.value,_that.type,_that.separator,_that.emptyLine);}
+return $default(_that.key,_that.sourceKey,_that.value,_that.type,_that.separator,_that.emptyLine);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -198,10 +204,10 @@ return $default(_that.key,_that.value,_that.type,_that.separator,_that.emptyLine
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? key,  String? value,  LayerFieldType type,  String? separator,  bool emptyLine)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? key,  String? sourceKey,  String? value,  LayerFieldType type,  String? separator,  bool emptyLine)?  $default,) {final _that = this;
 switch (_that) {
 case _LayerSourceItem() when $default != null:
-return $default(_that.key,_that.value,_that.type,_that.separator,_that.emptyLine);case _:
+return $default(_that.key,_that.sourceKey,_that.value,_that.type,_that.separator,_that.emptyLine);case _:
   return null;
 
 }
@@ -213,10 +219,16 @@ return $default(_that.key,_that.value,_that.type,_that.separator,_that.emptyLine
 
 
 class _LayerSourceItem implements LayerSourceItem {
-  const _LayerSourceItem({this.key, this.value, this.type = LayerFieldType.text, this.separator, this.emptyLine = false});
+  const _LayerSourceItem({this.key, this.sourceKey, this.value, this.type = LayerFieldType.text, this.separator, this.emptyLine = false});
   
 
+/// What is printed before the value ("key: value"); empty prints the value alone. Also the
+/// PDF field this source reads, unless [sourceKey] says otherwise.
 @override final  String? key;
+/// The field of the member's PDF this source reads its value from, when that is not
+/// [key] - so a label can be hidden or different without losing the link to the PDF.
+/// Null means "read [key]". A source with neither is fixed text, never overwritten.
+@override final  String? sourceKey;
 @override final  String? value;
 @override@JsonKey() final  LayerFieldType type;
 /// In a combined (List) layer: how this field joins the NEXT one - a
@@ -235,18 +247,18 @@ _$LayerSourceItemCopyWith<_LayerSourceItem> get copyWith => __$LayerSourceItemCo
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LayerSourceItem&&(identical(other.key, key) || other.key == key)&&(identical(other.value, value) || other.value == value)&&(identical(other.type, type) || other.type == type)&&(identical(other.separator, separator) || other.separator == separator)&&(identical(other.emptyLine, emptyLine) || other.emptyLine == emptyLine));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LayerSourceItem&&(identical(other.key, key) || other.key == key)&&(identical(other.sourceKey, sourceKey) || other.sourceKey == sourceKey)&&(identical(other.value, value) || other.value == value)&&(identical(other.type, type) || other.type == type)&&(identical(other.separator, separator) || other.separator == separator)&&(identical(other.emptyLine, emptyLine) || other.emptyLine == emptyLine));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,key,value,type,separator,emptyLine);
+    return Object.hash(runtimeType,key,sourceKey,value,type,separator,emptyLine);
 }
 
 @override
 String toString() {
-    return 'LayerSourceItem(key: $key, value: $value, type: $type, separator: $separator, emptyLine: $emptyLine)';
+    return 'LayerSourceItem(key: $key, sourceKey: $sourceKey, value: $value, type: $type, separator: $separator, emptyLine: $emptyLine)';
 }
 
 
@@ -257,7 +269,7 @@ abstract mixin class _$LayerSourceItemCopyWith<$Res> implements $LayerSourceItem
   factory _$LayerSourceItemCopyWith(_LayerSourceItem value, $Res Function(_LayerSourceItem) _then) = __$LayerSourceItemCopyWithImpl;
 @override @useResult
 $Res call({
- String? key, String? value, LayerFieldType type, String? separator, bool emptyLine
+ String? key, String? sourceKey, String? value, LayerFieldType type, String? separator, bool emptyLine
 });
 
 
@@ -274,9 +286,10 @@ class __$LayerSourceItemCopyWithImpl<$Res>
 
 /// Create a copy of LayerSourceItem
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? key = freezed,Object? value = freezed,Object? type = null,Object? separator = freezed,Object? emptyLine = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? key = freezed,Object? sourceKey = freezed,Object? value = freezed,Object? type = null,Object? separator = freezed,Object? emptyLine = null,}) {
   return _then(_LayerSourceItem(
 key: freezed == key ? _self.key : key // ignore: cast_nullable_to_non_nullable
+as String?,sourceKey: freezed == sourceKey ? _self.sourceKey : sourceKey // ignore: cast_nullable_to_non_nullable
 as String?,value: freezed == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
 as String?,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
 as LayerFieldType,separator: freezed == separator ? _self.separator : separator // ignore: cast_nullable_to_non_nullable

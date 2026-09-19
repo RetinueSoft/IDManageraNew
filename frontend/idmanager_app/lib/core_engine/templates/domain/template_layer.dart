@@ -10,7 +10,14 @@ part 'template_layer.freezed.dart';
 @freezed
 sealed class LayerSourceItem with _$LayerSourceItem {
   const factory LayerSourceItem({
+    /// What is printed before the value ("key: value"); empty prints the value alone. Also the
+    /// PDF field this source reads, unless [sourceKey] says otherwise.
     String? key,
+
+    /// The field of the member's PDF this source reads its value from, when that is not
+    /// [key] - so a label can be hidden or different without losing the link to the PDF.
+    /// Null means "read [key]". A source with neither is fixed text, never overwritten.
+    String? sourceKey,
     String? value,
     @Default(LayerFieldType.text) LayerFieldType type,
 

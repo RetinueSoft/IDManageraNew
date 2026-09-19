@@ -33,13 +33,29 @@ void main() {
       expect(g.combinedText, 'A - B, C\nD');
     });
 
-    test('skips fields with no value without leaving stray separators', () {
+    test('skips a field that has neither a key nor a value, without leaving stray separators', () {
       final g = _group([
         const LayerSourceItem(value: 'A', separator: 'dash'),
-        const LayerSourceItem(key: 'Empty', value: ''),
+        const LayerSourceItem(key: '', value: ''),
         const LayerSourceItem(value: 'C'),
       ]);
       expect(g.combinedText, 'A - C');
+    });
+
+    test('a field with a key but no value still prints its key (a label or heading)', () {
+      final g = _group([
+        const LayerSourceItem(key: 'Address', value: '', separator: 'space'),
+        const LayerSourceItem(value: 'MG Road'),
+      ]);
+      expect(g.combinedText, 'Address: MG Road');
+    });
+
+    test('a key-only field is kept in a bullet list too', () {
+      final g = _group([
+        const LayerSourceItem(key: 'Members', value: ''),
+        const LayerSourceItem(value: 'Asha'),
+      ], bullets: true);
+      expect(g.combinedText, '• Members:\n• Asha');
     });
 
     test('an empty line entry puts a blank line between two fields', () {
@@ -69,10 +85,21 @@ void main() {
       expect(_group(sources, keyWidthMm: 0).hasAlignedKeys, isFalse);
     });
 
+    test('rows keep a key with no value (its label), skip fully empty fields', () {
+      final rows = _group([
+        const LayerSourceItem(key: 'Address', value: ''),
+        const LayerSourceItem(key: '', value: ''),
+        const LayerSourceItem(key: 'City', value: 'Pune'),
+      ], keyWidthMm: 20).bulletRows;
+
+      expect(rows.map((r) => r.key).toList(), ['Address', 'City']);
+      expect(rows.first.value, '');
+    });
+
     test('rows skip empty values, keep blank lines and drop trailing ones', () {
       final rows = _group([
         const LayerSourceItem(key: 'A', value: '1'),
-        const LayerSourceItem(key: 'X', value: ''),
+        const LayerSourceItem(key: '', value: ''),
         const LayerSourceItem(emptyLine: true),
         const LayerSourceItem(value: '2'),
         const LayerSourceItem(emptyLine: true),

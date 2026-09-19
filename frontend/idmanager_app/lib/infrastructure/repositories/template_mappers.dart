@@ -6,6 +6,7 @@ import '../../core_engine/templates/domain/template_layer.dart';
 
 LayerSourceItem sourceItemFromJson(Map<String, dynamic> json) => LayerSourceItem(
   key: json['key'] as String?,
+  sourceKey: json['sourceKey'] as String?,
   value: json['value'] as String?,
   type: LayerFieldType.fromInt(json['type'] as int? ?? 1),
   separator: json['separator'] as String?,
@@ -14,6 +15,7 @@ LayerSourceItem sourceItemFromJson(Map<String, dynamic> json) => LayerSourceItem
 
 Map<String, dynamic> sourceItemToJson(LayerSourceItem s) => {
   'key': s.key,
+  'sourceKey': s.sourceKey,
   'value': s.value,
   'type': s.type.toInt(),
   'separator': s.separator,

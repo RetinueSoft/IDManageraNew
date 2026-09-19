@@ -326,8 +326,9 @@ public class PdfGenerationService
     private static float CombinedLeadingPt(LayerGroupDto group) =>
         (float)(group.FontSizePt * LineHeightFactor + group.LineGapMm * MmToPt);
 
-    /// Each source as "key: value" (just the value when its key is empty), skipping sources
-    /// with no value. Each source is followed by its own separator (comma unless set) before
+    /// Each source as "key: value" (just the value when its key is empty, and "key:" when it
+    /// has a key but no value - a label or heading), skipping only sources that have neither.
+    /// Each source is followed by its own separator (comma unless set) before
     /// the next; an empty-line entry turns that gap into a blank line; with BulletList every
     /// field gets a bullet and its own line. Must match LayerGroupText.combinedText in the
     /// designer.
@@ -347,7 +348,9 @@ public class PdfGenerationService
                 emptyLines++;
                 continue;
             }
-            if (string.IsNullOrWhiteSpace(source.Value)) continue;
+            var key = (source.Key ?? "").Trim();
+            var value = (source.Value ?? "").Trim();
+            if (key.Length == 0 && value.Length == 0) continue;
 
             if (wroteAny)
             {
@@ -359,9 +362,9 @@ public class PdfGenerationService
             }
 
             if (group.BulletList) result.Append("• ");
-            result.Append(string.IsNullOrWhiteSpace(source.Key)
-                ? source.Value.Trim()
-                : $"{source.Key.Trim()}{keyValueSeparator} {source.Value.Trim()}");
+            result.Append(key.Length == 0 ? value
+                : value.Length == 0 ? $"{key}{keyValueSeparator}"
+                : $"{key}{keyValueSeparator} {value}");
 
             pendingJoin = JoinText(source.Separator);
             wroteAny = true;
@@ -381,8 +384,9 @@ public class PdfGenerationService
 
     private readonly record struct BulletRow(bool IsBlank, string Key, string Value);
 
-    /// One row per source with a value, plus one blank row per empty-line entry (trailing
-    /// blanks dropped). Must match LayerGroupText.bulletRows in the designer.
+    /// One row per source with a key or a value (a key with no value keeps its label), plus
+    /// one blank row per empty-line entry (trailing blanks dropped). Must match
+    /// LayerGroupText.bulletRows in the designer.
     private static List<BulletRow> BulletRows(LayerGroupDto group)
     {
         var rows = new List<BulletRow>();
@@ -393,8 +397,10 @@ public class PdfGenerationService
                 rows.Add(new BulletRow(true, "", ""));
                 continue;
             }
-            if (string.IsNullOrWhiteSpace(source.Value)) continue;
-            rows.Add(new BulletRow(false, (source.Key ?? "").Trim(), source.Value.Trim()));
+            var key = (source.Key ?? "").Trim();
+            var value = (source.Value ?? "").Trim();
+            if (key.Length == 0 && value.Length == 0) continue;
+            rows.Add(new BulletRow(false, key, value));
         }
 
         while (rows.Count > 0 && rows[^1].IsBlank) rows.RemoveAt(rows.Count - 1);
