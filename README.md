@@ -2,7 +2,45 @@
 
 A card/ID template designer and generator: an image background with draggable text
 and image layers on top, zoomable on screen, printed at exact physical size. Backend
-is .NET Core; frontend is Flutter (web + Windows desktop from one codebase).
+is .NET Core; frontend is Flutter (web + Windows desktop from one codebase). The app
+is fully online - every screen talks to the API directly; there is no offline mode,
+local database, or sync engine.
+
+## Architecture
+
+Both stacks follow the same layered-segregation pattern (adapted from RetinueSoft's
+ReXL platform architecture): each layer depends only on the layer beneath it, and
+business logic never leaks into UI or HTTP framework code.
+
+**Backend** - three projects, Clean Architecture:
+```
+backend/src/
+  IDManager.Domain/          Entities, Dtos, Enums, OperationResult - pure data, no logic, no ASP.NET dependency
+  IDManager.Infrastructure/  DbContext + Services (all business logic), organized by feature (Security/Users/Points/Templates/Cards/AuditLog)
+  IDManager.Api/             Program.cs (composition root) + Endpoints/ (Minimal API, thin - map OperationResult to real HTTP status codes)
+```
+Services return an `OperationResult`/`OperationResult<T>` (Success/NotFound/
+ValidationFailed/Forbidden/Conflict, with field-level errors where relevant) instead
+of throwing for expected outcomes; `EndpointResults.ToHttpResult()` maps that
+uniformly to 200/404/400/403/409 across every endpoint - no generic
+`{success,message}` envelope hiding real HTTP semantics.
+
+**Frontend** - six layers, adapted from ReXL's Foundation → Infrastructure → Core
+Engine → Business Service → Application → Presentation split, minus the
+offline-specific pieces (no local Drift database, no Synchronization Engine - this
+app has nothing to sync):
+```
+frontend/idmanager_app/lib/
+  foundation/          ApiClient (Dio + JWT), theme, TokenStorage (session persistence) - no business logic
+  infrastructure/      Repositories that call the API directly and map JSON <-> Core Engine domain models
+  core_engine/          Freezed domain models + repository contracts (interfaces) + Engine services (validation, reusable capabilities), per module: security, points, templates, cards, audit
+  business_service/    Cross-engine orchestration and business rules (e.g. CardGenerationService coordinates the Templates and Cards engines)
+  application/          Riverpod controllers + freezed UI state, one per screen/workflow
+  presentation/         Screens, shared widgets (MasterListScreen/ManageMasterScaffold reused across Users/Templates/Audit Log), go_router routing
+```
+Dependency rule: `presentation -> application -> business_service -> core_engine -> infrastructure -> foundation`.
+Reverse dependencies are not allowed - e.g. `core_engine` never imports anything
+from `infrastructure` or `presentation`.
 
 ## Why physical units
 
@@ -13,31 +51,19 @@ stored in millimeters/points relative to the template's real card size
 touches these numbers. The backend renders the final PDF as true vector content at
 the card's exact physical size from the same numbers, so print output is always
 correct regardless of what zoom level the layout was designed at. See
-`backend/IDManager.Api/Persistence/Services/PdfGenerationService.cs` and
-`frontend/idmanager_app/lib/features/templates/template_editor_screen.dart`.
-
-## Structure
-
-```
-backend/                    .NET 8 Web API (IDManager.Api)
-  Domain/Entities/          User, CardTemplate, TemplateCombination, IDCard, PointTransaction, AuditLog
-  Dtos/                     API contracts, incl. the physical-unit layer model (TemplateLayerDtos.cs)
-  Persistence/Services/     Business logic (Auth, User, Template, Points, PDF extraction/generation, AuditLog)
-  Controllers/              REST endpoints
-frontend/idmanager_app/     Flutter app (targets: web, windows)
-  lib/core/                 models, network (Dio API clients), Riverpod state, theme
-  lib/features/             auth, dashboard, templates (designer), cards (generate/print), users, points, audit_log
-```
+`backend/src/IDManager.Infrastructure/Templates/PdfGenerationService.cs` and
+`frontend/idmanager_app/lib/presentation/templates/template_editor_screen.dart`.
 
 ## Running the backend
 
 Requires .NET 8 SDK and PostgreSQL.
 
 ```bash
-cd backend/IDManager.Api
-# set ConnectionStrings:DefaultConnection and Jwt:Key in appsettings.json (or via
+cd backend/src/IDManager.Infrastructure
+# set ConnectionStrings:Default and Jwt:Key in IDManager.Api/appsettings.json (or via
 # environment variables / user-secrets) before running against a real database.
-dotnet ef database update
+dotnet ef database update --startup-project ../IDManager.Api
+cd ../IDManager.Api
 dotnet run
 ```
 
@@ -54,18 +80,20 @@ Requires the Flutter SDK (stable channel, web + Windows desktop enabled).
 ```bash
 cd frontend/idmanager_app
 flutter pub get
+dart run build_runner build --delete-conflicting-outputs   # generates .freezed.dart / .g.dart
 flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:5080/api
 # or, for a Windows build (must be run on Windows):
 flutter build windows --dart-define=API_BASE_URL=https://your-api-host/api
 ```
 
-`API_BASE_URL` defaults to `http://localhost:5080/api` if not specified.
+`API_BASE_URL` defaults to `http://localhost:5080/api` if not specified. Re-run the
+`build_runner` command after changing any `@freezed` model or `@riverpod` provider.
 
 ## What's implemented in this skeleton
 
 - Full role hierarchy (SuperAdmin/Admin/Distributor/User), JWT auth, points economy
-  (increase/decrease/spend-on-card, mirroring the points ledger from the predecessor
-  app), audit log.
+  (allocate/reclaim/spend-on-card - SuperAdmin is the unlimited source, everyone else
+  redistributes from their own balance), audit log.
 - Template CRUD, multiple front/back image "combinations" per template, PDF field
   extraction (PdfPig), matching extracted fields to a template's positioned layers by
   key.
@@ -78,9 +106,9 @@ flutter build windows --dart-define=API_BASE_URL=https://your-api-host/api
 ## Known gaps / next iteration
 
 - The designer canvas supports drag-to-reposition but not resize/rotate handles yet.
-- PDF text-extraction row/column matching is a generic heuristic; the predecessor app
-  had script-specific (Tamil) Unicode-reordering fixes layered on top for one
-  particular source document - intentionally left out here, see the comment in
+- PDF text-extraction row/column matching is a generic heuristic; a source document
+  using a script/language PdfPig extracts imperfectly may need extra text-reordering
+  fixups layered on top - deliberately left out here, see the comment in
   `PdfExtractionService.cs`.
 - No automated test coverage yet beyond a basic Flutter widget smoke test.
 - `Jwt:Key` and the seed admin password are development defaults in

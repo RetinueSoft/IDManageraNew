@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'core/state/auth_provider.dart';
-import 'core/theme/app_theme.dart';
-import 'features/auth/login_screen.dart';
-import 'features/shell/app_shell.dart';
+import 'application/security/session_controller.dart';
+import 'foundation/theme/app_theme.dart';
+import 'presentation/auth/login_screen.dart';
+import 'presentation/routing/app_router.dart';
 
 void main() {
   runApp(const ProviderScope(child: IdManagerApp()));
@@ -15,24 +15,32 @@ class IdManagerApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authProvider);
+    final session = ref.watch(sessionControllerProvider);
 
-    return MaterialApp(
+    if (session.isLoading) {
+      return MaterialApp(
+        title: 'IDManager',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light(),
+        home: const Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
+    }
+
+    if (session.value == null) {
+      return MaterialApp(
+        title: 'IDManager',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light(),
+        home: const LoginScreen(),
+      );
+    }
+
+    final router = ref.watch(appRouterProvider);
+    return MaterialApp.router(
       title: 'IDManager',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
-      home: auth.isRestoring
-          ? const _SplashScreen()
-          : (auth.isAuthenticated ? const AppShell() : const LoginScreen()),
+      routerConfig: router,
     );
-  }
-}
-
-class _SplashScreen extends StatelessWidget {
-  const _SplashScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

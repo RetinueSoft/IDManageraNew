@@ -1,0 +1,245 @@
+using System.Text.Json;
+using IDManager.Domain.Common;
+using IDManager.Domain.Dtos;
+using IDManager.Domain.Entities;
+using IDManager.Domain.Enums;
+using Microsoft.EntityFrameworkCore;
+
+namespace IDManager.Infrastructure.Templates;
+
+public class TemplateService(IDManagerDbContext db)
+{
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+
+    public async Task<PagedResult<TemplateSummaryDto>> GetAllAsync(PagedRequest request, CancellationToken ct)
+    {
+        var query = db.CardTemplates.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(request.SearchBy))
+        {
+            query = query.Where(t => t.Name.Contains(request.SearchBy));
+        }
+
+        var totalCount = await query.CountAsync(ct);
+        var items = await query
+            .OrderByDescending(t => t.CreatedAt)
+            .Skip((request.PageIndex - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .ToListAsync(ct);
+
+        return new PagedResult<TemplateSummaryDto>
+        {
+            Items = items.Select(ToSummaryDto).ToList(),
+            TotalCount = totalCount,
+            PageIndex = request.PageIndex,
+            PageSize = request.PageSize,
+        };
+    }
+
+    public async Task<OperationResult<TemplateDetailDto>> GetTemplateAsync(int id, CancellationToken ct)
+    {
+        var template = await db.CardTemplates.Include(t => t.Combinations).FirstOrDefaultAsync(t => t.Id == id, ct);
+        return template is null
+            ? OperationResult<TemplateDetailDto>.NotFound("Template not found.")
+            : OperationResult<TemplateDetailDto>.Success(ToDetailDto(template));
+    }
+
+    public async Task<OperationResult<TemplateDetailDto>> CreateAsync(int createdById, CreateTemplateCommand command, CancellationToken ct)
+    {
+        var errors = new Dictionary<string, string>();
+        if (string.IsNullOrWhiteSpace(command.Name)) errors["name"] = "Name is required.";
+        if (command.FrontImageBytes.Length == 0) errors["frontImage"] = "Front image is required.";
+        if (command.BackImageBytes.Length == 0) errors["backImage"] = "Back image is required.";
+        if (errors.Count > 0) return OperationResult<TemplateDetailDto>.Invalid(errors);
+
+        var template = new CardTemplateEntity
+        {
+            Name = command.Name,
+            CardWidthMm = command.CardWidthMm,
+            CardHeightMm = command.CardHeightMm,
+            PointCost = command.PointCost,
+            GroupsJson = command.GroupsJson,
+            IsActive = true,
+            CreatedById = createdById,
+            FrontImage = command.FrontImageBytes,
+            BackImage = command.BackImageBytes,
+        };
+
+        db.CardTemplates.Add(template);
+        await db.SaveChangesAsync(ct);
+
+        return OperationResult<TemplateDetailDto>.Success(ToDetailDto(template));
+    }
+
+    public async Task<OperationResult<TemplateDetailDto>> UpdateAsync(UpdateTemplateCommand command, CancellationToken ct)
+    {
+        var template = await db.CardTemplates.Include(t => t.Combinations).FirstOrDefaultAsync(t => t.Id == command.Id, ct);
+        if (template is null) return OperationResult<TemplateDetailDto>.NotFound("Template not found.");
+
+        if (string.IsNullOrWhiteSpace(command.Name))
+        {
+            return OperationResult<TemplateDetailDto>.Invalid(new Dictionary<string, string> { ["name"] = "Name is required." });
+        }
+
+        template.Name = command.Name;
+        template.PointCost = command.PointCost;
+        template.IsActive = command.IsActive;
+        template.GroupsJson = command.GroupsJson;
+        template.ModifiedAt = DateTime.UtcNow;
+        if (command.FrontImageBytes is { Length: > 0 }) template.FrontImage = command.FrontImageBytes;
+        if (command.BackImageBytes is { Length: > 0 }) template.BackImage = command.BackImageBytes;
+
+        await db.SaveChangesAsync(ct);
+        return OperationResult<TemplateDetailDto>.Success(ToDetailDto(template));
+    }
+
+    public async Task<OperationResult> SetActiveAsync(int id, bool active, CancellationToken ct)
+    {
+        var template = await db.CardTemplates.FindAsync([id], ct);
+        if (template is null) return OperationResult.NotFound("Template not found.");
+
+        template.IsActive = active;
+        template.ModifiedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+        return OperationResult.Success();
+    }
+
+    public async Task<OperationResult> SaveLayersAsync(SaveLayersRequest request, CancellationToken ct)
+    {
+        var template = await db.CardTemplates.FindAsync([request.TemplateId], ct);
+        if (template is null) return OperationResult.NotFound("Template not found.");
+
+        template.LayersJson = JsonSerializer.Serialize(request.Layers);
+        template.ModifiedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+        return OperationResult.Success();
+    }
+
+    public async Task<OperationResult<CombinationDto>> AddCombinationAsync(AddCombinationCommand command, CancellationToken ct)
+    {
+        var template = await db.CardTemplates.FindAsync([command.TemplateId], ct);
+        if (template is null) return OperationResult<CombinationDto>.NotFound("Template not found.");
+
+        var combination = new TemplateCombinationEntity
+        {
+            TemplateId = template.Id,
+            Name = command.Name,
+            FrontImage = command.FrontImageBytes,
+            BackImage = command.BackImageBytes,
+        };
+
+        db.TemplateCombinations.Add(combination);
+        await db.SaveChangesAsync(ct);
+
+        return OperationResult<CombinationDto>.Success(ToCombinationDto(combination));
+    }
+
+    public async Task<OperationResult> DeleteCombinationAsync(int combinationId, CancellationToken ct)
+    {
+        var combination = await db.TemplateCombinations.FindAsync([combinationId], ct);
+        if (combination is null) return OperationResult.NotFound("Combination not found.");
+
+        db.TemplateCombinations.Remove(combination);
+        await db.SaveChangesAsync(ct);
+        return OperationResult.Success();
+    }
+
+    /// Matches a member's extracted PDF fields against the template's positioned
+    /// layers by key, filling each layer source's value so the result can be
+    /// rendered/printed directly at its designed position.
+    public async Task<OperationResult<(List<TemplateLayerDto> Layers, byte[] FrontImage, byte[] BackImage)>> MatchToTemplateAsync(
+        int templateId, int combinationId, List<ExtractedFieldDto> extractedFields, CancellationToken ct)
+    {
+        var template = await db.CardTemplates.FindAsync([templateId], ct);
+        if (template is null)
+        {
+            return OperationResult<(List<TemplateLayerDto>, byte[], byte[])>.NotFound("Template not found.");
+        }
+        var combination = await db.TemplateCombinations.FindAsync([combinationId], ct);
+        if (combination is null)
+        {
+            return OperationResult<(List<TemplateLayerDto>, byte[], byte[])>.NotFound("Combination not found.");
+        }
+
+        var layers = template.LayersJson != null
+            ? JsonSerializer.Deserialize<List<TemplateLayerDto>>(template.LayersJson, JsonOptions) ?? []
+            : [];
+
+        MergeExtractedValues(layers, extractedFields);
+
+        return OperationResult<(List<TemplateLayerDto>, byte[], byte[])>.Success((layers, combination.FrontImage, combination.BackImage));
+    }
+
+    /// Fills each layer source's Value from the matching extracted field: text
+    /// sources are matched by key (the field name captured while designing the
+    /// layout), image sources are assigned in extraction order since a scanned
+    /// photo/QR has no key.
+    private static void MergeExtractedValues(List<TemplateLayerDto> layers, List<ExtractedFieldDto> extractedFields)
+    {
+        var textFieldsByKey = extractedFields
+            .Where(f => f.Type == LayerFieldType.Text && !string.IsNullOrEmpty(f.Key))
+            .GroupBy(f => f.Key!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
+        var imageFields = extractedFields.Where(f => f.Type == LayerFieldType.Image).ToList();
+        var imageIndex = 0;
+
+        foreach (var group in layers.SelectMany(l => l.Groups))
+        {
+            foreach (var source in group.Sources)
+            {
+                if (source.Type == LayerFieldType.Text && source.Key != null
+                    && textFieldsByKey.TryGetValue(source.Key.Trim(), out var value))
+                {
+                    source.Value = value;
+                }
+                else if (source.Type == LayerFieldType.Image && imageIndex < imageFields.Count)
+                {
+                    source.Value = imageFields[imageIndex].Value;
+                    imageIndex++;
+                }
+            }
+        }
+    }
+
+    private static TemplateSummaryDto ToSummaryDto(CardTemplateEntity t) => new()
+    {
+        Id = t.Id,
+        Name = t.Name,
+        CardWidthMm = t.CardWidthMm,
+        CardHeightMm = t.CardHeightMm,
+        PointCost = t.PointCost,
+        IsActive = t.IsActive,
+        FrontImageBase64 = Convert.ToBase64String(t.FrontImage),
+        BackImageBase64 = Convert.ToBase64String(t.BackImage),
+        CreatedAt = t.CreatedAt,
+    };
+
+    private static TemplateDetailDto ToDetailDto(CardTemplateEntity t)
+    {
+        var summary = ToSummaryDto(t);
+        return new TemplateDetailDto
+        {
+            Id = summary.Id,
+            Name = summary.Name,
+            CardWidthMm = summary.CardWidthMm,
+            CardHeightMm = summary.CardHeightMm,
+            PointCost = summary.PointCost,
+            IsActive = summary.IsActive,
+            FrontImageBase64 = summary.FrontImageBase64,
+            BackImageBase64 = summary.BackImageBase64,
+            CreatedAt = summary.CreatedAt,
+            Groups = JsonSerializer.Deserialize<List<FieldGroupDto>>(t.GroupsJson, JsonOptions) ?? [],
+            Layers = t.LayersJson != null
+                ? JsonSerializer.Deserialize<List<TemplateLayerDto>>(t.LayersJson, JsonOptions) ?? []
+                : [],
+            Combinations = t.Combinations.Select(ToCombinationDto).ToList(),
+        };
+    }
+
+    private static CombinationDto ToCombinationDto(TemplateCombinationEntity c) => new()
+    {
+        Id = c.Id,
+        Name = c.Name,
+        FrontImageBase64 = Convert.ToBase64String(c.FrontImage),
+        BackImageBase64 = Convert.ToBase64String(c.BackImage),
+    };
+}
