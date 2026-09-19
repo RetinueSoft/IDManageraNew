@@ -368,4 +368,59 @@ public class PdfGenerationServiceTests
         Assert.Equal(asha.Left, road.Left, 0);          // both values start in the value column
         Assert.Equal(address.Bottom, road.Bottom, 0);   // the address values sit on the address row
     }
+
+    // ---- words to remove from a layer's values ----
+
+    [Fact]
+    public void RemoveWords_AreTakenOutOfCombinedValues_ButNotKeys()
+    {
+        var group = Combined(false, null,
+            new LayerSourceItemDto { Key = "No.", Value = "No. 117 Palace" },
+            new LayerSourceItemDto { Value = "No. 5 Colony" });
+        group.RemoveWords = ["No."];
+
+        using var pdf = PdfDocument.Open(Render(group));
+        var text = pdf.GetPage(1).Text.Replace("\n", " ");
+
+        Assert.Contains("No.: 117 Palace", text); // the key keeps its "No."; the value lost it
+        Assert.Contains("5 Colony", text);
+        Assert.DoesNotContain("No. 5", text);
+    }
+
+    [Fact]
+    public void RemoveWords_AreTakenOutOfAlignedRowValues()
+    {
+        var group = Combined(false, 20,
+            new LayerSourceItemDto { Key = "Address", Value = "" },
+            new LayerSourceItemDto { Value = "No. 117 Palace" },
+            new LayerSourceItemDto { Value = "Pune" });
+        group.RemoveWords = ["No."];
+
+        using var pdf = PdfDocument.Open(Render(group));
+        var text = string.Join(" ", pdf.GetPage(1).GetWords().Select(w => w.Text));
+
+        Assert.Contains("117", text);
+        Assert.DoesNotContain("No.", text);
+    }
+
+    [Fact]
+    public void RemoveWords_AreTakenOutOfASingleFieldValue()
+    {
+        var group = TextLayer("", "No. 117 Palace");
+        group.RemoveWords = ["No."];
+
+        using var pdf = PdfDocument.Open(Render(group));
+        var text = pdf.GetPage(1).Text;
+
+        Assert.Contains("117 Palace", text);
+        Assert.DoesNotContain("No.", text);
+    }
+
+    [Fact]
+    public void ALayerWithoutRemoveWords_PrintsValuesAsTheyAre()
+    {
+        using var pdf = PdfDocument.Open(Render(TextLayer("", "No. 117 Palace")));
+
+        Assert.Contains("No. 117 Palace", pdf.GetPage(1).Text);
+    }
 }

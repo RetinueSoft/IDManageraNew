@@ -1,4 +1,5 @@
 import 'template_layer.dart';
+import 'value_cleaner.dart';
 
 /// How a combined (List) layer joins its fields.
 enum JoinSeparator {
@@ -37,6 +38,10 @@ class BulletRow {
 }
 
 extension LayerGroupText on LayerGroup {
+  /// A field's value as printed in a combined layer: trimmed, with the layer's words to remove
+  /// taken out. Must match the backend's ValueCleaner.RemoveWords(value.Trim()).Trim().
+  String cleanValue(String? value) => removeWordsFrom((value ?? '').trim(), removeWords).trim();
+
   /// A combined layer with a key width: every field is its own row and the keys share
   /// one column ([keyWidthMm] wide) so the separators and values line up. (Bullets are
   /// optional.) Must match PdfGenerationService's aligned table.
@@ -70,7 +75,7 @@ extension LayerGroupText on LayerGroup {
         continue;
       }
       final key = (s.key ?? '').trim();
-      final value = (s.value ?? '').trim();
+      final value = cleanValue(s.value);
       if (key.isEmpty && value.isEmpty) continue;
 
       if (!bulletList && key.isEmpty && openRow >= 0) {
@@ -114,7 +119,7 @@ extension LayerGroupText on LayerGroup {
         continue;
       }
       final key = (s.key ?? '').trim();
-      final value = (s.value ?? '').trim();
+      final value = cleanValue(s.value);
       if (key.isEmpty && value.isEmpty) continue;
 
       if (wroteAny) {

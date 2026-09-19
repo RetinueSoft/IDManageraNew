@@ -1,6 +1,7 @@
 using System.Text;
 using IDManager.Domain.Dtos;
 using IDManager.Domain.Enums;
+using IDManager.Infrastructure.Text;
 using SkiaSharp;
 using SkiaSharp.HarfBuzz;
 
@@ -103,22 +104,23 @@ public class PdfGenerationService
                 {
                     var style = new TextStyle(size, group.Bold, (float)(size * LineHeightFactor));
                     var key = source.Key ?? "";
+                    var value = ValueCleaner.RemoveWords(source.Value ?? "", group.RemoveWords);
                     var separator = group.UseDashSeparator ? "-" : ":";
                     float height;
 
                     if (string.IsNullOrEmpty(key))
                     {
-                        height = DrawBlock(canvas, source.Value ?? "", x, y, totalWidth, style);
+                        height = DrawBlock(canvas, value, x, y, totalWidth, style);
                     }
                     else if (group.KeyWidthMm is null or <= 0)
                     {
                         // No key width: separator and value follow immediately after the key.
-                        height = DrawBlock(canvas, $"{key}{separator} {source.Value ?? ""}", x, y, totalWidth, style);
+                        height = DrawBlock(canvas, $"{key}{separator} {value}", x, y, totalWidth, style);
                     }
                     else
                     {
                         // Key width set: the separator starts at layer x + key width, then the value.
-                        height = DrawKeyRow(canvas, group, style, x, y, totalWidth, key, separator, source.Value ?? "");
+                        height = DrawKeyRow(canvas, group, style, x, y, totalWidth, key, separator, value);
                     }
 
                     y += Math.Max((float)(group.LineHeightMm * MmToPt), height);
@@ -349,7 +351,7 @@ public class PdfGenerationService
                 continue;
             }
             var key = (source.Key ?? "").Trim();
-            var value = (source.Value ?? "").Trim();
+            var value = ValueCleaner.RemoveWords((source.Value ?? "").Trim(), group.RemoveWords).Trim();
             if (key.Length == 0 && value.Length == 0) continue;
 
             if (wroteAny)
@@ -414,7 +416,7 @@ public class PdfGenerationService
             }
 
             var key = (source.Key ?? "").Trim();
-            var value = (source.Value ?? "").Trim();
+            var value = ValueCleaner.RemoveWords((source.Value ?? "").Trim(), group.RemoveWords).Trim();
             if (key.Length == 0 && value.Length == 0) continue;
 
             if (!group.BulletList && key.Length == 0 && openRow >= 0)

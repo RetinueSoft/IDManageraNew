@@ -181,4 +181,23 @@ void main() {
     expect(CardText.separatorWidthFactor, 0.6); // PdfGenerationService.SeparatorWidthFactor
     expect(CardText.defaultWidthMm, 30); // PdfGenerationService: group.WidthMm ?? 30
   });
+
+  testWidgets('words to remove are taken out of a single field value', (tester) async {
+    final group = _group(sources: const [LayerSourceItem(key: '', value: 'எண் :117 கூளமடை')]).copyWith(
+      removeWords: const ['எண்'],
+    );
+    await _pump(tester, group);
+
+    expect(find.text('117 கூளமடை'), findsOneWidget);
+    expect(find.text('எண் :117 கூளமடை'), findsNothing);
+  });
+
+  testWidgets('words to remove leave the key of a single field alone', (tester) async {
+    final group = _group(sources: const [LayerSourceItem(key: 'எண்', value: 'எண் 5')]).copyWith(
+      removeWords: const ['எண்'],
+    );
+    await _pump(tester, group);
+
+    expect(find.text('எண்: 5'), findsOneWidget);
+  });
 }

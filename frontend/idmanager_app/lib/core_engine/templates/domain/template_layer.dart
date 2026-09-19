@@ -59,6 +59,10 @@ sealed class LayerGroup with _$LayerGroup {
     /// image the user picks (a QR code). Its source's key names the slot, e.g. 'QR 1'.
     @Default(false) bool isQr,
 
+    /// Words stripped out of every field's value in this layer (e.g. 'எண்' from
+    /// 'எண் :117 கூளமடை'), whole words only, never from keys. One list per layer.
+    @Default(<String>[]) List<String> removeWords,
+
     /// In a combined layer: print each field on its own line with a bullet point.
     @Default(false) bool bulletList,
     @Default(false) bool emptyLineEveryAfter,

@@ -36,6 +36,11 @@ public class LayerGroupDto
     /// an image the user picks (a QR code). Its single source's Key names the slot.
     public bool IsQr { get; set; }
 
+    /// Words stripped out of every field's value in this layer when it is printed (e.g.
+    /// "எண்" from "எண் :117 கூளமடை"). Whole words only, never from keys. One list per layer,
+    /// any number of words. See ValueCleaner.
+    public List<string> RemoveWords { get; set; } = new();
+
     /// In a combined group: extra space (mm) added between all of its lines, common to
     /// the whole group. 0 keeps the normal line spacing.
     public double LineGapMm { get; set; }

@@ -181,4 +181,74 @@ void main() {
       expect(rows.map((r) => r.value).toList(), ['', 'MG Road', 'Pune']);
     });
   });
+
+  // ---- words to remove from a layer's values ----
+
+  group('removeWords on a layer', () {
+    LayerGroup withWords(
+      List<LayerSourceItem> sources,
+      List<String> words, {
+      bool bullets = false,
+      double? keyWidthMm,
+    }) => LayerGroup(
+      id: 'g',
+      name: 'g',
+      xMm: 0,
+      yMm: 0,
+      isList: true,
+      bulletList: bullets,
+      keyWidthMm: keyWidthMm,
+      removeWords: words,
+      sources: sources,
+    );
+
+    test('are taken out of every field value in a combined layer, never out of the keys', () {
+      final g = withWords([
+        const LayerSourceItem(key: 'எண்', value: 'எண் :117 கூளமடை'),
+        const LayerSourceItem(value: 'எண் 5'),
+      ], ['எண்']);
+
+      // The key "எண்" stays; the word is removed from both values.
+      expect(g.combinedText, 'எண்: 117 கூளமடை, 5');
+    });
+
+    test('several words can be listed for one layer', () {
+      final g = withWords([const LayerSourceItem(value: 'எண் :117 கூளமடை போஸ்ட்')], ['எண்', 'போஸ்ட்']);
+
+      expect(g.combinedText, '117 கூளமடை');
+    });
+
+    test('a value that is nothing but a removed word counts as empty and is skipped', () {
+      final g = withWords([
+        const LayerSourceItem(value: 'A', separator: 'dash'),
+        const LayerSourceItem(value: 'எண்'),
+        const LayerSourceItem(value: 'B'),
+      ], ['எண்']);
+
+      expect(g.combinedText, 'A - B');
+    });
+
+    test('are removed from the values of aligned rows too', () {
+      final rows = withWords([
+        const LayerSourceItem(key: 'Address', value: ''),
+        const LayerSourceItem(value: 'எண் :117 கூளமடை'),
+        const LayerSourceItem(value: 'மன்னார்குடி'),
+      ], ['எண்'], keyWidthMm: 10).bulletRows;
+
+      expect(rows.single.key, 'Address');
+      expect(rows.single.value, '117 கூளமடை, மன்னார்குடி');
+    });
+
+    test('are removed from bullet-list values too', () {
+      final g = withWords([const LayerSourceItem(value: 'எண் 5')], ['எண்'], bullets: true);
+
+      expect(g.combinedText, '• 5');
+    });
+
+    test('cleanValue trims, and leaves a layer with no words alone', () {
+      expect(withWords([], ['எண்']).cleanValue(' எண் 5 '), '5');
+      expect(withWords([], []).cleanValue(' எண் 5 '), 'எண் 5');
+      expect(withWords([], ['எண்']).cleanValue(null), '');
+    });
+  });
 }
