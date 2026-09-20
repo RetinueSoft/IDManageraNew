@@ -490,4 +490,119 @@ public class CardServiceTests
 
         Assert.Equal("Meena", download.Value!.FileName);
     }
+
+    // ---- the points history names the card like the file ----
+
+    private static List<string> Reasons(IDManagerDbContext db) =>
+        db.PointTransactions.Where(t => t.ForIdCardId != null).OrderBy(t => t.Id).Select(t => t.Reason).ToList();
+
+    /// A member PDF whose rows read "Name | Ravi Kumar" and "Card No | 1234567890" - the label and
+    /// the value far enough apart to be two cells, which is how the extractor finds a field.
+    private static byte[] MemberPdf()
+    {
+        static LayerGroupDto Cell(double x, double y, string text) => new()
+        {
+            Name = text, XMm = x, YMm = y, WidthMm = 30, Sources = [new LayerSourceItemDto { Value = text }],
+        };
+
+        return new PdfGenerationService().GenerateCardPdf(
+            Png, Png, 85.6, 54,
+            [
+                new TemplateLayerDto
+                {
+                    Side = CardSide.Front,
+                    Groups = [Cell(5, 5, "Name"), Cell(45, 5, "Ravi Kumar"), Cell(5, 15, "Card No"), Cell(45, 15, "1234567890")],
+                },
+            ]);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_TheCardIsNamedInThePointsHistoryLikeItsFile()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (templateId, combinationId) = await CreateTemplateWithCombinationAsync(db);
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        db.CardTemplates.Single().FileNamePattern = "{Name} - {Card No}";
+        await db.SaveChangesAsync();
+        // The template must have the fields as layers for a value to be matched, but the extracted
+        // PDF fields alone are enough for the name.
+        var result = await NewService(db).GenerateAsync(
+            sa.Id,
+            new GenerateCardCommand { TemplateId = templateId, CombinationId = combinationId, PdfBytes = MemberPdf() },
+            CancellationToken.None);
+
+        Assert.Equal(ResultStatus.Success, result.Status);
+        Assert.All(Reasons(db), reason => Assert.EndsWith("for Ravi Kumar - 1234567890", reason));
+        Assert.Equal(2, Reasons(db).Count);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_WithoutAPattern_TheHistoryStillUsesTheFirstFieldValue()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (templateId, combinationId) = await CreateTemplateWithCombinationAsync(db);
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+
+        await NewService(db).GenerateAsync(
+            sa.Id,
+            new GenerateCardCommand { TemplateId = templateId, CombinationId = combinationId, PdfBytes = MemberPdf() },
+            CancellationToken.None);
+
+        Assert.All(Reasons(db), reason => Assert.EndsWith("for Ravi Kumar", reason));
+    }
+
+    [Fact]
+    public async Task DownloadAsync_RenamesTheHistoryToTheFileNameActuallySaved()
+    {
+        using var testDb = TestDb.Create();
+        var (service, db, userId, cardId, _) = await GeneratedCardAsync(
+            testDb, "{Name}", Field("Name", "Ravi Kumr"));
+        var corrected = new TemplateLayerDto
+        {
+            Side = CardSide.Front,
+            Groups = [new LayerGroupDto { Name = "n", Sources = [new LayerSourceItemDto { Key = "Name", Value = "Ravi Kumar", Type = LayerFieldType.Text }] }],
+        };
+
+        var download = await service.DownloadAsync(userId, cardId, [corrected], null, CancellationToken.None);
+
+        Assert.Equal("Ravi Kumar", download.Value!.FileName);
+        Assert.Equal(2, Reasons(db).Count);
+        Assert.All(Reasons(db), reason => Assert.EndsWith("for Ravi Kumar", reason));
+    }
+
+    [Fact]
+    public async Task DownloadAsync_WithoutAPattern_TheHistoryUsesTheCardFileName()
+    {
+        using var testDb = TestDb.Create();
+        var (service, db, userId, cardId, _) = await GeneratedCardAsync(testDb, null, Field("Name", "Ravi"));
+
+        await service.DownloadAsync(userId, cardId, null, null, CancellationToken.None);
+
+        Assert.All(Reasons(db), reason => Assert.EndsWith($"for card-{cardId}", reason));
+    }
+
+    [Fact]
+    public async Task TheEarnRow_KeepsWhoGeneratedTheCard()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (templateId, combinationId) = await CreateTemplateWithCombinationAsync(db, pointCost: 2);
+        var sa = await TestUsers.AddAsync(db, "The Admin", UserRole.SuperAdmin);
+        var retailer = await TestUsers.AddAsync(db, "Priya", UserRole.Retailer, sa, points: 10);
+        db.CardTemplates.Single().FileNamePattern = "{Name}";
+        await db.SaveChangesAsync();
+        var service = NewService(db);
+        var generated = await service.GenerateAsync(
+            retailer.Id,
+            new GenerateCardCommand { TemplateId = templateId, CombinationId = combinationId, PdfBytes = MemberPdf() },
+            CancellationToken.None);
+
+        await service.DownloadAsync(retailer.Id, generated.Value!.IdCardId, null, null, CancellationToken.None);
+
+        var reasons = Reasons(db);
+        Assert.Contains("Card generated for Ravi Kumar", reasons);
+        Assert.Contains("Card generated by Priya for Ravi Kumar", reasons);
+    }
 }

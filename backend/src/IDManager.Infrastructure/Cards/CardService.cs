@@ -79,8 +79,12 @@ public class CardService(
             PointsDeducted = template.PointCost,
         };
 
-        var nameField = extractedFields.FirstOrDefault(f => f.Type == LayerFieldType.Text);
-        var idCardId = await pointsService.CreateIdCardAsync(idCard, nameField?.Value ?? "Unknown", ct);
+        // The points history names the card the way its PDF will be named (from the template's
+        // file name pattern); without a pattern, by the member's first text field.
+        var forName = PdfFileNameBuilder.Build(template.FileNamePattern, FieldValues(extractedFields, layers))
+            ?? extractedFields.FirstOrDefault(f => f.Type == LayerFieldType.Text)?.Value
+            ?? "Unknown";
+        var idCardId = await pointsService.CreateIdCardAsync(idCard, forName, ct);
 
         return OperationResult<GenerateCardResponse>.Success(new GenerateCardResponse
         {
@@ -144,16 +148,17 @@ public class CardService(
 
         var pdfBytes = pdfGenerationService.GenerateCardPdf(frontImage, backImage, template.CardWidthMm, template.CardHeightMm, layers);
 
+        var fileName = PdfFileNameBuilder.Build(template.FileNamePattern, FieldValues(extractedFields, layers))
+            ?? $"card-{idCard.Id}";
+
         idCard.GeneratedPdf = pdfBytes;
         await db.SaveChangesAsync(ct);
+        // The points history shows the card under the name the file is saved as (a value corrected
+        // on the preview may have changed it since the card was generated).
+        await pointsService.RenameCardTransactionsAsync(idCard.Id, fileName, ct);
         await pointsService.CompletePaymentTransactionAsync(idCard.Id, ct);
 
-        return OperationResult<DownloadedCardDto>.Success(new DownloadedCardDto
-        {
-            Pdf = pdfBytes,
-            FileName = PdfFileNameBuilder.Build(template.FileNamePattern, FieldValues(extractedFields, layers))
-                ?? $"card-{idCard.Id}",
-        });
+        return OperationResult<DownloadedCardDto>.Success(new DownloadedCardDto { Pdf = pdfBytes, FileName = fileName });
     }
 
     /// The values a file name pattern can use, by PDF field name: what was extracted from the
