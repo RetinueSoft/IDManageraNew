@@ -1,0 +1,53 @@
+# Server deploy: pulls the api/ui images from GHCR rather than building them,
+# so the server never needs the source tree, just this file. Building happens
+# on a dev machine instead -- see docker-compose.build.yml and
+# scripts/build-and-push.sh, and DEPLOY.md for the full runbook.
+#
+# This replaces the old ID Card Manager deployment: same services, ports and image names, but a
+# NEW database (IDManager, in its own volume) - nothing from the old app's database or from a
+# development machine is carried over. The first start creates the schema and one Super Admin.
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: IDManager
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - idmanager-postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d IDManager"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    image: ${IDCM_API_IMAGE:-ghcr.io/retinuesoft/idcardmanager-api:latest}
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=IDManager;Username=postgres;Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}"
+      Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env}
+      Cors__AllowedOrigins__0: "http://${IDCM_PUBLIC_HOST:-localhost}:5144"
+      # The Super Admin created on the very first start (only when the database has no users).
+      SeedAdmin__Phone: ${SEED_ADMIN_PHONE:-9943135008}
+      SeedAdmin__Password: ${SEED_ADMIN_PASSWORD:-Red@123}
+    ports:
+      - "5165:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  ui:
+    image: ${IDCM_UI_IMAGE:-ghcr.io/retinuesoft/idcardmanager-ui:latest}
+    restart: unless-stopped
+    ports:
+      - "5144:8080"
+    depends_on:
+      - api
+
+volumes:
+  idmanager-postgres-data:

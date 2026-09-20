@@ -1,0 +1,46 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore backend/IDManager.sln
+
+      - name: Build
+        run: dotnet build backend/IDManager.sln --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test backend/IDManager.sln --no-build --configuration Release
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+
+      - name: Restore
+        working-directory: frontend/idmanager_app
+        run: flutter pub get
+
+      - name: Test
+        working-directory: frontend/idmanager_app
+        run: flutter test

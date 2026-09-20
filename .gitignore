@@ -1,0 +1,5 @@
+# Local/server secrets - see .env.example
+.env
+
+# Editor settings
+.vscode/

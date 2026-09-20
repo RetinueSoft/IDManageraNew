@@ -1,0 +1,19 @@
+**/bin/
+**/obj/
+.git/
+.github/
+.vscode/
+.vs/
+.env
+docs/
+
+# Flutter build output and tooling caches
+**/build/
+**/.dart_tool/
+**/.idea/
+**/.flutter-plugins*
+frontend/idmanager_app/windows/
+frontend/idmanager_app/android/
+frontend/idmanager_app/ios/
+frontend/idmanager_app/linux/
+frontend/idmanager_app/macos/

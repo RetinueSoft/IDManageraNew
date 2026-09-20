@@ -1,0 +1,22 @@
+# Local-only override, layered on top of docker-compose.yml, that adds back
+# the `build:` step the shipped compose file deliberately omits -- see that
+# file's own comment, and DEPLOY.md for the full build/push runbook. Never
+# needed on the server.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml build api ui
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml push api ui
+#
+# `platform: linux/amd64` pins the build target regardless of the dev
+# machine's own architecture -- cheap VPS providers are amd64.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    platform: linux/amd64
+
+  ui:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    platform: linux/amd64
