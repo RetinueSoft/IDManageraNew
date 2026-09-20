@@ -1,4 +1,5 @@
 using IDManager.Api.Security;
+using IDManager.Domain.Common;
 using IDManager.Domain.Dtos;
 using IDManager.Infrastructure.Cards;
 
@@ -63,7 +64,13 @@ public static class CardEndpoints
             CancellationToken ct) =>
         {
             var result = await service.DownloadAsync(http.User.GetUserId(), idCardId, request?.Layers, request?.CombinationId, ct);
-            return result.ToFileResult("application/pdf", $"card-{idCardId}.pdf");
+            if (result.Status != ResultStatus.Success) return result.ToHttpResult();
+
+            // The name comes from the template's file name pattern (e.g. the member's name).
+            // It is also sent URL-encoded in X-File-Name, which a browser client can read where
+            // it cannot always decode Content-Disposition.
+            http.Response.Headers["X-File-Name"] = Uri.EscapeDataString(result.Value!.FileName);
+            return Results.File(result.Value.Pdf, "application/pdf", $"{result.Value.FileName}.pdf");
         });
     }
 }

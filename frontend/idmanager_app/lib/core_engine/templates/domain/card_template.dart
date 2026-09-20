@@ -24,6 +24,10 @@ sealed class CardTemplate with _$CardTemplate {
     required double cardHeightMm,
     required int pointCost,
     required bool isActive,
+
+    /// What a downloaded card PDF is called - the member's PDF fields as {Field}, e.g.
+    /// '{Name} - {Card No}'. Null means "card-<id>".
+    String? fileNamePattern,
     required String frontImageBase64,
     required String backImageBase64,
     required DateTime createdAt,

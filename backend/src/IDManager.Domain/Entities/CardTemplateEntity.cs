@@ -28,6 +28,11 @@ public class CardTemplateEntity
     public int TextOrderVersion { get; set; } = 1;
 
     public int PointCost { get; set; } = 1;
+
+    /// What a downloaded card PDF is called, with the member's PDF fields as {Field} - e.g.
+    /// "{Name} - {Card No}". Null/blank: "card-<id>". Not layer specific: one per template.
+    public string? FileNamePattern { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public int CreatedById { get; set; }

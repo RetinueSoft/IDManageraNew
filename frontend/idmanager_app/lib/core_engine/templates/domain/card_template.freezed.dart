@@ -282,7 +282,9 @@ as String,
 /// @nodoc
 mixin _$CardTemplate {
 
- int get id; String get name; double get cardWidthMm; double get cardHeightMm; int get pointCost; bool get isActive; String get frontImageBase64; String get backImageBase64; DateTime get createdAt;
+ int get id; String get name; double get cardWidthMm; double get cardHeightMm; int get pointCost; bool get isActive;/// What a downloaded card PDF is called - the member's PDF fields as {Field}, e.g.
+/// '{Name} - {Card No}'. Null means "card-<id>".
+ String? get fileNamePattern; String get frontImageBase64; String get backImageBase64; DateTime get createdAt;
 /// Create a copy of CardTemplate
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -294,20 +296,20 @@ $CardTemplateCopyWith<CardTemplate> get copyWith => _$CardTemplateCopyWithImpl<C
 @override
 bool operator ==(Object other) {
   final _this = this as CardTemplate;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CardTemplate&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.cardWidthMm, _this.cardWidthMm) || other.cardWidthMm == _this.cardWidthMm)&&(identical(other.cardHeightMm, _this.cardHeightMm) || other.cardHeightMm == _this.cardHeightMm)&&(identical(other.pointCost, _this.pointCost) || other.pointCost == _this.pointCost)&&(identical(other.isActive, _this.isActive) || other.isActive == _this.isActive)&&(identical(other.frontImageBase64, _this.frontImageBase64) || other.frontImageBase64 == _this.frontImageBase64)&&(identical(other.backImageBase64, _this.backImageBase64) || other.backImageBase64 == _this.backImageBase64)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CardTemplate&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.cardWidthMm, _this.cardWidthMm) || other.cardWidthMm == _this.cardWidthMm)&&(identical(other.cardHeightMm, _this.cardHeightMm) || other.cardHeightMm == _this.cardHeightMm)&&(identical(other.pointCost, _this.pointCost) || other.pointCost == _this.pointCost)&&(identical(other.isActive, _this.isActive) || other.isActive == _this.isActive)&&(identical(other.fileNamePattern, _this.fileNamePattern) || other.fileNamePattern == _this.fileNamePattern)&&(identical(other.frontImageBase64, _this.frontImageBase64) || other.frontImageBase64 == _this.frontImageBase64)&&(identical(other.backImageBase64, _this.backImageBase64) || other.backImageBase64 == _this.backImageBase64)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt));
 }
 
 
 @override
 int get hashCode {
   final _this = this as CardTemplate;
-  return Object.hash(runtimeType,_this.id,_this.name,_this.cardWidthMm,_this.cardHeightMm,_this.pointCost,_this.isActive,_this.frontImageBase64,_this.backImageBase64,_this.createdAt);
+  return Object.hash(runtimeType,_this.id,_this.name,_this.cardWidthMm,_this.cardHeightMm,_this.pointCost,_this.isActive,_this.fileNamePattern,_this.frontImageBase64,_this.backImageBase64,_this.createdAt);
 }
 
 @override
 String toString() {
   final _this = this as CardTemplate;
-  return 'CardTemplate(id: ${_this.id}, name: ${_this.name}, cardWidthMm: ${_this.cardWidthMm}, cardHeightMm: ${_this.cardHeightMm}, pointCost: ${_this.pointCost}, isActive: ${_this.isActive}, frontImageBase64: ${_this.frontImageBase64}, backImageBase64: ${_this.backImageBase64}, createdAt: ${_this.createdAt})';
+  return 'CardTemplate(id: ${_this.id}, name: ${_this.name}, cardWidthMm: ${_this.cardWidthMm}, cardHeightMm: ${_this.cardHeightMm}, pointCost: ${_this.pointCost}, isActive: ${_this.isActive}, fileNamePattern: ${_this.fileNamePattern}, frontImageBase64: ${_this.frontImageBase64}, backImageBase64: ${_this.backImageBase64}, createdAt: ${_this.createdAt})';
 }
 
 
@@ -318,7 +320,7 @@ abstract mixin class $CardTemplateCopyWith<$Res>  {
   factory $CardTemplateCopyWith(CardTemplate value, $Res Function(CardTemplate) _then) = _$CardTemplateCopyWithImpl;
 @useResult
 $Res call({
- int id, String name, double cardWidthMm, double cardHeightMm, int pointCost, bool isActive, String frontImageBase64, String backImageBase64, DateTime createdAt
+ int id, String name, double cardWidthMm, double cardHeightMm, int pointCost, bool isActive, String? fileNamePattern, String frontImageBase64, String backImageBase64, DateTime createdAt
 });
 
 
@@ -335,7 +337,7 @@ class _$CardTemplateCopyWithImpl<$Res>
 
 /// Create a copy of CardTemplate
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? cardWidthMm = null,Object? cardHeightMm = null,Object? pointCost = null,Object? isActive = null,Object? frontImageBase64 = null,Object? backImageBase64 = null,Object? createdAt = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? cardWidthMm = null,Object? cardHeightMm = null,Object? pointCost = null,Object? isActive = null,Object? fileNamePattern = freezed,Object? frontImageBase64 = null,Object? backImageBase64 = null,Object? createdAt = null,}) {
   return _then(CardTemplate(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -343,7 +345,8 @@ as String,cardWidthMm: null == cardWidthMm ? _self.cardWidthMm : cardWidthMm // 
 as double,cardHeightMm: null == cardHeightMm ? _self.cardHeightMm : cardHeightMm // ignore: cast_nullable_to_non_nullable
 as double,pointCost: null == pointCost ? _self.pointCost : pointCost // ignore: cast_nullable_to_non_nullable
 as int,isActive: null == isActive ? _self.isActive : isActive // ignore: cast_nullable_to_non_nullable
-as bool,frontImageBase64: null == frontImageBase64 ? _self.frontImageBase64 : frontImageBase64 // ignore: cast_nullable_to_non_nullable
+as bool,fileNamePattern: freezed == fileNamePattern ? _self.fileNamePattern : fileNamePattern // ignore: cast_nullable_to_non_nullable
+as String?,frontImageBase64: null == frontImageBase64 ? _self.frontImageBase64 : frontImageBase64 // ignore: cast_nullable_to_non_nullable
 as String,backImageBase64: null == backImageBase64 ? _self.backImageBase64 : backImageBase64 // ignore: cast_nullable_to_non_nullable
 as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,
@@ -428,10 +431,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  double cardWidthMm,  double cardHeightMm,  int pointCost,  bool isActive,  String frontImageBase64,  String backImageBase64,  DateTime createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  double cardWidthMm,  double cardHeightMm,  int pointCost,  bool isActive,  String? fileNamePattern,  String frontImageBase64,  String backImageBase64,  DateTime createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CardTemplate() when $default != null:
-return $default(_that.id,_that.name,_that.cardWidthMm,_that.cardHeightMm,_that.pointCost,_that.isActive,_that.frontImageBase64,_that.backImageBase64,_that.createdAt);case _:
+return $default(_that.id,_that.name,_that.cardWidthMm,_that.cardHeightMm,_that.pointCost,_that.isActive,_that.fileNamePattern,_that.frontImageBase64,_that.backImageBase64,_that.createdAt);case _:
   return orElse();
 
 }
@@ -449,10 +452,10 @@ return $default(_that.id,_that.name,_that.cardWidthMm,_that.cardHeightMm,_that.p
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  double cardWidthMm,  double cardHeightMm,  int pointCost,  bool isActive,  String frontImageBase64,  String backImageBase64,  DateTime createdAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  double cardWidthMm,  double cardHeightMm,  int pointCost,  bool isActive,  String? fileNamePattern,  String frontImageBase64,  String backImageBase64,  DateTime createdAt)  $default,) {final _that = this;
 switch (_that) {
 case _CardTemplate():
-return $default(_that.id,_that.name,_that.cardWidthMm,_that.cardHeightMm,_that.pointCost,_that.isActive,_that.frontImageBase64,_that.backImageBase64,_that.createdAt);}
+return $default(_that.id,_that.name,_that.cardWidthMm,_that.cardHeightMm,_that.pointCost,_that.isActive,_that.fileNamePattern,_that.frontImageBase64,_that.backImageBase64,_that.createdAt);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -466,10 +469,10 @@ return $default(_that.id,_that.name,_that.cardWidthMm,_that.cardHeightMm,_that.p
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  double cardWidthMm,  double cardHeightMm,  int pointCost,  bool isActive,  String frontImageBase64,  String backImageBase64,  DateTime createdAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  double cardWidthMm,  double cardHeightMm,  int pointCost,  bool isActive,  String? fileNamePattern,  String frontImageBase64,  String backImageBase64,  DateTime createdAt)?  $default,) {final _that = this;
 switch (_that) {
 case _CardTemplate() when $default != null:
-return $default(_that.id,_that.name,_that.cardWidthMm,_that.cardHeightMm,_that.pointCost,_that.isActive,_that.frontImageBase64,_that.backImageBase64,_that.createdAt);case _:
+return $default(_that.id,_that.name,_that.cardWidthMm,_that.cardHeightMm,_that.pointCost,_that.isActive,_that.fileNamePattern,_that.frontImageBase64,_that.backImageBase64,_that.createdAt);case _:
   return null;
 
 }
@@ -481,7 +484,7 @@ return $default(_that.id,_that.name,_that.cardWidthMm,_that.cardHeightMm,_that.p
 
 
 class _CardTemplate implements CardTemplate {
-  const _CardTemplate({required this.id, required this.name, required this.cardWidthMm, required this.cardHeightMm, required this.pointCost, required this.isActive, required this.frontImageBase64, required this.backImageBase64, required this.createdAt});
+  const _CardTemplate({required this.id, required this.name, required this.cardWidthMm, required this.cardHeightMm, required this.pointCost, required this.isActive, this.fileNamePattern, required this.frontImageBase64, required this.backImageBase64, required this.createdAt});
   
 
 @override final  int id;
@@ -490,6 +493,9 @@ class _CardTemplate implements CardTemplate {
 @override final  double cardHeightMm;
 @override final  int pointCost;
 @override final  bool isActive;
+/// What a downloaded card PDF is called - the member's PDF fields as {Field}, e.g.
+/// '{Name} - {Card No}'. Null means "card-<id>".
+@override final  String? fileNamePattern;
 @override final  String frontImageBase64;
 @override final  String backImageBase64;
 @override final  DateTime createdAt;
@@ -504,18 +510,18 @@ _$CardTemplateCopyWith<_CardTemplate> get copyWith => __$CardTemplateCopyWithImp
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CardTemplate&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.cardWidthMm, cardWidthMm) || other.cardWidthMm == cardWidthMm)&&(identical(other.cardHeightMm, cardHeightMm) || other.cardHeightMm == cardHeightMm)&&(identical(other.pointCost, pointCost) || other.pointCost == pointCost)&&(identical(other.isActive, isActive) || other.isActive == isActive)&&(identical(other.frontImageBase64, frontImageBase64) || other.frontImageBase64 == frontImageBase64)&&(identical(other.backImageBase64, backImageBase64) || other.backImageBase64 == backImageBase64)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CardTemplate&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.cardWidthMm, cardWidthMm) || other.cardWidthMm == cardWidthMm)&&(identical(other.cardHeightMm, cardHeightMm) || other.cardHeightMm == cardHeightMm)&&(identical(other.pointCost, pointCost) || other.pointCost == pointCost)&&(identical(other.isActive, isActive) || other.isActive == isActive)&&(identical(other.fileNamePattern, fileNamePattern) || other.fileNamePattern == fileNamePattern)&&(identical(other.frontImageBase64, frontImageBase64) || other.frontImageBase64 == frontImageBase64)&&(identical(other.backImageBase64, backImageBase64) || other.backImageBase64 == backImageBase64)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,name,cardWidthMm,cardHeightMm,pointCost,isActive,frontImageBase64,backImageBase64,createdAt);
+    return Object.hash(runtimeType,id,name,cardWidthMm,cardHeightMm,pointCost,isActive,fileNamePattern,frontImageBase64,backImageBase64,createdAt);
 }
 
 @override
 String toString() {
-    return 'CardTemplate(id: $id, name: $name, cardWidthMm: $cardWidthMm, cardHeightMm: $cardHeightMm, pointCost: $pointCost, isActive: $isActive, frontImageBase64: $frontImageBase64, backImageBase64: $backImageBase64, createdAt: $createdAt)';
+    return 'CardTemplate(id: $id, name: $name, cardWidthMm: $cardWidthMm, cardHeightMm: $cardHeightMm, pointCost: $pointCost, isActive: $isActive, fileNamePattern: $fileNamePattern, frontImageBase64: $frontImageBase64, backImageBase64: $backImageBase64, createdAt: $createdAt)';
 }
 
 
@@ -526,7 +532,7 @@ abstract mixin class _$CardTemplateCopyWith<$Res> implements $CardTemplateCopyWi
   factory _$CardTemplateCopyWith(_CardTemplate value, $Res Function(_CardTemplate) _then) = __$CardTemplateCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String name, double cardWidthMm, double cardHeightMm, int pointCost, bool isActive, String frontImageBase64, String backImageBase64, DateTime createdAt
+ int id, String name, double cardWidthMm, double cardHeightMm, int pointCost, bool isActive, String? fileNamePattern, String frontImageBase64, String backImageBase64, DateTime createdAt
 });
 
 
@@ -543,7 +549,7 @@ class __$CardTemplateCopyWithImpl<$Res>
 
 /// Create a copy of CardTemplate
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? cardWidthMm = null,Object? cardHeightMm = null,Object? pointCost = null,Object? isActive = null,Object? frontImageBase64 = null,Object? backImageBase64 = null,Object? createdAt = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? cardWidthMm = null,Object? cardHeightMm = null,Object? pointCost = null,Object? isActive = null,Object? fileNamePattern = freezed,Object? frontImageBase64 = null,Object? backImageBase64 = null,Object? createdAt = null,}) {
   return _then(_CardTemplate(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -551,7 +557,8 @@ as String,cardWidthMm: null == cardWidthMm ? _self.cardWidthMm : cardWidthMm // 
 as double,cardHeightMm: null == cardHeightMm ? _self.cardHeightMm : cardHeightMm // ignore: cast_nullable_to_non_nullable
 as double,pointCost: null == pointCost ? _self.pointCost : pointCost // ignore: cast_nullable_to_non_nullable
 as int,isActive: null == isActive ? _self.isActive : isActive // ignore: cast_nullable_to_non_nullable
-as bool,frontImageBase64: null == frontImageBase64 ? _self.frontImageBase64 : frontImageBase64 // ignore: cast_nullable_to_non_nullable
+as bool,fileNamePattern: freezed == fileNamePattern ? _self.fileNamePattern : fileNamePattern // ignore: cast_nullable_to_non_nullable
+as String?,frontImageBase64: null == frontImageBase64 ? _self.frontImageBase64 : frontImageBase64 // ignore: cast_nullable_to_non_nullable
 as String,backImageBase64: null == backImageBase64 ? _self.backImageBase64 : backImageBase64 // ignore: cast_nullable_to_non_nullable
 as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,

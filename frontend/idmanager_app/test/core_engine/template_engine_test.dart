@@ -72,7 +72,7 @@ class _FakeTemplateRepository implements TemplateRepository {
   Future<void> setActive(int id, bool active) async {}
 
   @override
-  Future<void> saveLayers(int templateId, List<TemplateLayer> layers, {List<FieldGroup>? groups}) async {
+  Future<void> saveLayers(int templateId, List<TemplateLayer> layers, {List<FieldGroup>? groups, String? fileNamePattern}) async {
     savedTemplateId = templateId;
     savedLayers = layers;
   }

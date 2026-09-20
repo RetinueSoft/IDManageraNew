@@ -54,17 +54,18 @@ class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
   }
 
   Future<void> _download(GenerateCardController controller) async {
-    final bytes = await controller.downloadPdf();
-    if (bytes == null) return;
+    final pdf = await controller.downloadPdf();
+    if (pdf == null) return;
+    // Named from the template's file name pattern (e.g. the member's name).
     await FileSaver.instance.saveFile(
-      name: 'card',
-      bytes: bytes,
+      name: pdf.name,
+      bytes: pdf.bytes,
       ext: 'pdf',
       mimeType: MimeType.pdf,
     );
     if (mounted) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Card PDF saved.')));
+          .showSnackBar(SnackBar(content: Text('Saved ${pdf.name}.pdf')));
     }
   }
 

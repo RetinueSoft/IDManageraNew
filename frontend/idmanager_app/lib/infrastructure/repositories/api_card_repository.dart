@@ -1,3 +1,4 @@
+import '../../core_engine/cards/domain/downloaded_pdf.dart';
 import '../../core_engine/templates/domain/template_layer.dart';
 
 import 'dart:typed_data';
@@ -61,7 +62,7 @@ class ApiCardRepository implements CardRepository {
   });
 
   @override
-  Future<Uint8List> download(
+  Future<DownloadedPdf> download(
     int idCardId,
     List<TemplateLayer> layers,
     int combinationId,
@@ -74,6 +75,13 @@ class ApiCardRepository implements CardRepository {
       },
       options: Options(responseType: ResponseType.bytes),
     );
-    return Uint8List.fromList(response.data ?? []);
+    return DownloadedPdf(
+      Uint8List.fromList(response.data ?? []),
+      pdfNameFromHeaders(
+        fileNameHeader: response.headers.value('x-file-name'),
+        contentDisposition: response.headers.value('content-disposition'),
+        fallback: 'card-$idCardId',
+      ),
+    );
   });
 }

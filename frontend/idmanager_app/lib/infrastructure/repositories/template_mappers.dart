@@ -129,6 +129,7 @@ CardTemplate cardTemplateFromJson(Map<String, dynamic> json) => CardTemplate(
   cardHeightMm: (json['cardHeightMm'] as num?)?.toDouble() ?? 54.0,
   pointCost: json['pointCost'] as int? ?? 1,
   isActive: json['isActive'] as bool? ?? false,
+  fileNamePattern: json['fileNamePattern'] as String?,
   frontImageBase64: json['frontImageBase64'] as String? ?? '',
   backImageBase64: json['backImageBase64'] as String? ?? '',
   createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now(),

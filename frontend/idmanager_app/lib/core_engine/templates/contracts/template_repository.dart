@@ -36,7 +36,8 @@ abstract interface class TemplateRepository {
 
   /// [groups] are the fields extracted from the template's sample PDF; omit to
   /// leave the stored ones unchanged.
-  Future<void> saveLayers(int templateId, List<TemplateLayer> layers, {List<FieldGroup>? groups});
+  /// [fileNamePattern] null leaves the stored one alone; blank clears it.
+  Future<void> saveLayers(int templateId, List<TemplateLayer> layers, {List<FieldGroup>? groups, String? fileNamePattern});
 
   Future<Combination> addCombination({
     required int templateId,

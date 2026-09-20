@@ -119,6 +119,10 @@ public class TemplateService(IDManagerDbContext db)
 
         template.LayersJson = JsonSerializer.Serialize(request.Layers);
         if (request.Groups is not null) template.GroupsJson = JsonSerializer.Serialize(request.Groups);
+        if (request.FileNamePattern is not null)
+        {
+            template.FileNamePattern = string.IsNullOrWhiteSpace(request.FileNamePattern) ? null : request.FileNamePattern.Trim();
+        }
         template.ModifiedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
         return OperationResult.Success();
@@ -305,6 +309,7 @@ public class TemplateService(IDManagerDbContext db)
         IsActive = t.IsActive,
         FrontImageBase64 = Convert.ToBase64String(t.FrontImage),
         BackImageBase64 = Convert.ToBase64String(t.BackImage),
+        FileNamePattern = t.FileNamePattern,
         CreatedAt = t.CreatedAt,
     };
 
@@ -322,6 +327,7 @@ public class TemplateService(IDManagerDbContext db)
             FrontImageBase64 = summary.FrontImageBase64,
             BackImageBase64 = summary.BackImageBase64,
             CreatedAt = summary.CreatedAt,
+            FileNamePattern = summary.FileNamePattern,
             Groups = JsonSerializer.Deserialize<List<FieldGroupDto>>(t.GroupsJson, JsonOptions) ?? [],
             Layers = t.LayersJson != null
                 ? JsonSerializer.Deserialize<List<TemplateLayerDto>>(t.LayersJson, JsonOptions) ?? []

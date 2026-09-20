@@ -421,6 +421,23 @@ class TemplateEditorController extends _$TemplateEditorController {
       if (l.side == current.side) l.copyWith(groups: groups) else l,
   ];
 
+  /// Sets what a downloaded card PDF is called (PDF fields as {Field}); saved with "Save". Blank
+  /// means the default "card-<id>".
+  void setFileNamePattern(String pattern) {
+    final current = state.value;
+    if (current == null) return;
+    final trimmed = pattern.trim();
+    state = AsyncData(
+      current.copyWith(
+        template: current.template.copyWith(
+          template: current.template.template.copyWith(
+            fileNamePattern: trimmed.isEmpty ? null : trimmed,
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<bool> save() async {
     final current = state.value;
     if (current == null) return false;
@@ -435,6 +452,8 @@ class TemplateEditorController extends _$TemplateEditorController {
             groups: [
               FieldGroup(name: 'Sample PDF', items: current.sampleFields),
             ],
+            // Blank (not null) so clearing the pattern is saved too.
+            fileNamePattern: current.template.template.fileNamePattern ?? '',
           );
       state = AsyncData(current.copyWith(isSaving: false));
       return true;

@@ -15,6 +15,7 @@ import '../../core_engine/templates/domain/template_layer.dart';
 import '../../core_engine/templates/domain/card_background.dart';
 import 'background_bar.dart';
 import 'collapsible_panel.dart';
+import 'file_name_dialog.dart';
 import 'layout_workspace.dart';
 import '../routing/app_routes.dart';
 
@@ -89,6 +90,20 @@ class _EditorBody extends StatelessWidget {
         : 'Found $count fields in ${picked.name}. Add the ones you need from the Fields panel, then Save.';
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _editFileName(BuildContext context) async {
+    final pattern = await showFileNameDialog(
+      context,
+      pattern: state.template.template.fileNamePattern,
+      fields: state.sampleFields,
+    );
+    if (pattern == null) return;
+    controller.setFileNamePattern(pattern);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('File name set. Press Save to keep it.')),
+    );
   }
 
   Future<void> _addBackground(BuildContext context) async {
@@ -171,6 +186,11 @@ class _EditorBody extends StatelessWidget {
             tooltip: 'Add empty QR code image (chosen in the card generator)',
             icon: const Icon(Icons.qr_code_2),
             onPressed: controller.addQrLayer,
+          ),
+          IconButton(
+            tooltip: 'Downloaded PDF name (built from the member fields)',
+            icon: const Icon(Icons.drive_file_rename_outline),
+            onPressed: () => _editFileName(context),
           ),
           IconButton(
             tooltip: 'Import sample PDF (replaces the fields list)',

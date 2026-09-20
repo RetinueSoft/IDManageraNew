@@ -59,8 +59,8 @@ class TemplateService {
 
   Future<void> setActive(int id, bool active) => _engine.setActive(id, active);
 
-  Future<void> saveLayers(int templateId, List<TemplateLayer> layers, {List<FieldGroup>? groups}) =>
-      _engine.saveLayers(templateId, layers, groups: groups);
+  Future<void> saveLayers(int templateId, List<TemplateLayer> layers, {List<FieldGroup>? groups, String? fileNamePattern}) =>
+      _engine.saveLayers(templateId, layers, groups: groups, fileNamePattern: fileNamePattern);
 
   Future<Combination> addCombination({
     required int templateId,

@@ -86,7 +86,7 @@ class ApiTemplateRepository implements TemplateRepository {
   );
 
   @override
-  Future<void> saveLayers(int templateId, List<TemplateLayer> layers, {List<FieldGroup>? groups}) =>
+  Future<void> saveLayers(int templateId, List<TemplateLayer> layers, {List<FieldGroup>? groups, String? fileNamePattern}) =>
       _client.guard(
         () => _client.dio.post(
           '/templates/layers',
@@ -94,6 +94,7 @@ class ApiTemplateRepository implements TemplateRepository {
             'templateId': templateId,
             'layers': layers.map(templateLayerToJson).toList(),
             if (groups != null) 'groups': groups.map(fieldGroupToJson).toList(),
+            if (fileNamePattern != null) 'fileNamePattern': fileNamePattern,
           },
         ),
       );

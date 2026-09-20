@@ -17,6 +17,13 @@ public class QrImageDto
     public byte[] Bytes { get; set; } = Array.Empty<byte>();
 }
 
+/// A rendered card PDF and the name to save it as (without ".pdf").
+public class DownloadedCardDto
+{
+    public byte[] Pdf { get; set; } = Array.Empty<byte>();
+    public string FileName { get; set; } = string.Empty;
+}
+
 public class DownloadCardRequest
 {
     /// The card's layers as the user adjusted them in the preview (positions, sizes, values).

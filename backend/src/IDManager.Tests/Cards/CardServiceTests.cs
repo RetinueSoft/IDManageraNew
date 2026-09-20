@@ -226,7 +226,7 @@ public class CardServiceTests
         var download = await service.DownloadAsync(sa.Id, generated.Value!.IdCardId, [TextLayer("ADJUSTED VALUE")], null, CancellationToken.None);
 
         Assert.Equal(ResultStatus.Success, download.Status);
-        Assert.Contains("ADJUSTED VALUE", PdfText(download.Value!));
+        Assert.Contains("ADJUSTED VALUE", PdfText(download.Value!.Pdf));
     }
 
     [Fact]
@@ -245,7 +245,7 @@ public class CardServiceTests
         var download = await service.DownloadAsync(sa.Id, generated.Value!.IdCardId, [], null, CancellationToken.None);
 
         Assert.Equal(ResultStatus.Success, download.Status);
-        Assert.Equal("", PdfText(download.Value!).Trim());
+        Assert.Equal("", PdfText(download.Value!.Pdf).Trim());
     }
 
     // ---- QR images are read and regenerated ----
@@ -382,5 +382,112 @@ public class CardServiceTests
 
         Assert.Equal(ResultStatus.ValidationFailed, download.Status);
         Assert.Equal(combinationId, db.IDCards.Single().CombinationId);
+    }
+
+    // ---- the downloaded file's name ----
+
+    private static async Task<(CardService service, IDManagerDbContext db, int userId, int idCardId, int templateId)> GeneratedCardAsync(
+        TestDb testDb, string? pattern, params ExtractedFieldDto[] extra)
+    {
+        var db = testDb.Context;
+        var (templateId, combinationId) = await CreateTemplateWithCombinationAsync(db);
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var template = db.CardTemplates.Single();
+        template.FileNamePattern = pattern;
+        await db.SaveChangesAsync();
+
+        var service = NewService(db);
+        var generated = await service.GenerateAsync(
+            sa.Id,
+            new GenerateCardCommand { TemplateId = templateId, CombinationId = combinationId, PdfBytes = ValidPdf() },
+            CancellationToken.None);
+        var card = db.IDCards.Single();
+        card.ExtractedDataJson = System.Text.Json.JsonSerializer.Serialize(extra.ToList());
+        await db.SaveChangesAsync();
+        return (service, db, sa.Id, generated.Value!.IdCardId, templateId);
+    }
+
+    private static ExtractedFieldDto Field(string key, string value) =>
+        new() { Key = key, Value = value, Type = LayerFieldType.Text };
+
+    [Fact]
+    public async Task DownloadAsync_IsNamedFromTheTemplatesPatternAndTheMembersFields()
+    {
+        using var testDb = TestDb.Create();
+        var (service, _, userId, cardId, _) = await GeneratedCardAsync(
+            testDb, "{Name} - {Card No}", Field("Name", "Ravi Kumar"), Field("Card No", "1234567890"));
+
+        var download = await service.DownloadAsync(userId, cardId, null, null, CancellationToken.None);
+
+        Assert.Equal("Ravi Kumar - 1234567890", download.Value!.FileName);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_WithoutAPattern_IsNamedAfterTheCard()
+    {
+        using var testDb = TestDb.Create();
+        var (service, _, userId, cardId, _) = await GeneratedCardAsync(testDb, null, Field("Name", "Ravi"));
+
+        var download = await service.DownloadAsync(userId, cardId, null, null, CancellationToken.None);
+
+        Assert.Equal($"card-{cardId}", download.Value!.FileName);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_WhenThePatternsFieldsAreNotInThePdf_IsNamedAfterTheCard()
+    {
+        using var testDb = TestDb.Create();
+        var (service, _, userId, cardId, _) = await GeneratedCardAsync(testDb, "{Name}", Field("Other", "x"));
+
+        var download = await service.DownloadAsync(userId, cardId, null, null, CancellationToken.None);
+
+        Assert.Equal($"card-{cardId}", download.Value!.FileName);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_AValueCorrectedOnThePreviewNamesTheFile()
+    {
+        using var testDb = TestDb.Create();
+        var (service, _, userId, cardId, _) = await GeneratedCardAsync(testDb, "{Name}", Field("Name", "Ravi Kumr"));
+        var corrected = new TemplateLayerDto
+        {
+            Side = CardSide.Front,
+            Groups =
+            [
+                new LayerGroupDto
+                {
+                    Name = "Name",
+                    Sources = [new LayerSourceItemDto { Key = "Name", Value = "Ravi Kumar", Type = LayerFieldType.Text }],
+                },
+            ],
+        };
+
+        var download = await service.DownloadAsync(userId, cardId, [corrected], null, CancellationToken.None);
+
+        Assert.Equal("Ravi Kumar", download.Value!.FileName);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_AFieldReadUnderAnotherKeyStillNamesTheFile()
+    {
+        using var testDb = TestDb.Create();
+        var (service, _, userId, cardId, _) = await GeneratedCardAsync(testDb, "{Name}");
+        var layer = new TemplateLayerDto
+        {
+            Side = CardSide.Front,
+            Groups =
+            [
+                new LayerGroupDto
+                {
+                    Name = "Value only",
+                    // The layer shows just the value (no label) but reads it from the "Name" PDF field.
+                    Sources = [new LayerSourceItemDto { SourceKey = "Name", Value = "Meena", Type = LayerFieldType.Text }],
+                },
+            ],
+        };
+
+        var download = await service.DownloadAsync(userId, cardId, [layer], null, CancellationToken.None);
+
+        Assert.Equal("Meena", download.Value!.FileName);
     }
 }

@@ -8,6 +8,9 @@ public class TemplateSummaryDto
     public double CardHeightMm { get; set; }
     public int PointCost { get; set; }
     public bool IsActive { get; set; }
+
+    /// What a downloaded card PDF is called - PDF fields as {Field}, e.g. "{Name} - {Card No}".
+    public string? FileNamePattern { get; set; }
     public string FrontImageBase64 { get; set; } = string.Empty;
     public string BackImageBase64 { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
@@ -70,6 +73,9 @@ public class SaveLayersRequest
     /// layout so the designer's field palette survives reopening. Null leaves the
     /// stored fields unchanged.
     public List<FieldGroupDto>? Groups { get; set; }
+
+    /// The downloaded PDF's name pattern. Null leaves the stored one unchanged; blank clears it.
+    public string? FileNamePattern { get; set; }
 }
 
 public class AddCombinationCommand

@@ -1,3 +1,4 @@
+import '../../core_engine/cards/domain/downloaded_pdf.dart';
 import 'dart:typed_data';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -205,14 +206,14 @@ class GenerateCardController extends _$GenerateCardController {
     }
   }
 
-  Future<Uint8List?> downloadPdf() async {
+  Future<DownloadedPdf?> downloadPdf() async {
     final current = state.value;
     if (current?.result == null) return null;
 
     state = AsyncData(current!.copyWith(isBusy: true));
     try {
       // The card is printed as it is shown, including any adjustments made in the preview.
-      final bytes = await ref
+      final pdf = await ref
           .read(cardGenerationServiceProvider)
           .downloadPdf(
             current.result!.idCardId,
@@ -223,7 +224,7 @@ class GenerateCardController extends _$GenerateCardController {
       refreshPointsData(
         ref,
       ); // the points are applied when the PDF is downloaded
-      return bytes;
+      return pdf;
     } catch (e) {
       state = AsyncData(current.copyWith(isBusy: false, error: e.toString()));
       return null;

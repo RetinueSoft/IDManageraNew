@@ -7,6 +7,7 @@ import 'package:idmanager_app/application/cards/generate_card_controller.dart';
 import 'package:idmanager_app/business_service/cards/card_generation_service.dart';
 import 'package:idmanager_app/business_service/providers.dart';
 import 'package:idmanager_app/business_service/templates/template_service.dart';
+import 'package:idmanager_app/core_engine/cards/domain/downloaded_pdf.dart';
 import 'package:idmanager_app/core_engine/cards/domain/generated_card.dart';
 import 'package:idmanager_app/core_engine/cards/domain/qr_slot.dart';
 import 'package:idmanager_app/core_engine/common/enums.dart';
@@ -72,9 +73,9 @@ class _FakeCards implements CardGenerationService {
   }
 
   @override
-  Future<Uint8List> downloadPdf(int idCardId, List<TemplateLayer> layers, int combinationId) async {
+  Future<DownloadedPdf> downloadPdf(int idCardId, List<TemplateLayer> layers, int combinationId) async {
     downloadedWith.add(combinationId);
-    return Uint8List(0);
+    return DownloadedPdf(Uint8List(0), 'card-$idCardId');
   }
 
   @override

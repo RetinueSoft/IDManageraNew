@@ -1,3 +1,4 @@
+import 'domain/downloaded_pdf.dart';
 import '../templates/domain/template_layer.dart';
 
 import 'dart:typed_data';
@@ -35,7 +36,7 @@ class CardsEngineService {
     }
   }
 
-  Future<Uint8List> download(
+  Future<DownloadedPdf> download(
     int idCardId,
     List<TemplateLayer> layers,
     int combinationId,

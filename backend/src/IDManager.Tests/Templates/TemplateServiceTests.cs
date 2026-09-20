@@ -638,4 +638,35 @@ public class TemplateServiceTests
         Assert.Equal(ResultStatus.ValidationFailed, result.Status);
         Assert.Empty(testDb.Context.TemplateCombinations);
     }
+
+    [Fact]
+    public async Task SaveLayersAsync_StoresTheFileNamePattern_AndItComesBackWithTheTemplate()
+    {
+        using var testDb = TestDb.Create();
+        var service = new TemplateService(testDb.Context);
+        var created = (await service.CreateAsync(1, ValidCommand(), CancellationToken.None)).Value!;
+        Assert.Null(created.FileNamePattern);
+
+        await service.SaveLayersAsync(
+            new SaveLayersRequest { TemplateId = created.Id, FileNamePattern = "  {Name} - {Card No}  " },
+            CancellationToken.None);
+
+        var loaded = (await service.GetTemplateAsync(created.Id, CancellationToken.None)).Value!;
+        Assert.Equal("{Name} - {Card No}", loaded.FileNamePattern);
+    }
+
+    [Fact]
+    public async Task SaveLayersAsync_ABlankPatternClearsIt_AndNullLeavesItAlone()
+    {
+        using var testDb = TestDb.Create();
+        var service = new TemplateService(testDb.Context);
+        var created = (await service.CreateAsync(1, ValidCommand(), CancellationToken.None)).Value!;
+        await service.SaveLayersAsync(new SaveLayersRequest { TemplateId = created.Id, FileNamePattern = "{Name}" }, CancellationToken.None);
+
+        await service.SaveLayersAsync(new SaveLayersRequest { TemplateId = created.Id, FileNamePattern = null }, CancellationToken.None);
+        Assert.Equal("{Name}", (await service.GetTemplateAsync(created.Id, CancellationToken.None)).Value!.FileNamePattern);
+
+        await service.SaveLayersAsync(new SaveLayersRequest { TemplateId = created.Id, FileNamePattern = "  " }, CancellationToken.None);
+        Assert.Null((await service.GetTemplateAsync(created.Id, CancellationToken.None)).Value!.FileNamePattern);
+    }
 }

@@ -105,29 +105,29 @@ public class CardService(
     /// [combinationId] is the background the user last picked on the preview (0 = the template's
     /// own images); null keeps the one the card was generated with. It must belong to the
     /// card's template.
-    public async Task<OperationResult<byte[]>> DownloadAsync(
+    public async Task<OperationResult<DownloadedCardDto>> DownloadAsync(
         int userId, int idCardId, List<TemplateLayerDto>? adjustedLayers, int? combinationId, CancellationToken ct)
     {
         var idCard = await db.IDCards.FirstOrDefaultAsync(c => c.Id == idCardId, ct);
-        if (idCard is null) return OperationResult<byte[]>.NotFound("Card not found.");
-        if (idCard.UserId != userId) return OperationResult<byte[]>.Forbidden("This card does not belong to you.");
+        if (idCard is null) return OperationResult<DownloadedCardDto>.NotFound("Card not found.");
+        if (idCard.UserId != userId) return OperationResult<DownloadedCardDto>.Forbidden("This card does not belong to you.");
 
         var templateResult = await templateService.GetTemplateAsync(idCard.TemplateId, ct);
         if (templateResult.Status != ResultStatus.Success)
         {
-            return OperationResult<byte[]>.NotFound(templateResult.Error ?? "Template not found.");
+            return OperationResult<DownloadedCardDto>.NotFound(templateResult.Error ?? "Template not found.");
         }
         var template = templateResult.Value!;
 
         if (combinationId.HasValue)
         {
-            if (combinationId.Value < 0) return OperationResult<byte[]>.Invalid("Choose one of this template's backgrounds.");
+            if (combinationId.Value < 0) return OperationResult<DownloadedCardDto>.Invalid("Choose one of this template's backgrounds.");
             if (combinationId.Value > 0)
             {
                 var combination = await db.TemplateCombinations.FindAsync([combinationId.Value], ct);
                 if (combination is null || combination.TemplateId != idCard.TemplateId)
                 {
-                    return OperationResult<byte[]>.Invalid("That background does not belong to this card's template.");
+                    return OperationResult<DownloadedCardDto>.Invalid("That background does not belong to this card's template.");
                 }
             }
             idCard.CombinationId = combinationId.Value > 0 ? combinationId.Value : null;
@@ -137,7 +137,7 @@ public class CardService(
         var matchResult = await templateService.MatchToTemplateAsync(idCard.TemplateId, idCard.CombinationId ?? 0, extractedFields, ct);
         if (matchResult.Status != ResultStatus.Success)
         {
-            return OperationResult<byte[]>.NotFound(matchResult.Error ?? "Combination not found.");
+            return OperationResult<DownloadedCardDto>.NotFound(matchResult.Error ?? "Combination not found.");
         }
         var (matchedLayers, frontImage, backImage) = matchResult.Value;
         var layers = adjustedLayers ?? matchedLayers;
@@ -148,6 +148,33 @@ public class CardService(
         await db.SaveChangesAsync(ct);
         await pointsService.CompletePaymentTransactionAsync(idCard.Id, ct);
 
-        return OperationResult<byte[]>.Success(pdfBytes);
+        return OperationResult<DownloadedCardDto>.Success(new DownloadedCardDto
+        {
+            Pdf = pdfBytes,
+            FileName = PdfFileNameBuilder.Build(template.FileNamePattern, FieldValues(extractedFields, layers))
+                ?? $"card-{idCard.Id}",
+        });
+    }
+
+    /// The values a file name pattern can use, by PDF field name: what was extracted from the
+    /// member's PDF, overridden by what the card shows now (a value corrected on the preview wins,
+    /// so the file is named after the card as it is printed).
+    private static Dictionary<string, string> FieldValues(List<ExtractedFieldDto> extracted, List<TemplateLayerDto> layers)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var field in extracted.Where(f => f.Type == LayerFieldType.Text && !string.IsNullOrWhiteSpace(f.Key) && !string.IsNullOrWhiteSpace(f.Value)))
+        {
+            values.TryAdd(field.Key!.Trim(), field.Value!);
+        }
+
+        foreach (var source in layers.SelectMany(l => l.Groups).SelectMany(g => g.Sources))
+        {
+            var readKey = !string.IsNullOrWhiteSpace(source.SourceKey) ? source.SourceKey.Trim()
+                : !string.IsNullOrWhiteSpace(source.Key) ? source.Key.Trim()
+                : null;
+            if (readKey is null || source.Type != LayerFieldType.Text || string.IsNullOrWhiteSpace(source.Value)) continue;
+            values[readKey] = source.Value;
+        }
+        return values;
     }
 }
