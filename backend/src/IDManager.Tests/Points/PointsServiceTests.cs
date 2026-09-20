@@ -277,7 +277,7 @@ public class PointsServiceTests
     }
 
     [Fact]
-    public async Task AdjustPointsAsync_Decrease_CreditsBackToRequester()
+    public async Task AdjustPointsAsync_Decrease_ByAMemberWhoIsNotTheSuperAdmin_IsForbidden()
     {
         using var testDb = TestDb.Create();
         var db = testDb.Context;
@@ -295,9 +295,116 @@ public class PointsServiceTests
             increase: false,
             CancellationToken.None);
 
+        Assert.Equal(ResultStatus.Forbidden, result.Status);
+        Assert.Equal(40, user.Points);
+        Assert.Equal(0, admin.Points);
+        Assert.Empty(db.PointTransactions);
+    }
+
+    [Theory]
+    [InlineData(UserRole.Distributor)]
+    [InlineData(UserRole.Retailer)]
+    [InlineData(UserRole.User)]
+    public async Task AdjustPointsAsync_OnlyTheSuperAdminMayReclaim(UserRole role)
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var member = await TestUsers.AddAsync(db, "M", role, sa, points: 20);
+        var child = await TestUsers.AddAsync(db, "C", UserRole.User, member, points: 20);
+
+        var result = await new PointsService(db).AdjustPointsAsync(
+            member.Id, new AdjustPointsRequest { UserId = child.Id, Points = 5, Reason = "take back" }, increase: false, CancellationToken.None);
+
+        Assert.Equal(ResultStatus.Forbidden, result.Status);
+        Assert.Equal(20, child.Points);
+        Assert.Equal(20, member.Points);
+    }
+
+    [Theory]
+    [InlineData(UserRole.Distributor)]
+    [InlineData(UserRole.Retailer)]
+    public async Task AdjustPointsAsync_TheseRolesCanStillAllocate(UserRole role)
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var member = await TestUsers.AddAsync(db, "M", role, sa, points: 20);
+        var child = await TestUsers.AddAsync(db, "C", UserRole.User, member, points: 0);
+
+        var result = await new PointsService(db).AdjustPointsAsync(
+            member.Id, new AdjustPointsRequest { UserId = child.Id, Points = 5, Reason = "start-up points" }, increase: true, CancellationToken.None);
+
         Assert.Equal(ResultStatus.Success, result.Status);
-        Assert.Equal(25, user.Points);
-        Assert.Equal(15, admin.Points);
+        Assert.Equal(5, child.Points);
+        Assert.Equal(15, member.Points);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task AdjustPointsAsync_AllocatingNeedsAReason(string? reason)
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin, points: 100);
+        var member = await TestUsers.AddAsync(db, "M", UserRole.Retailer, sa);
+
+        var result = await new PointsService(db).AdjustPointsAsync(
+            sa.Id, new AdjustPointsRequest { UserId = member.Id, Points = 10, Reason = reason! }, increase: true, CancellationToken.None);
+
+        Assert.Equal(ResultStatus.ValidationFailed, result.Status);
+        Assert.Contains("reason", result.FieldErrors!.Keys);
+        Assert.Equal(0, member.Points);
+        Assert.Equal(100, sa.Points);
+        Assert.Empty(db.PointTransactions);
+    }
+
+    [Fact]
+    public async Task AdjustPointsAsync_ReclaimingNeedsAReasonToo()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var member = await TestUsers.AddAsync(db, "M", UserRole.Retailer, sa, points: 30);
+
+        var result = await new PointsService(db).AdjustPointsAsync(
+            sa.Id, new AdjustPointsRequest { UserId = member.Id, Points = 10, Reason = " " }, increase: false, CancellationToken.None);
+
+        Assert.Equal(ResultStatus.ValidationFailed, result.Status);
+        Assert.Contains("reason", result.FieldErrors!.Keys);
+        Assert.Equal(30, member.Points);
+    }
+
+    [Fact]
+    public async Task AdjustPointsAsync_TheReasonIsTrimmedAndShownInBothHistories()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin, points: 100);
+        var member = await TestUsers.AddAsync(db, "M", UserRole.Retailer, sa);
+
+        await new PointsService(db).AdjustPointsAsync(
+            sa.Id, new AdjustPointsRequest { UserId = member.Id, Points = 10, Reason = "  Diwali offer \n" }, increase: true, CancellationToken.None);
+
+        Assert.All(db.PointTransactions, t => Assert.Equal("Diwali offer", t.Reason));
+        Assert.Equal(2, db.PointTransactions.Count());
+    }
+
+    [Fact]
+    public async Task AdjustPointsAsync_ASuperAdminTopUpNeedsNoReason()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin, points: 0);
+
+        var result = await new PointsService(db).AdjustPointsAsync(
+            sa.Id, new AdjustPointsRequest { UserId = sa.Id, Points = 500, Reason = "" }, increase: true, CancellationToken.None);
+
+        Assert.Equal(ResultStatus.Success, result.Status);
+        Assert.Equal(500, sa.Points);
+        Assert.Equal("Top-up", db.PointTransactions.Single().Reason);
     }
 
     [Fact]

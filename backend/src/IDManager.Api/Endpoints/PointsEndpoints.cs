@@ -33,6 +33,6 @@ public static class PointsEndpoints
             var result = await service.AdjustPointsAsync(http.User.GetUserId(), request, increase: false, ct);
             await auditLog.LogAsync(http.User.GetUserId(), "DecreasePoints", "User", request.UserId.ToString(), new { request.Points }, ct);
             return result.ToHttpResult();
-        }).RequireAuthorization(p => p.RequireRole(ManagerRoles));
+        }).RequireAuthorization(p => p.RequireRole("SuperAdmin")); // only a Super Admin reclaims points
     }
 }

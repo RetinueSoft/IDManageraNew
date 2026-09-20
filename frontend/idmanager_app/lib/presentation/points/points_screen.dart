@@ -9,22 +9,39 @@ import '../../core_engine/common/enums.dart';
 import '../../core_engine/points/domain/point_transaction.dart';
 import '../../core_engine/security/domain/user.dart';
 
-class PointsScreen extends ConsumerWidget {
+class PointsScreen extends ConsumerStatefulWidget {
   const PointsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PointsScreen> createState() => _PointsScreenState();
+}
+
+class _PointsScreenState extends ConsumerState<PointsScreen> {
+  /// The member picked in the drop-down; null until one is picked (then it is you).
+  int? _selectedUserId;
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(sessionControllerProvider).value;
     if (user == null) return const SizedBox.shrink();
 
     final isManager = user.role.canManageMembers;
-    final historyAsync = ref.watch(pointsHistoryControllerProvider(user.id));
+    // The history shown is the picked member's; with nobody picked, or yourself picked, it is your own.
+    final viewedId = isManager ? (_selectedUserId ?? user.id) : user.id;
+    final historyAsync = ref.watch(pointsHistoryControllerProvider(viewedId));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Points')),
       body: Column(
         children: [
-          if (isManager) _AllocatePointsPanel(myUserId: user.id, isSuperAdmin: user.role == UserRole.superAdmin),
+          if (isManager)
+            _AllocatePointsPanel(
+              myUserId: user.id,
+              isSuperAdmin: user.role == UserRole.superAdmin,
+              selectedUserId: _selectedUserId,
+              onSelected: (id) => setState(() => _selectedUserId = id),
+            ),
+          if (isManager) _HistoryHeader(viewedId: viewedId, myUserId: user.id),
           Expanded(
             child: historyAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -34,7 +51,8 @@ class PointsScreen extends ConsumerWidget {
                   : ListView.separated(
                       itemCount: items.length,
                       separatorBuilder: (_, _) => const Divider(height: 1),
-                      itemBuilder: (context, index) => _TransactionTile(t: items[index]),
+                      itemBuilder: (context, index) =>
+                          _TransactionTile(t: items[index]),
                     ),
             ),
           ),
@@ -43,6 +61,50 @@ class PointsScreen extends ConsumerWidget {
     );
   }
 }
+
+/// Says whose point details are listed below: yours, or the member picked in the drop-down.
+class _HistoryHeader extends ConsumerWidget {
+  const _HistoryHeader({required this.viewedId, required this.myUserId});
+
+  final int viewedId;
+  final int myUserId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final members =
+        ref.watch(userListControllerProvider).value ?? const <User>[];
+    final viewed = members.where((u) => u.id == viewedId).firstOrNull;
+    final isMe = viewedId == myUserId;
+
+    final title = isMe
+        ? 'My point details'
+        : 'Point details of ${viewed?.name ?? 'the member'}';
+    final subtitle = viewed == null
+        ? null
+        : isMe
+        ? '${viewed.points} pt balance'
+        : '${viewed.role.label} · ${viewed.points} pt balance';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Row(
+        children: [
+          Icon(isMe ? Icons.person : Icons.people_outline, size: 20),
+          const SizedBox(width: 8),
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          if (subtitle != null) ...[
+            const SizedBox(width: 12),
+            Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The size of the points figure in the history list - clearly bigger than the list's other text
+/// (the description is about 16, the date about 14).
+const pointsFontSize = 22.0;
 
 class _TransactionTile extends StatelessWidget {
   const _TransactionTile({required this.t});
@@ -61,29 +123,46 @@ class _TransactionTile extends StatelessWidget {
       subtitle: Text('${t.date.toLocal()}'.split('.').first),
       trailing: Text(
         '${isNegative ? '' : '+'}${t.points}',
-        style: TextStyle(color: isNegative ? Colors.red : Colors.green, fontWeight: FontWeight.bold),
+        // The points are what the eye looks for in this list, so they are set larger than the
+        // description and date beside them.
+        style: TextStyle(
+          color: isNegative ? Colors.red : Colors.green,
+          fontWeight: FontWeight.bold,
+          fontSize: pointsFontSize,
+        ),
       ),
     );
   }
 }
 
-/// Lets a Distributor/Admin/SuperAdmin allocate or reclaim points for a user
-/// beneath them.
+/// Lets a Distributor / Retailer / SuperAdmin allocate points to their own members, and a
+/// SuperAdmin also reclaim them.
 class _AllocatePointsPanel extends ConsumerStatefulWidget {
-  const _AllocatePointsPanel({required this.myUserId, required this.isSuperAdmin});
+  const _AllocatePointsPanel({
+    required this.myUserId,
+    required this.isSuperAdmin,
+    required this.selectedUserId,
+    required this.onSelected,
+  });
 
   final int myUserId;
+
+  /// The member picked in the drop-down (null: none yet). Owned by the screen, which also shows
+  /// that member's point details.
+  final int? selectedUserId;
+  final ValueChanged<int?> onSelected;
 
   /// The SuperAdmin is the source of all points, so they can add points to their own
   /// balance (top-up); nobody else can adjust their own points.
   final bool isSuperAdmin;
 
   @override
-  ConsumerState<_AllocatePointsPanel> createState() => _AllocatePointsPanelState();
+  ConsumerState<_AllocatePointsPanel> createState() =>
+      _AllocatePointsPanelState();
 }
 
 class _AllocatePointsPanelState extends ConsumerState<_AllocatePointsPanel> {
-  int? _targetUserId;
+  int? get _targetUserId => widget.selectedUserId;
   final _pointsCtrl = TextEditingController();
   final _reasonCtrl = TextEditingController();
 
@@ -97,13 +176,24 @@ class _AllocatePointsPanelState extends ConsumerState<_AllocatePointsPanel> {
   Future<void> _submit(bool increase) async {
     if (_targetUserId == null) return;
     final provider = adjustPointsControllerProvider(_targetUserId!);
-    ref.read(provider.notifier).updateFields(
-      (s) => s.copyWith(points: int.tryParse(_pointsCtrl.text) ?? 0, reason: _reasonCtrl.text),
-    );
-    final ok = await ref.read(provider.notifier).submit(increase: increase);
+    ref
+        .read(provider.notifier)
+        .updateFields(
+          (s) => s.copyWith(
+            points: int.tryParse(_pointsCtrl.text) ?? 0,
+            reason: _reasonCtrl.text,
+          ),
+        );
+    // Every allocation and reclaim needs a reason; only a Super Admin's own top-up may leave it out.
+    final topUp = _targetUserId == widget.myUserId && widget.isSuperAdmin;
+    final ok = await ref
+        .read(provider.notifier)
+        .submit(increase: increase, reasonRequired: !topUp);
     if (ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(increase ? 'Points allocated.' : 'Points reclaimed.')),
+        SnackBar(
+          content: Text(increase ? 'Points allocated.' : 'Points reclaimed.'),
+        ),
       );
       _pointsCtrl.clear();
       _reasonCtrl.clear();
@@ -134,7 +224,12 @@ class _AllocatePointsPanelState extends ConsumerState<_AllocatePointsPanel> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Allocate / Reclaim points', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              widget.isSuperAdmin
+                  ? 'Allocate / Reclaim points'
+                  : 'Allocate points',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -153,14 +248,17 @@ class _AllocatePointsPanelState extends ConsumerState<_AllocatePointsPanel> {
                           ),
                         ),
                     ],
-                    onChanged: (v) => setState(() => _targetUserId = v),
+                    onChanged: widget.onSelected,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
                     controller: _pointsCtrl,
-                    decoration: InputDecoration(labelText: 'Points', errorText: state?.errors['points']),
+                    decoration: InputDecoration(
+                      labelText: 'Points',
+                      errorText: state?.errors['points'],
+                    ),
                     keyboardType: TextInputType.number,
                   ),
                 ),
@@ -176,20 +274,34 @@ class _AllocatePointsPanelState extends ConsumerState<_AllocatePointsPanel> {
               ),
             ],
             const SizedBox(height: 12),
-            TextField(controller: _reasonCtrl, decoration: const InputDecoration(labelText: 'Reason')),
+            TextField(
+              controller: _reasonCtrl,
+              decoration: InputDecoration(
+                labelText: isTopUp ? 'Reason (optional)' : 'Reason (required)',
+                errorText: state?.errors['reason'],
+              ),
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: (state?.isSaving ?? false) || selectedIsMe ? null : () => _submit(false),
-                    child: const Text('Reclaim'),
+                // Only a Super Admin can take points back, so nobody else is even offered it.
+                if (widget.isSuperAdmin) ...[
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: (state?.isSaving ?? false) || selectedIsMe
+                          ? null
+                          : () => _submit(false),
+                      child: const Text('Reclaim'),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
+                  const SizedBox(width: 12),
+                ],
                 Expanded(
                   child: FilledButton(
-                    onPressed: (state?.isSaving ?? false) || (selectedIsMe && !isTopUp) ? null : () => _submit(true),
+                    onPressed:
+                        (state?.isSaving ?? false) || (selectedIsMe && !isTopUp)
+                        ? null
+                        : () => _submit(true),
                     child: Text(isTopUp ? 'Add to my balance' : 'Allocate'),
                   ),
                 ),

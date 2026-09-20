@@ -13,13 +13,25 @@ class AdjustPointsController extends _$AdjustPointsController {
   @override
   AdjustPointsState build(int userId) => const AdjustPointsState();
 
-  void updateFields(AdjustPointsState Function(AdjustPointsState current) update) {
+  void updateFields(
+    AdjustPointsState Function(AdjustPointsState current) update,
+  ) {
     state = update(state);
   }
 
-  Future<bool> submit({required bool increase}) async {
-    if (state.points <= 0) {
-      state = state.copyWith(errors: {'points': 'Enter a positive number of points.'});
+  /// Allocates ([increase]) or reclaims the entered points. Both need a reason - it is what the
+  /// points history shows - unless [reasonRequired] is false (a Super Admin's own top-up).
+  Future<bool> submit({
+    required bool increase,
+    bool reasonRequired = true,
+  }) async {
+    final errors = <String, String>{
+      if (state.points <= 0) 'points': 'Enter a positive number of points.',
+      if (reasonRequired && state.reason.trim().isEmpty)
+        'reason': 'Enter a reason.',
+    };
+    if (errors.isNotEmpty) {
+      state = state.copyWith(errors: errors);
       return false;
     }
 
@@ -28,9 +40,9 @@ class AdjustPointsController extends _$AdjustPointsController {
 
     try {
       if (increase) {
-        await service.allocate(userId, state.points, state.reason);
+        await service.allocate(userId, state.points, state.reason.trim());
       } else {
-        await service.reclaim(userId, state.points, state.reason);
+        await service.reclaim(userId, state.points, state.reason.trim());
       }
       state = state.copyWith(isSaving: false);
       refreshPointsData(ref, alsoUserId: userId);

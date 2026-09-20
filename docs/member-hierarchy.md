@@ -66,19 +66,44 @@ screen: reuse the single implementation (section 6).
   the first password when adding a member is fine.)
 - **Activate / deactivate** a member: **SuperAdmin only**. Nobody, the SuperAdmin
   included, deactivates themselves.
-- **Points**: allocate or reclaim points only for **your own members** - the members you
+- **Points**: allocate points, or (SuperAdmin only) reclaim them, only for **your own members** - the members you
   created directly, one level down, not anyone deeper in your branch - and never for
   yourself (the one exception is the SuperAdmin's own top-up, section 5). The Points
   screen's member dropdown lists only you and your own members. A member's **points
   history** is readable for any visible member (or yourself).
 - A member's role and parent are fixed at creation.
 
+## 4a. Member details (shop and identity proof)
+
+Every member can carry **optional** details - none is required, when adding or later:
+
+- **Shop**: shop name, shop address, city, pincode.
+- **Identity proof**: ID type (Aadhaar, Voter ID, ...), ID number, and a **front** and a **back**
+  photo of the card.
+
+Rules:
+
+- Who may **set or change** them: the member themselves, and any member who may edit them (section
+  4). Whoever adds a member may fill them in at the same time.
+- Who may **see** them: whoever can see the member (section 3). The identity photos follow the same
+  rule - a member outside the viewer's view is reported as *not found*, so a Retailer never sees
+  the photos of someone two levels down, and nobody sees their upline's.
+- The identity photos are **never sent in a member list**; the list and the member carry only
+  whether each photo exists (`HasIdFront`, `HasIdBack`), and a photo is fetched on its own
+  (`GET /api/users/{id}/identity/{front|back}`), added or replaced with `PUT` (JPG, PNG or WebP, up
+  to 5 MB) and removed with `DELETE`. They are stored apart from the member (`UserIdentities`) so
+  they are only loaded when asked for.
+- Updating a member: a detail that is not sent is left as it is; a blank one clears it.
+
 ## 5. Points
 
 - Every member, the SuperAdmin included, has a real balance. **Allocating** points to a
-  member **debits the allocator** and credits that member; **reclaiming** debits the
+  member **debits the allocator** and credits that member; **reclaiming** (a **SuperAdmin-only**
+  action - nobody else can take points back) debits the
   member and credits the allocator. The allocator needs enough points to allocate, and
-  the member needs enough to be reclaimed from. Points must be greater than zero.
+  the member needs enough to be reclaimed from. Points must be greater than zero. Every
+  allocation and reclaim needs a **reason** (it is what both members' points history shows); only
+  the SuperAdmin's own top-up may leave it out.
 - The SuperAdmin is the only source of points: they can **top up their own balance**
   (Points screen: select yourself, "Add to my balance"). Nobody else can adjust their
   own points, and the SuperAdmin cannot deduct from their own balance.
@@ -113,7 +138,9 @@ The Admin role is gone, so what Admin used to do is now SuperAdmin-only unless s
 - Audit log: SuperAdmin only.
 - Generate card: every role.
 - Points screen: every role sees their own history; SuperAdmin / Distributor / Retailer
-  also see the allocate/reclaim panel.
+  also see the allocate/reclaim panel, and the history shown follows the member picked in its
+  drop-down (the member's point details, headed with their name and balance); picking yourself, or
+  nobody, shows your own.
 
 ## 8. Checklist for any member-related change
 

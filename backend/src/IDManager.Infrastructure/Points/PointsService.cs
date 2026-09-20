@@ -62,12 +62,20 @@ public class PointsService(IDManagerDbContext db)
     /// the caller. That holds for the SuperAdmin too: their balance is debited when they
     /// allocate. The SuperAdmin is the source of all points, so they alone can add points
     /// to their own balance (top-up); nobody else can adjust their own points.
+    ///
+    /// Only the SuperAdmin can reclaim points; anyone who manages members can allocate. Allocating
+    /// and reclaiming both need a reason, which is what the points history shows for the move (a
+    /// top-up may leave it out and is recorded as "Top-up").
     public async Task<OperationResult<int>> AdjustPointsAsync(int requestedById, AdjustPointsRequest request, bool increase, CancellationToken ct)
     {
         if (request.Points <= 0) return OperationResult<int>.Invalid("Points must be greater than zero.");
 
         var requester = await db.Users.FindAsync([requestedById], ct);
         if (requester is null) return OperationResult<int>.NotFound("Requesting user not found.");
+        if (!increase && requester.Role != UserRole.SuperAdmin)
+        {
+            return OperationResult<int>.Forbidden("Only a Super Admin can reclaim points.");
+        }
 
         var target = await db.Users.FindAsync([request.UserId], ct);
         if (target is null) return OperationResult<int>.NotFound("Target user not found.");
@@ -76,6 +84,11 @@ public class PointsService(IDManagerDbContext db)
         {
             if (requester.Role == UserRole.SuperAdmin && increase) return await TopUpAsync(requester, request, ct);
             return OperationResult<int>.Invalid("Cannot adjust your own points.");
+        }
+        var reason = request.Reason?.Trim() ?? "";
+        if (reason.Length == 0)
+        {
+            return OperationResult<int>.Invalid(new Dictionary<string, string> { ["reason"] = "A reason is required." });
         }
         if (!MemberHierarchyService.CanAllocatePointsTo(requester, target))
         {
@@ -101,7 +114,7 @@ public class PointsService(IDManagerDbContext db)
         {
             ByUserId = requestedById,
             Points = request.Points,
-            Reason = request.Reason,
+            Reason = reason,
             Type = increase ? PointTransType.Earn : PointTransType.Spend,
             UserId = target.Id,
             Status = PointStatus.Completed,
@@ -112,7 +125,7 @@ public class PointsService(IDManagerDbContext db)
         {
             ByUserId = requestedById,
             Points = request.Points,
-            Reason = request.Reason,
+            Reason = reason,
             Type = increase ? PointTransType.Spend : PointTransType.Earn,
             UserId = requester.Id,
             Status = PointStatus.Completed,
