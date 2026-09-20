@@ -42,7 +42,22 @@ class TemplateEditorController extends _$TemplateEditorController {
   void selectSide(CardSide side) {
     final current = state.value;
     if (current == null) return;
-    state = AsyncData(current.copyWith(side: side, selectedGroupId: null));
+    state = AsyncData(current.copyWith(side: side, combined: false, selectedGroupId: null));
+  }
+
+  /// Show front and back side by side. The active side is kept.
+  void selectCombined() {
+    final current = state.value;
+    if (current == null) return;
+    state = AsyncData(current.copyWith(combined: true, selectedGroupId: null));
+  }
+
+  /// Selects a layer (or nothing, when [groupId] is null) on [side] and makes that side the
+  /// active one - how a click on either card in the combined view picks where edits go.
+  void selectLayer(CardSide side, String? groupId) {
+    final current = state.value;
+    if (current == null) return;
+    state = AsyncData(current.copyWith(side: side, selectedGroupId: groupId));
   }
 
   void selectGroup(String? groupId) {

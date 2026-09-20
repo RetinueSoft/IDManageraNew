@@ -52,6 +52,9 @@ class TemplateEditorScreen extends ConsumerWidget {
   }
 }
 
+/// What the designer canvas shows.
+enum _EditorView { combined, front, back }
+
 class _EditorBody extends StatelessWidget {
   const _EditorBody({required this.state, required this.controller});
 
@@ -113,11 +116,10 @@ class _EditorBody extends StatelessWidget {
     final template = state.template.template;
     final cardWidthPx = template.cardWidthMm * pxPerMm;
     final cardHeightPx = template.cardHeightMm * pxPerMm;
-    final imageBytes = _decodeImage(
-      state.side == CardSide.front
-          ? template.frontImageBase64
-          : template.backImageBase64,
-    );
+    // The cards on show: front and back side by side (the default), or just one.
+    final sides = state.combined ? CardSide.values : [state.side];
+    final canvasWidthPx =
+        cardWidthPx * sides.length + _cardGapPx * (sides.length - 1);
 
     return Scaffold(
       appBar: AppBar(
@@ -176,49 +178,50 @@ class _EditorBody extends StatelessWidget {
               children: [
                 Padding(
                   padding: const EdgeInsets.all(8.0),
-                  child: SegmentedButton<CardSide>(
+                  child: SegmentedButton<_EditorView>(
                     segments: const [
                       ButtonSegment(
-                        value: CardSide.front,
+                        value: _EditorView.combined,
+                        label: Text('Front + Back'),
+                      ),
+                      ButtonSegment(
+                        value: _EditorView.front,
                         label: Text('Front'),
                       ),
-                      ButtonSegment(value: CardSide.back, label: Text('Back')),
+                      ButtonSegment(
+                        value: _EditorView.back,
+                        label: Text('Back'),
+                      ),
                     ],
-                    selected: {state.side},
-                    onSelectionChanged: (s) => controller.selectSide(s.first),
+                    selected: {
+                      state.combined
+                          ? _EditorView.combined
+                          : (state.side == CardSide.front
+                                ? _EditorView.front
+                                : _EditorView.back),
+                    },
+                    onSelectionChanged: (v) => switch (v.first) {
+                      _EditorView.combined => controller.selectCombined(),
+                      _EditorView.front => controller.selectSide(
+                        CardSide.front,
+                      ),
+                      _EditorView.back => controller.selectSide(CardSide.back),
+                    },
                   ),
                 ),
                 Expanded(
                   child: Container(
                     color: Colors.grey.shade300,
                     child: ZoomableCanvas(
-                      contentSize: Size(cardWidthPx, cardHeightPx),
-                      child: GestureDetector(
-                        onTap: () => controller.selectGroup(null),
-                        child: Container(
-                          width: cardWidthPx,
-                          height: cardHeightPx,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.black26),
-                            boxShadow: const [
-                              BoxShadow(blurRadius: 8, color: Colors.black26),
-                            ],
-                          ),
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              if (imageBytes.isNotEmpty)
-                                Positioned.fill(
-                                  child: Image.memory(
-                                    imageBytes,
-                                    fit: BoxFit.fill,
-                                  ),
-                                ),
-                              for (final group in _currentLayer.groups)
-                                _buildLayerWidget(group),
-                            ],
-                          ),
-                        ),
+                      contentSize: Size(canvasWidthPx, cardHeightPx),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (var i = 0; i < sides.length; i++) ...[
+                            if (i > 0) const SizedBox(width: _cardGapPx),
+                            _buildCard(sides[i], cardWidthPx, cardHeightPx),
+                          ],
+                        ],
                       ),
                     ),
                   ),
@@ -275,7 +278,43 @@ class _EditorBody extends StatelessWidget {
     );
   }
 
-  Widget _buildLayerWidget(LayerGroup group) {
+  /// Space between the front and back cards in the combined view.
+  static const double _cardGapPx = 2 * pxPerMm;
+
+  /// One card of the canvas: its background image and that side's layers. Clicking a layer (or
+  /// the empty card) makes this the side that edits go to.
+  Widget _buildCard(CardSide side, double widthPx, double heightPx) {
+    final template = state.template.template;
+    final imageBytes = _decodeImage(
+      side == CardSide.front
+          ? template.frontImageBase64
+          : template.backImageBase64,
+    );
+    final groups = state.layers.firstWhere((l) => l.side == side).groups;
+    return GestureDetector(
+      onTap: () => controller.selectLayer(side, null),
+      child: Container(
+        width: widthPx,
+        height: heightPx,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.black26),
+          boxShadow: const [BoxShadow(blurRadius: 8, color: Colors.black26)],
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            if (imageBytes.isNotEmpty)
+              Positioned.fill(
+                child: Image.memory(imageBytes, fit: BoxFit.fill),
+              ),
+            for (final group in groups) _buildLayerWidget(side, group),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLayerWidget(CardSide side, LayerGroup group) {
     final isSelected = group.id == state.selectedGroupId;
     final left = group.xMm * pxPerMm;
     final top = group.yMm * pxPerMm;
@@ -324,7 +363,8 @@ class _EditorBody extends StatelessWidget {
       left: left,
       top: top,
       child: GestureDetector(
-        onTap: () => controller.selectGroup(group.id),
+        onTap: () => controller.selectLayer(side, group.id),
+        onPanStart: (_) => controller.selectLayer(side, group.id),
         onPanUpdate: (details) => controller.moveGroup(
           group.id,
           details.delta.dx / pxPerMm,
@@ -406,205 +446,213 @@ class _PropertiesPanelState extends State<_PropertiesPanel> {
   @override
   Widget build(BuildContext context) {
     final group = widget.group;
-    return Container(
+    // A Material (not a colored Container) so the switch tiles' ink shows.
+    return Material(
       color: Theme.of(context).colorScheme.surfaceContainerLow,
-      padding: const EdgeInsets.all(16),
-      child: ListView(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Layer properties',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline),
-                onPressed: widget.onDelete,
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Common settings first: the name (twice as wide as a number box) and the numbers in
-          // one row, then the toggles.
-          _CollapsibleSection(
-            title: 'General properties',
-            child: _ResponsiveGrid(
-              columns: 8,
-              minColumnWidth: 100,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: ListView(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _GridSpan(
-                  span: 2,
-                  child: TextField(
-                    controller: _nameCtrl,
-                    decoration: const InputDecoration(labelText: 'Layer name'),
-                    onChanged: (v) =>
-                        widget.onChanged((g) => g.copyWith(name: v)),
-                  ),
+                Text(
+                  'Layer properties',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-                if (group.fieldType == LayerFieldType.text) ...[
-                  _NumberField(
-                    label: 'Font (pt)',
-                    step: 1,
-                    value: group.fontSizePt,
-                    onChanged: (v) =>
-                        widget.onChanged((g) => g.copyWith(fontSizePt: v)),
-                  ),
-                  _NumberField(
-                    label: 'Wrap width (mm)',
-                    value: group.widthMm ?? 30,
-                    onChanged: (v) =>
-                        widget.onChanged((g) => g.copyWith(widthMm: v)),
-                  ),
-                  _NumberField(
-                    label: 'Key width (mm)',
-                    value: group.keyWidthMm,
-                    onChanged: (v) =>
-                        widget.onChanged((g) => g.copyWith(keyWidthMm: v)),
-                    onCleared: () =>
-                        widget.onChanged((g) => g.copyWith(keyWidthMm: null)),
-                  ),
-                  if (group.isList)
-                    _NumberField(
-                      label: 'Line gap (mm)',
-                      value: group.lineGapMm,
-                      onChanged: (v) =>
-                          widget.onChanged((g) => g.copyWith(lineGapMm: v)),
-                    ),
-                ] else ...[
-                  _NumberField(
-                    label: 'Width (mm)',
-                    value: group.widthMm ?? 20,
-                    onChanged: (v) =>
-                        widget.onChanged((g) => g.copyWith(widthMm: v)),
-                  ),
-                  _NumberField(
-                    label: 'Height (mm)',
-                    value: group.heightMm ?? 20,
-                    onChanged: (v) =>
-                        widget.onChanged((g) => g.copyWith(heightMm: v)),
-                  ),
-                ],
-                _NumberField(
-                  label: 'X (mm)',
-                  value: group.xMm,
-                  onChanged: (v) => widget.onChanged((g) => g.copyWith(xMm: v)),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: widget.onDelete,
                 ),
-                _NumberField(
-                  label: 'Y (mm)',
-                  value: group.yMm,
-                  onChanged: (v) => widget.onChanged((g) => g.copyWith(yMm: v)),
-                ),
-                if (group.fieldType == LayerFieldType.text) ...[
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Common settings first: the name (twice as wide as a number box) and the numbers in
+            // one row, then the toggles.
+            _CollapsibleSection(
+              title: 'General properties',
+              child: _ResponsiveGrid(
+                columns: 8,
+                minColumnWidth: 100,
+                children: [
                   _GridSpan(
                     span: 2,
-                    child: _alignedToInputs(
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Combine several fields'),
-                        value: group.isList,
+                    child: TextField(
+                      controller: _nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Layer name',
+                      ),
+                      onChanged: (v) =>
+                          widget.onChanged((g) => g.copyWith(name: v)),
+                    ),
+                  ),
+                  if (group.fieldType == LayerFieldType.text) ...[
+                    _NumberField(
+                      label: 'Font (pt)',
+                      step: 1,
+                      value: group.fontSizePt,
+                      onChanged: (v) =>
+                          widget.onChanged((g) => g.copyWith(fontSizePt: v)),
+                    ),
+                    _NumberField(
+                      label: 'Wrap width (mm)',
+                      value: group.widthMm ?? 30,
+                      onChanged: (v) =>
+                          widget.onChanged((g) => g.copyWith(widthMm: v)),
+                    ),
+                    _NumberField(
+                      label: 'Key width (mm)',
+                      value: group.keyWidthMm,
+                      onChanged: (v) =>
+                          widget.onChanged((g) => g.copyWith(keyWidthMm: v)),
+                      onCleared: () =>
+                          widget.onChanged((g) => g.copyWith(keyWidthMm: null)),
+                    ),
+                    if (group.isList)
+                      _NumberField(
+                        label: 'Line gap (mm)',
+                        value: group.lineGapMm,
                         onChanged: (v) =>
-                            widget.onChanged((g) => g.copyWith(isList: v)),
+                            widget.onChanged((g) => g.copyWith(lineGapMm: v)),
+                      ),
+                  ] else ...[
+                    _NumberField(
+                      label: 'Width (mm)',
+                      value: group.widthMm ?? 20,
+                      onChanged: (v) =>
+                          widget.onChanged((g) => g.copyWith(widthMm: v)),
+                    ),
+                    _NumberField(
+                      label: 'Height (mm)',
+                      value: group.heightMm ?? 20,
+                      onChanged: (v) =>
+                          widget.onChanged((g) => g.copyWith(heightMm: v)),
+                    ),
+                  ],
+                  _NumberField(
+                    label: 'X (mm)',
+                    value: group.xMm,
+                    onChanged: (v) =>
+                        widget.onChanged((g) => g.copyWith(xMm: v)),
+                  ),
+                  _NumberField(
+                    label: 'Y (mm)',
+                    value: group.yMm,
+                    onChanged: (v) =>
+                        widget.onChanged((g) => g.copyWith(yMm: v)),
+                  ),
+                  if (group.fieldType == LayerFieldType.text) ...[
+                    _GridSpan(
+                      span: 2,
+                      child: _alignedToInputs(
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Combine several fields'),
+                          value: group.isList,
+                          onChanged: (v) =>
+                              widget.onChanged((g) => g.copyWith(isList: v)),
+                        ),
                       ),
                     ),
-                  ),
-                  _alignedToInputs(
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Bold (B)'),
-                      value: group.bold,
-                      onChanged: (v) =>
-                          widget.onChanged((g) => g.copyWith(bold: v)),
-                    ),
-                  ),
-                  if (group.isList)
                     _alignedToInputs(
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('List (L)'),
-                        value: group.bulletList,
+                        title: const Text('Bold (B)'),
+                        value: group.bold,
                         onChanged: (v) =>
-                            widget.onChanged((g) => g.copyWith(bulletList: v)),
+                            widget.onChanged((g) => g.copyWith(bold: v)),
                       ),
                     ),
-                  _GridSpan(
-                    span: 2,
-                    child: RemoveWordsEditor(
-                      words: group.removeWords,
-                      onChanged: (words) => widget.onChanged(
-                        (g) => g.copyWith(removeWords: words),
+                    if (group.isList)
+                      _alignedToInputs(
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('List (L)'),
+                          value: group.bulletList,
+                          onChanged: (v) => widget.onChanged(
+                            (g) => g.copyWith(bulletList: v),
+                          ),
+                        ),
+                      ),
+                    _GridSpan(
+                      span: 2,
+                      child: RemoveWordsEditor(
+                        words: group.removeWords,
+                        onChanged: (words) => widget.onChanged(
+                          (g) => g.copyWith(removeWords: words),
+                        ),
                       ),
                     ),
-                  ),
-                  _GridSpan(
-                    span: 2,
-                    child: DateFormatEditor(
-                      key: ValueKey('date-format-${group.id}'),
-                      format: group.dateFormat,
-                      onChanged: (format) => widget.onChanged(
-                        (g) => g.copyWith(dateFormat: format),
+                    _GridSpan(
+                      span: 2,
+                      child: DateFormatEditor(
+                        key: ValueKey('date-format-${group.id}'),
+                        format: group.dateFormat,
+                        onChanged: (format) => widget.onChanged(
+                          (g) => g.copyWith(dateFormat: format),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
-            ),
-          ),
-          if (group.fieldType == LayerFieldType.text) ...[
-            const SizedBox(height: 12),
-            _CollapsibleSection(
-              title: 'Fields',
-              child: group.isList
-                  ? _CombinedFieldsEditor(
-                      group: group,
-                      sampleFields: widget.sampleFields,
-                      otherLayers: widget.otherLayers,
-                      onMergeLayer: widget.onMergeLayer,
-                      onChanged: widget.onChanged,
-                    )
-                  : _ResponsiveGrid(
-                      children: [
-                        TextField(
-                          controller: _keyCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Key (label before the value)',
-                          ),
-                          onChanged: (v) =>
-                              _updateFirstSource((s) => s.copyWith(key: v)),
-                        ),
-                        _PdfFieldPicker(
-                          value: _firstSourceOrDefault(group).sourceKey,
-                          fields: widget.sampleFields,
-                          isFixedText:
-                              (_firstSourceOrDefault(group).key ?? '')
-                                  .trim()
-                                  .isEmpty &&
-                              (_firstSourceOrDefault(group).sourceKey ?? '')
-                                  .isEmpty,
-                          onChanged: (v) => _updateFirstSource(
-                            (s) => s.copyWith(sourceKey: v),
-                          ),
-                        ),
-                        TextField(
-                          controller: _valueCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Sample value',
-                          ),
-                          onChanged: (v) =>
-                              _updateFirstSource((s) => s.copyWith(value: v)),
-                        ),
-                      ],
-                    ),
-            ),
-          ] else if (group.isQr)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text(
-                'Empty QR code image. The image itself is chosen in the card generator; '
-                'it is stretched to the width and height above.',
               ),
             ),
-        ],
+            if (group.fieldType == LayerFieldType.text) ...[
+              const SizedBox(height: 12),
+              _CollapsibleSection(
+                title: 'Fields',
+                child: group.isList
+                    ? _CombinedFieldsEditor(
+                        group: group,
+                        sampleFields: widget.sampleFields,
+                        otherLayers: widget.otherLayers,
+                        onMergeLayer: widget.onMergeLayer,
+                        onChanged: widget.onChanged,
+                      )
+                    : _ResponsiveGrid(
+                        children: [
+                          TextField(
+                            controller: _keyCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Key (label before the value)',
+                            ),
+                            onChanged: (v) =>
+                                _updateFirstSource((s) => s.copyWith(key: v)),
+                          ),
+                          _PdfFieldPicker(
+                            value: _firstSourceOrDefault(group).sourceKey,
+                            fields: widget.sampleFields,
+                            isFixedText:
+                                (_firstSourceOrDefault(group).key ?? '')
+                                    .trim()
+                                    .isEmpty &&
+                                (_firstSourceOrDefault(group).sourceKey ?? '')
+                                    .isEmpty,
+                            onChanged: (v) => _updateFirstSource(
+                              (s) => s.copyWith(sourceKey: v),
+                            ),
+                          ),
+                          TextField(
+                            controller: _valueCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Sample value',
+                            ),
+                            onChanged: (v) =>
+                                _updateFirstSource((s) => s.copyWith(value: v)),
+                          ),
+                        ],
+                      ),
+              ),
+            ] else if (group.isQr)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Empty QR code image. The image itself is chosen in the card generator; '
+                  'it is stretched to the width and height above.',
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -894,7 +942,8 @@ class _FieldsAndLayersPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
+    // A Material (not a colored Container) so the list tiles' selection and ink show.
+    return Material(
       color: theme.colorScheme.surfaceContainerLowest,
       child: Column(
         children: [

@@ -68,7 +68,7 @@ final class TemplateEditorControllerProvider
 }
 
 String _$templateEditorControllerHash() =>
-    r'ffb5d78b2d10ba588feab20e11f59c69cde93775';
+    r'0ef147269644678c957e1dc1d9e2458c37501781';
 
 /// Backs the layer designer canvas: a zoomable background image with draggable
 /// text/image layers positioned in millimeters. On-screen zoom (InteractiveViewer,
