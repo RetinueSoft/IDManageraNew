@@ -104,7 +104,7 @@ public class PdfGenerationService
                 {
                     var style = new TextStyle(size, group.Bold, (float)(size * LineHeightFactor));
                     var key = source.Key ?? "";
-                    var value = ValueCleaner.RemoveWords(source.Value ?? "", group.RemoveWords);
+                    var value = PrepareValue(group, source.Value);
                     var separator = group.UseDashSeparator ? "-" : ":";
                     float height;
 
@@ -324,6 +324,12 @@ public class PdfGenerationService
 
     // ------------------------------------------------------------------ text content
 
+    /// A field's value as printed: the layer's words to remove are taken out first (so a label in
+    /// front of a date does not hide it), then a value that is a date is put in the layer's date
+    /// format. Must match LayerGroupText.formatValue in the designer.
+    private static string PrepareValue(LayerGroupDto group, string? raw) =>
+        DateValueFormatter.Reformat(ValueCleaner.RemoveWords(raw ?? "", group.RemoveWords), group.DateFormat);
+
     /// Line pitch of a combined group: one normal line height plus its common line gap.
     private static float CombinedLeadingPt(LayerGroupDto group) =>
         (float)(group.FontSizePt * LineHeightFactor + group.LineGapMm * MmToPt);
@@ -351,7 +357,7 @@ public class PdfGenerationService
                 continue;
             }
             var key = (source.Key ?? "").Trim();
-            var value = ValueCleaner.RemoveWords((source.Value ?? "").Trim(), group.RemoveWords).Trim();
+            var value = PrepareValue(group, (source.Value ?? "").Trim()).Trim();
             if (key.Length == 0 && value.Length == 0) continue;
 
             if (wroteAny)
@@ -416,7 +422,7 @@ public class PdfGenerationService
             }
 
             var key = (source.Key ?? "").Trim();
-            var value = ValueCleaner.RemoveWords((source.Value ?? "").Trim(), group.RemoveWords).Trim();
+            var value = PrepareValue(group, (source.Value ?? "").Trim()).Trim();
             if (key.Length == 0 && value.Length == 0) continue;
 
             if (!group.BulletList && key.Length == 0 && openRow >= 0)

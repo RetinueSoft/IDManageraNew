@@ -423,4 +423,66 @@ public class PdfGenerationServiceTests
 
         Assert.Contains("No. 117 Palace", pdf.GetPage(1).Text);
     }
+
+    // ---- a date format for a layer's values ----
+
+    [Fact]
+    public void DateFormat_ReformatsADateValue_InASingleField()
+    {
+        var group = TextLayer("DOB", "01-Jan-1968");
+        group.DateFormat = "dd/MM/yyyy";
+
+        using var pdf = PdfDocument.Open(Render(group));
+        var text = pdf.GetPage(1).Text;
+
+        Assert.Contains("DOB: 01/01/1968", text);
+        Assert.DoesNotContain("Jan", text);
+    }
+
+    [Fact]
+    public void DateFormat_ReformatsDatesInACombinedLayer_AndLeavesOtherValuesAlone()
+    {
+        var group = Combined(false, null,
+            new LayerSourceItemDto { Key = "Born", Value = "26-Jul-1972", Separator = "space" },
+            new LayerSourceItemDto { Key = "Pin", Value = "614001" });
+        group.DateFormat = "dd-MM-yyyy";
+
+        using var pdf = PdfDocument.Open(Render(group));
+        var text = pdf.GetPage(1).Text.Replace("\n", " ");
+
+        Assert.Contains("Born: 26-07-1972 Pin: 614001", text);
+    }
+
+    [Fact]
+    public void DateFormat_AppliesToAlignedRowValues()
+    {
+        var group = Combined(false, 20, new LayerSourceItemDto { Key = "Born", Value = "01-Jan-1968" });
+        group.DateFormat = "dd/MM/yyyy";
+
+        using var pdf = PdfDocument.Open(Render(group));
+        var text = string.Join(" ", pdf.GetPage(1).GetWords().Select(w => w.Text));
+
+        Assert.Contains("01/01/1968", text);
+        Assert.DoesNotContain("Jan", text);
+    }
+
+    [Fact]
+    public void DateFormat_IsAppliedAfterRemoveWords()
+    {
+        var group = Combined(false, null, new LayerSourceItemDto { Value = "DOB: 01-Jan-1968" });
+        group.RemoveWords = ["DOB:"];
+        group.DateFormat = "dd/MM/yyyy";
+
+        using var pdf = PdfDocument.Open(Render(group));
+
+        Assert.Contains("01/01/1968", pdf.GetPage(1).Text);
+    }
+
+    [Fact]
+    public void ALayerWithoutADateFormat_PrintsDatesAsTheyAre()
+    {
+        using var pdf = PdfDocument.Open(Render(TextLayer("DOB", "01-Jan-1968")));
+
+        Assert.Contains("DOB: 01-Jan-1968", pdf.GetPage(1).Text);
+    }
 }

@@ -15,6 +15,7 @@ import '../../core_engine/templates/domain/field_group.dart';
 import '../../core_engine/templates/domain/layer_text.dart';
 import '../../core_engine/templates/domain/template_layer.dart';
 import '../shared/widgets/card_text_layer.dart';
+import 'date_format_editor.dart';
 import 'remove_words_editor.dart';
 import '../shared/widgets/zoomable_canvas.dart';
 import '../routing/app_routes.dart';
@@ -461,6 +462,12 @@ class _PropertiesPanelState extends State<_PropertiesPanel> {
               words: group.removeWords,
               onChanged: (words) =>
                   widget.onChanged((g) => g.copyWith(removeWords: words)),
+            ),
+            const SizedBox(height: 12),
+            DateFormatEditor(
+              key: ValueKey('date-format-${group.id}'),
+              format: group.dateFormat,
+              onChanged: (format) => widget.onChanged((g) => g.copyWith(dateFormat: format)),
             ),
             const SizedBox(height: 8),
             _NumberField(

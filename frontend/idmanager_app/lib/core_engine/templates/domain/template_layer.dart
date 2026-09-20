@@ -63,6 +63,11 @@ sealed class LayerGroup with _$LayerGroup {
     /// 'எண் :117 கூளமடை'), whole words only, never from keys. One list per layer.
     @Default(<String>[]) List<String> removeWords,
 
+    /// A date format (e.g. 'dd/MM/yyyy') applied to every field value in this layer that is a
+    /// date: '01-Jan-1968' prints as '01/01/1968'. Values that are not dates are left alone.
+    /// Null means no change.
+    String? dateFormat,
+
     /// In a combined layer: print each field on its own line with a bullet point.
     @Default(false) bool bulletList,
     @Default(false) bool emptyLineEveryAfter,

@@ -200,4 +200,22 @@ void main() {
 
     expect(find.text('எண்: 5'), findsOneWidget);
   });
+
+  testWidgets('a date value in a single field is printed in the layer date format', (tester) async {
+    final group = _group(sources: const [LayerSourceItem(key: 'பிறந்த தேதி', value: '01-Jan-1968')]).copyWith(
+      dateFormat: 'dd/MM/yyyy',
+    );
+    await _pump(tester, group);
+
+    expect(find.text('பிறந்த தேதி: 01/01/1968'), findsOneWidget);
+  });
+
+  testWidgets('a date format leaves a value that is not a date alone', (tester) async {
+    final group = _group(sources: const [LayerSourceItem(key: '', value: '614001')]).copyWith(
+      dateFormat: 'dd/MM/yyyy',
+    );
+    await _pump(tester, group);
+
+    expect(find.text('614001'), findsOneWidget);
+  });
 }

@@ -41,6 +41,11 @@ public class LayerGroupDto
     /// any number of words. See ValueCleaner.
     public List<string> RemoveWords { get; set; } = new();
 
+    /// A date format (e.g. "dd/MM/yyyy") applied to every field value in this layer that is a
+    /// date: "01-Jan-1968" prints as "01/01/1968". Values that are not dates are left alone.
+    /// Null means no change. See DateValueFormatter.
+    public string? DateFormat { get; set; }
+
     /// In a combined group: extra space (mm) added between all of its lines, common to
     /// the whole group. 0 keeps the normal line spacing.
     public double LineGapMm { get; set; }

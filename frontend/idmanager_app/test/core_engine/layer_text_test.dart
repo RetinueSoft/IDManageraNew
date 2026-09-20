@@ -251,4 +251,86 @@ void main() {
       expect(withWords([], ['எண்']).cleanValue(null), '');
     });
   });
+
+  // ---- a date format for a layer's values ----
+
+  group('dateFormat on a layer', () {
+    LayerGroup withFormat(
+      List<LayerSourceItem> sources,
+      String? format, {
+      bool bullets = false,
+      double? keyWidthMm,
+      List<String> words = const [],
+    }) => LayerGroup(
+      id: 'g',
+      name: 'g',
+      xMm: 0,
+      yMm: 0,
+      isList: true,
+      bulletList: bullets,
+      keyWidthMm: keyWidthMm,
+      dateFormat: format,
+      removeWords: words,
+      sources: sources,
+    );
+
+    test('a date value is printed in the layer format, the key untouched', () {
+      final g = withFormat([const LayerSourceItem(key: 'பிறந்த தேதி', value: '01-Jan-1968')], 'dd/MM/yyyy');
+
+      expect(g.combinedText, 'பிறந்த தேதி: 01/01/1968');
+    });
+
+    test('values that are not dates are left alone', () {
+      final g = withFormat([
+        const LayerSourceItem(key: 'Pin', value: '614001', separator: 'space'),
+        const LayerSourceItem(key: 'Name', value: 'Asha'),
+      ], 'dd/MM/yyyy');
+
+      expect(g.combinedText, 'Pin: 614001 Name: Asha');
+    });
+
+    test('several dates in one layer are each reformatted', () {
+      final g = withFormat([
+        const LayerSourceItem(value: '01-Jan-1968', separator: 'dash'),
+        const LayerSourceItem(value: '26-Jul-1972'),
+      ], 'dd/MM/yyyy');
+
+      expect(g.combinedText, '01/01/1968 - 26/07/1972');
+    });
+
+    test('words to remove are applied first, so a label in front of a date does not hide it', () {
+      final g = withFormat([const LayerSourceItem(value: 'DOB: 01-Jan-1968')], 'dd/MM/yyyy', words: ['DOB:']);
+
+      expect(g.combinedText, '01/01/1968');
+    });
+
+    test('aligned rows use the format', () {
+      final rows = withFormat([
+        const LayerSourceItem(key: 'பிறந்த தேதி', value: '26-Jul-1972'),
+      ], 'dd-MM-yyyy', keyWidthMm: 20).bulletRows;
+
+      expect(rows.single.value, '26-07-1972');
+    });
+
+    test('bullet lists use the format', () {
+      final g = withFormat([const LayerSourceItem(value: '01-Jan-1968')], 'dd/MM/yyyy', bullets: true);
+
+      expect(g.combinedText, '• 01/01/1968');
+    });
+
+    test('no format (or an unusable one) leaves dates as they are', () {
+      for (final format in <String?>[null, '', 'hello']) {
+        final g = withFormat([const LayerSourceItem(value: '01-Jan-1968')], format);
+        expect(g.combinedText, '01-Jan-1968');
+      }
+    });
+
+    test('formatValue does not trim, cleanValue does', () {
+      final g = withFormat([], 'dd/MM/yyyy');
+
+      expect(g.formatValue(' 01-Jan-1968 '), '01/01/1968'); // a date is found through the spaces
+      expect(g.formatValue(' plain '), ' plain ');
+      expect(g.cleanValue(' plain '), 'plain');
+    });
+  });
 }

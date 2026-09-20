@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core_engine/common/enums.dart';
+import '../../../core_engine/templates/domain/layer_text.dart';
 import '../../../core_engine/templates/domain/template_layer.dart';
-import '../../../core_engine/templates/domain/value_cleaner.dart';
 import 'card_text.dart';
 import 'combined_layer_text.dart';
 
@@ -37,8 +37,9 @@ class CardTextLayer extends StatelessWidget {
     for (final source in group.sources) {
       if (source.type != LayerFieldType.text) continue;
       final key = source.key ?? '';
-      // The layer's words to remove are taken out of the value (never the key), as in the PDF.
-      final value = removeWordsFrom(source.value ?? '', group.removeWords);
+      // The layer's words to remove and its date format are applied to the value (never the
+      // key), as in the PDF.
+      final value = group.formatValue(source.value);
 
       final Widget row;
       if (key.isEmpty) {

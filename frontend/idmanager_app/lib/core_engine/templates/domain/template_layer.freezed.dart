@@ -314,7 +314,10 @@ mixin _$LayerGroup {
 /// image the user picks (a QR code). Its source's key names the slot, e.g. 'QR 1'.
  bool get isQr;/// Words stripped out of every field's value in this layer (e.g. 'எண்' from
 /// 'எண் :117 கூளமடை'), whole words only, never from keys. One list per layer.
- List<String> get removeWords;/// In a combined layer: print each field on its own line with a bullet point.
+ List<String> get removeWords;/// A date format (e.g. 'dd/MM/yyyy') applied to every field value in this layer that is a
+/// date: '01-Jan-1968' prints as '01/01/1968'. Values that are not dates are left alone.
+/// Null means no change.
+ String? get dateFormat;/// In a combined layer: print each field on its own line with a bullet point.
  bool get bulletList; bool get emptyLineEveryAfter; bool get newLineAfterFirst; bool get newLineBeforeLast; bool get formatAsDate; bool get useDashSeparator; List<LayerSourceItem> get sources;
 /// Create a copy of LayerGroup
 /// with the given fields replaced by the non-null parameter values.
@@ -327,20 +330,20 @@ $LayerGroupCopyWith<LayerGroup> get copyWith => _$LayerGroupCopyWithImpl<LayerGr
 @override
 bool operator ==(Object other) {
   final _this = this as LayerGroup;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LayerGroup&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.fieldType, _this.fieldType) || other.fieldType == _this.fieldType)&&(identical(other.xMm, _this.xMm) || other.xMm == _this.xMm)&&(identical(other.yMm, _this.yMm) || other.yMm == _this.yMm)&&(identical(other.widthMm, _this.widthMm) || other.widthMm == _this.widthMm)&&(identical(other.heightMm, _this.heightMm) || other.heightMm == _this.heightMm)&&(identical(other.fontSizePt, _this.fontSizePt) || other.fontSizePt == _this.fontSizePt)&&(identical(other.lineHeightMm, _this.lineHeightMm) || other.lineHeightMm == _this.lineHeightMm)&&(identical(other.keyWidthMm, _this.keyWidthMm) || other.keyWidthMm == _this.keyWidthMm)&&(identical(other.valueWidthMm, _this.valueWidthMm) || other.valueWidthMm == _this.valueWidthMm)&&(identical(other.bold, _this.bold) || other.bold == _this.bold)&&(identical(other.isList, _this.isList) || other.isList == _this.isList)&&(identical(other.lineGapMm, _this.lineGapMm) || other.lineGapMm == _this.lineGapMm)&&(identical(other.isQr, _this.isQr) || other.isQr == _this.isQr)&&const DeepCollectionEquality().equals(other.removeWords, _this.removeWords)&&(identical(other.bulletList, _this.bulletList) || other.bulletList == _this.bulletList)&&(identical(other.emptyLineEveryAfter, _this.emptyLineEveryAfter) || other.emptyLineEveryAfter == _this.emptyLineEveryAfter)&&(identical(other.newLineAfterFirst, _this.newLineAfterFirst) || other.newLineAfterFirst == _this.newLineAfterFirst)&&(identical(other.newLineBeforeLast, _this.newLineBeforeLast) || other.newLineBeforeLast == _this.newLineBeforeLast)&&(identical(other.formatAsDate, _this.formatAsDate) || other.formatAsDate == _this.formatAsDate)&&(identical(other.useDashSeparator, _this.useDashSeparator) || other.useDashSeparator == _this.useDashSeparator)&&const DeepCollectionEquality().equals(other.sources, _this.sources));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LayerGroup&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.fieldType, _this.fieldType) || other.fieldType == _this.fieldType)&&(identical(other.xMm, _this.xMm) || other.xMm == _this.xMm)&&(identical(other.yMm, _this.yMm) || other.yMm == _this.yMm)&&(identical(other.widthMm, _this.widthMm) || other.widthMm == _this.widthMm)&&(identical(other.heightMm, _this.heightMm) || other.heightMm == _this.heightMm)&&(identical(other.fontSizePt, _this.fontSizePt) || other.fontSizePt == _this.fontSizePt)&&(identical(other.lineHeightMm, _this.lineHeightMm) || other.lineHeightMm == _this.lineHeightMm)&&(identical(other.keyWidthMm, _this.keyWidthMm) || other.keyWidthMm == _this.keyWidthMm)&&(identical(other.valueWidthMm, _this.valueWidthMm) || other.valueWidthMm == _this.valueWidthMm)&&(identical(other.bold, _this.bold) || other.bold == _this.bold)&&(identical(other.isList, _this.isList) || other.isList == _this.isList)&&(identical(other.lineGapMm, _this.lineGapMm) || other.lineGapMm == _this.lineGapMm)&&(identical(other.isQr, _this.isQr) || other.isQr == _this.isQr)&&const DeepCollectionEquality().equals(other.removeWords, _this.removeWords)&&(identical(other.dateFormat, _this.dateFormat) || other.dateFormat == _this.dateFormat)&&(identical(other.bulletList, _this.bulletList) || other.bulletList == _this.bulletList)&&(identical(other.emptyLineEveryAfter, _this.emptyLineEveryAfter) || other.emptyLineEveryAfter == _this.emptyLineEveryAfter)&&(identical(other.newLineAfterFirst, _this.newLineAfterFirst) || other.newLineAfterFirst == _this.newLineAfterFirst)&&(identical(other.newLineBeforeLast, _this.newLineBeforeLast) || other.newLineBeforeLast == _this.newLineBeforeLast)&&(identical(other.formatAsDate, _this.formatAsDate) || other.formatAsDate == _this.formatAsDate)&&(identical(other.useDashSeparator, _this.useDashSeparator) || other.useDashSeparator == _this.useDashSeparator)&&const DeepCollectionEquality().equals(other.sources, _this.sources));
 }
 
 
 @override
 int get hashCode {
   final _this = this as LayerGroup;
-  return Object.hashAll([runtimeType,_this.id,_this.name,_this.fieldType,_this.xMm,_this.yMm,_this.widthMm,_this.heightMm,_this.fontSizePt,_this.lineHeightMm,_this.keyWidthMm,_this.valueWidthMm,_this.bold,_this.isList,_this.lineGapMm,_this.isQr,const DeepCollectionEquality().hash(_this.removeWords),_this.bulletList,_this.emptyLineEveryAfter,_this.newLineAfterFirst,_this.newLineBeforeLast,_this.formatAsDate,_this.useDashSeparator,const DeepCollectionEquality().hash(_this.sources)]);
+  return Object.hashAll([runtimeType,_this.id,_this.name,_this.fieldType,_this.xMm,_this.yMm,_this.widthMm,_this.heightMm,_this.fontSizePt,_this.lineHeightMm,_this.keyWidthMm,_this.valueWidthMm,_this.bold,_this.isList,_this.lineGapMm,_this.isQr,const DeepCollectionEquality().hash(_this.removeWords),_this.dateFormat,_this.bulletList,_this.emptyLineEveryAfter,_this.newLineAfterFirst,_this.newLineBeforeLast,_this.formatAsDate,_this.useDashSeparator,const DeepCollectionEquality().hash(_this.sources)]);
 }
 
 @override
 String toString() {
   final _this = this as LayerGroup;
-  return 'LayerGroup(id: ${_this.id}, name: ${_this.name}, fieldType: ${_this.fieldType}, xMm: ${_this.xMm}, yMm: ${_this.yMm}, widthMm: ${_this.widthMm}, heightMm: ${_this.heightMm}, fontSizePt: ${_this.fontSizePt}, lineHeightMm: ${_this.lineHeightMm}, keyWidthMm: ${_this.keyWidthMm}, valueWidthMm: ${_this.valueWidthMm}, bold: ${_this.bold}, isList: ${_this.isList}, lineGapMm: ${_this.lineGapMm}, isQr: ${_this.isQr}, removeWords: ${_this.removeWords}, bulletList: ${_this.bulletList}, emptyLineEveryAfter: ${_this.emptyLineEveryAfter}, newLineAfterFirst: ${_this.newLineAfterFirst}, newLineBeforeLast: ${_this.newLineBeforeLast}, formatAsDate: ${_this.formatAsDate}, useDashSeparator: ${_this.useDashSeparator}, sources: ${_this.sources})';
+  return 'LayerGroup(id: ${_this.id}, name: ${_this.name}, fieldType: ${_this.fieldType}, xMm: ${_this.xMm}, yMm: ${_this.yMm}, widthMm: ${_this.widthMm}, heightMm: ${_this.heightMm}, fontSizePt: ${_this.fontSizePt}, lineHeightMm: ${_this.lineHeightMm}, keyWidthMm: ${_this.keyWidthMm}, valueWidthMm: ${_this.valueWidthMm}, bold: ${_this.bold}, isList: ${_this.isList}, lineGapMm: ${_this.lineGapMm}, isQr: ${_this.isQr}, removeWords: ${_this.removeWords}, dateFormat: ${_this.dateFormat}, bulletList: ${_this.bulletList}, emptyLineEveryAfter: ${_this.emptyLineEveryAfter}, newLineAfterFirst: ${_this.newLineAfterFirst}, newLineBeforeLast: ${_this.newLineBeforeLast}, formatAsDate: ${_this.formatAsDate}, useDashSeparator: ${_this.useDashSeparator}, sources: ${_this.sources})';
 }
 
 
@@ -351,7 +354,7 @@ abstract mixin class $LayerGroupCopyWith<$Res>  {
   factory $LayerGroupCopyWith(LayerGroup value, $Res Function(LayerGroup) _then) = _$LayerGroupCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, LayerFieldType fieldType, double xMm, double yMm, double? widthMm, double? heightMm, double fontSizePt, double lineHeightMm, double? keyWidthMm, double? valueWidthMm, bool bold, bool isList, double lineGapMm, bool isQr, List<String> removeWords, bool bulletList, bool emptyLineEveryAfter, bool newLineAfterFirst, bool newLineBeforeLast, bool formatAsDate, bool useDashSeparator, List<LayerSourceItem> sources
+ String id, String name, LayerFieldType fieldType, double xMm, double yMm, double? widthMm, double? heightMm, double fontSizePt, double lineHeightMm, double? keyWidthMm, double? valueWidthMm, bool bold, bool isList, double lineGapMm, bool isQr, List<String> removeWords, String? dateFormat, bool bulletList, bool emptyLineEveryAfter, bool newLineAfterFirst, bool newLineBeforeLast, bool formatAsDate, bool useDashSeparator, List<LayerSourceItem> sources
 });
 
 
@@ -368,7 +371,7 @@ class _$LayerGroupCopyWithImpl<$Res>
 
 /// Create a copy of LayerGroup
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? fieldType = null,Object? xMm = null,Object? yMm = null,Object? widthMm = freezed,Object? heightMm = freezed,Object? fontSizePt = null,Object? lineHeightMm = null,Object? keyWidthMm = freezed,Object? valueWidthMm = freezed,Object? bold = null,Object? isList = null,Object? lineGapMm = null,Object? isQr = null,Object? removeWords = null,Object? bulletList = null,Object? emptyLineEveryAfter = null,Object? newLineAfterFirst = null,Object? newLineBeforeLast = null,Object? formatAsDate = null,Object? useDashSeparator = null,Object? sources = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? fieldType = null,Object? xMm = null,Object? yMm = null,Object? widthMm = freezed,Object? heightMm = freezed,Object? fontSizePt = null,Object? lineHeightMm = null,Object? keyWidthMm = freezed,Object? valueWidthMm = freezed,Object? bold = null,Object? isList = null,Object? lineGapMm = null,Object? isQr = null,Object? removeWords = null,Object? dateFormat = freezed,Object? bulletList = null,Object? emptyLineEveryAfter = null,Object? newLineAfterFirst = null,Object? newLineBeforeLast = null,Object? formatAsDate = null,Object? useDashSeparator = null,Object? sources = null,}) {
   return _then(LayerGroup(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -386,7 +389,8 @@ as bool,isList: null == isList ? _self.isList : isList // ignore: cast_nullable_
 as bool,lineGapMm: null == lineGapMm ? _self.lineGapMm : lineGapMm // ignore: cast_nullable_to_non_nullable
 as double,isQr: null == isQr ? _self.isQr : isQr // ignore: cast_nullable_to_non_nullable
 as bool,removeWords: null == removeWords ? _self.removeWords : removeWords // ignore: cast_nullable_to_non_nullable
-as List<String>,bulletList: null == bulletList ? _self.bulletList : bulletList // ignore: cast_nullable_to_non_nullable
+as List<String>,dateFormat: freezed == dateFormat ? _self.dateFormat : dateFormat // ignore: cast_nullable_to_non_nullable
+as String?,bulletList: null == bulletList ? _self.bulletList : bulletList // ignore: cast_nullable_to_non_nullable
 as bool,emptyLineEveryAfter: null == emptyLineEveryAfter ? _self.emptyLineEveryAfter : emptyLineEveryAfter // ignore: cast_nullable_to_non_nullable
 as bool,newLineAfterFirst: null == newLineAfterFirst ? _self.newLineAfterFirst : newLineAfterFirst // ignore: cast_nullable_to_non_nullable
 as bool,newLineBeforeLast: null == newLineBeforeLast ? _self.newLineBeforeLast : newLineBeforeLast // ignore: cast_nullable_to_non_nullable
@@ -475,10 +479,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  LayerFieldType fieldType,  double xMm,  double yMm,  double? widthMm,  double? heightMm,  double fontSizePt,  double lineHeightMm,  double? keyWidthMm,  double? valueWidthMm,  bool bold,  bool isList,  double lineGapMm,  bool isQr,  List<String> removeWords,  bool bulletList,  bool emptyLineEveryAfter,  bool newLineAfterFirst,  bool newLineBeforeLast,  bool formatAsDate,  bool useDashSeparator,  List<LayerSourceItem> sources)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  LayerFieldType fieldType,  double xMm,  double yMm,  double? widthMm,  double? heightMm,  double fontSizePt,  double lineHeightMm,  double? keyWidthMm,  double? valueWidthMm,  bool bold,  bool isList,  double lineGapMm,  bool isQr,  List<String> removeWords,  String? dateFormat,  bool bulletList,  bool emptyLineEveryAfter,  bool newLineAfterFirst,  bool newLineBeforeLast,  bool formatAsDate,  bool useDashSeparator,  List<LayerSourceItem> sources)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LayerGroup() when $default != null:
-return $default(_that.id,_that.name,_that.fieldType,_that.xMm,_that.yMm,_that.widthMm,_that.heightMm,_that.fontSizePt,_that.lineHeightMm,_that.keyWidthMm,_that.valueWidthMm,_that.bold,_that.isList,_that.lineGapMm,_that.isQr,_that.removeWords,_that.bulletList,_that.emptyLineEveryAfter,_that.newLineAfterFirst,_that.newLineBeforeLast,_that.formatAsDate,_that.useDashSeparator,_that.sources);case _:
+return $default(_that.id,_that.name,_that.fieldType,_that.xMm,_that.yMm,_that.widthMm,_that.heightMm,_that.fontSizePt,_that.lineHeightMm,_that.keyWidthMm,_that.valueWidthMm,_that.bold,_that.isList,_that.lineGapMm,_that.isQr,_that.removeWords,_that.dateFormat,_that.bulletList,_that.emptyLineEveryAfter,_that.newLineAfterFirst,_that.newLineBeforeLast,_that.formatAsDate,_that.useDashSeparator,_that.sources);case _:
   return orElse();
 
 }
@@ -496,10 +500,10 @@ return $default(_that.id,_that.name,_that.fieldType,_that.xMm,_that.yMm,_that.wi
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  LayerFieldType fieldType,  double xMm,  double yMm,  double? widthMm,  double? heightMm,  double fontSizePt,  double lineHeightMm,  double? keyWidthMm,  double? valueWidthMm,  bool bold,  bool isList,  double lineGapMm,  bool isQr,  List<String> removeWords,  bool bulletList,  bool emptyLineEveryAfter,  bool newLineAfterFirst,  bool newLineBeforeLast,  bool formatAsDate,  bool useDashSeparator,  List<LayerSourceItem> sources)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  LayerFieldType fieldType,  double xMm,  double yMm,  double? widthMm,  double? heightMm,  double fontSizePt,  double lineHeightMm,  double? keyWidthMm,  double? valueWidthMm,  bool bold,  bool isList,  double lineGapMm,  bool isQr,  List<String> removeWords,  String? dateFormat,  bool bulletList,  bool emptyLineEveryAfter,  bool newLineAfterFirst,  bool newLineBeforeLast,  bool formatAsDate,  bool useDashSeparator,  List<LayerSourceItem> sources)  $default,) {final _that = this;
 switch (_that) {
 case _LayerGroup():
-return $default(_that.id,_that.name,_that.fieldType,_that.xMm,_that.yMm,_that.widthMm,_that.heightMm,_that.fontSizePt,_that.lineHeightMm,_that.keyWidthMm,_that.valueWidthMm,_that.bold,_that.isList,_that.lineGapMm,_that.isQr,_that.removeWords,_that.bulletList,_that.emptyLineEveryAfter,_that.newLineAfterFirst,_that.newLineBeforeLast,_that.formatAsDate,_that.useDashSeparator,_that.sources);}
+return $default(_that.id,_that.name,_that.fieldType,_that.xMm,_that.yMm,_that.widthMm,_that.heightMm,_that.fontSizePt,_that.lineHeightMm,_that.keyWidthMm,_that.valueWidthMm,_that.bold,_that.isList,_that.lineGapMm,_that.isQr,_that.removeWords,_that.dateFormat,_that.bulletList,_that.emptyLineEveryAfter,_that.newLineAfterFirst,_that.newLineBeforeLast,_that.formatAsDate,_that.useDashSeparator,_that.sources);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -513,10 +517,10 @@ return $default(_that.id,_that.name,_that.fieldType,_that.xMm,_that.yMm,_that.wi
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  LayerFieldType fieldType,  double xMm,  double yMm,  double? widthMm,  double? heightMm,  double fontSizePt,  double lineHeightMm,  double? keyWidthMm,  double? valueWidthMm,  bool bold,  bool isList,  double lineGapMm,  bool isQr,  List<String> removeWords,  bool bulletList,  bool emptyLineEveryAfter,  bool newLineAfterFirst,  bool newLineBeforeLast,  bool formatAsDate,  bool useDashSeparator,  List<LayerSourceItem> sources)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  LayerFieldType fieldType,  double xMm,  double yMm,  double? widthMm,  double? heightMm,  double fontSizePt,  double lineHeightMm,  double? keyWidthMm,  double? valueWidthMm,  bool bold,  bool isList,  double lineGapMm,  bool isQr,  List<String> removeWords,  String? dateFormat,  bool bulletList,  bool emptyLineEveryAfter,  bool newLineAfterFirst,  bool newLineBeforeLast,  bool formatAsDate,  bool useDashSeparator,  List<LayerSourceItem> sources)?  $default,) {final _that = this;
 switch (_that) {
 case _LayerGroup() when $default != null:
-return $default(_that.id,_that.name,_that.fieldType,_that.xMm,_that.yMm,_that.widthMm,_that.heightMm,_that.fontSizePt,_that.lineHeightMm,_that.keyWidthMm,_that.valueWidthMm,_that.bold,_that.isList,_that.lineGapMm,_that.isQr,_that.removeWords,_that.bulletList,_that.emptyLineEveryAfter,_that.newLineAfterFirst,_that.newLineBeforeLast,_that.formatAsDate,_that.useDashSeparator,_that.sources);case _:
+return $default(_that.id,_that.name,_that.fieldType,_that.xMm,_that.yMm,_that.widthMm,_that.heightMm,_that.fontSizePt,_that.lineHeightMm,_that.keyWidthMm,_that.valueWidthMm,_that.bold,_that.isList,_that.lineGapMm,_that.isQr,_that.removeWords,_that.dateFormat,_that.bulletList,_that.emptyLineEveryAfter,_that.newLineAfterFirst,_that.newLineBeforeLast,_that.formatAsDate,_that.useDashSeparator,_that.sources);case _:
   return null;
 
 }
@@ -528,7 +532,7 @@ return $default(_that.id,_that.name,_that.fieldType,_that.xMm,_that.yMm,_that.wi
 
 
 class _LayerGroup implements LayerGroup {
-  const _LayerGroup({required this.id, required this.name, this.fieldType = LayerFieldType.text, required this.xMm, required this.yMm, this.widthMm, this.heightMm, this.fontSizePt = 10, this.lineHeightMm = 5, this.keyWidthMm, this.valueWidthMm, this.bold = false, this.isList = false, this.lineGapMm = 0, this.isQr = false,  List<String> removeWords = const <String>[], this.bulletList = false, this.emptyLineEveryAfter = false, this.newLineAfterFirst = false, this.newLineBeforeLast = false, this.formatAsDate = false, this.useDashSeparator = false,  List<LayerSourceItem> sources = const <LayerSourceItem>[]}): _removeWords = removeWords,_sources = sources;
+  const _LayerGroup({required this.id, required this.name, this.fieldType = LayerFieldType.text, required this.xMm, required this.yMm, this.widthMm, this.heightMm, this.fontSizePt = 10, this.lineHeightMm = 5, this.keyWidthMm, this.valueWidthMm, this.bold = false, this.isList = false, this.lineGapMm = 0, this.isQr = false,  List<String> removeWords = const <String>[], this.dateFormat, this.bulletList = false, this.emptyLineEveryAfter = false, this.newLineAfterFirst = false, this.newLineBeforeLast = false, this.formatAsDate = false, this.useDashSeparator = false,  List<LayerSourceItem> sources = const <LayerSourceItem>[]}): _removeWords = removeWords,_sources = sources;
   
 
 /// Client-side only identity for the designer canvas (drag/select/delete) -
@@ -565,6 +569,10 @@ class _LayerGroup implements LayerGroup {
   return EqualUnmodifiableListView(_removeWords);
 }
 
+/// A date format (e.g. 'dd/MM/yyyy') applied to every field value in this layer that is a
+/// date: '01-Jan-1968' prints as '01/01/1968'. Values that are not dates are left alone.
+/// Null means no change.
+@override final  String? dateFormat;
 /// In a combined layer: print each field on its own line with a bullet point.
 @override@JsonKey() final  bool bulletList;
 @override@JsonKey() final  bool emptyLineEveryAfter;
@@ -590,18 +598,18 @@ _$LayerGroupCopyWith<_LayerGroup> get copyWith => __$LayerGroupCopyWithImpl<_Lay
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LayerGroup&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.fieldType, fieldType) || other.fieldType == fieldType)&&(identical(other.xMm, xMm) || other.xMm == xMm)&&(identical(other.yMm, yMm) || other.yMm == yMm)&&(identical(other.widthMm, widthMm) || other.widthMm == widthMm)&&(identical(other.heightMm, heightMm) || other.heightMm == heightMm)&&(identical(other.fontSizePt, fontSizePt) || other.fontSizePt == fontSizePt)&&(identical(other.lineHeightMm, lineHeightMm) || other.lineHeightMm == lineHeightMm)&&(identical(other.keyWidthMm, keyWidthMm) || other.keyWidthMm == keyWidthMm)&&(identical(other.valueWidthMm, valueWidthMm) || other.valueWidthMm == valueWidthMm)&&(identical(other.bold, bold) || other.bold == bold)&&(identical(other.isList, isList) || other.isList == isList)&&(identical(other.lineGapMm, lineGapMm) || other.lineGapMm == lineGapMm)&&(identical(other.isQr, isQr) || other.isQr == isQr)&&const DeepCollectionEquality().equals(other.removeWords, _removeWords)&&(identical(other.bulletList, bulletList) || other.bulletList == bulletList)&&(identical(other.emptyLineEveryAfter, emptyLineEveryAfter) || other.emptyLineEveryAfter == emptyLineEveryAfter)&&(identical(other.newLineAfterFirst, newLineAfterFirst) || other.newLineAfterFirst == newLineAfterFirst)&&(identical(other.newLineBeforeLast, newLineBeforeLast) || other.newLineBeforeLast == newLineBeforeLast)&&(identical(other.formatAsDate, formatAsDate) || other.formatAsDate == formatAsDate)&&(identical(other.useDashSeparator, useDashSeparator) || other.useDashSeparator == useDashSeparator)&&const DeepCollectionEquality().equals(other.sources, _sources));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LayerGroup&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.fieldType, fieldType) || other.fieldType == fieldType)&&(identical(other.xMm, xMm) || other.xMm == xMm)&&(identical(other.yMm, yMm) || other.yMm == yMm)&&(identical(other.widthMm, widthMm) || other.widthMm == widthMm)&&(identical(other.heightMm, heightMm) || other.heightMm == heightMm)&&(identical(other.fontSizePt, fontSizePt) || other.fontSizePt == fontSizePt)&&(identical(other.lineHeightMm, lineHeightMm) || other.lineHeightMm == lineHeightMm)&&(identical(other.keyWidthMm, keyWidthMm) || other.keyWidthMm == keyWidthMm)&&(identical(other.valueWidthMm, valueWidthMm) || other.valueWidthMm == valueWidthMm)&&(identical(other.bold, bold) || other.bold == bold)&&(identical(other.isList, isList) || other.isList == isList)&&(identical(other.lineGapMm, lineGapMm) || other.lineGapMm == lineGapMm)&&(identical(other.isQr, isQr) || other.isQr == isQr)&&const DeepCollectionEquality().equals(other.removeWords, _removeWords)&&(identical(other.dateFormat, dateFormat) || other.dateFormat == dateFormat)&&(identical(other.bulletList, bulletList) || other.bulletList == bulletList)&&(identical(other.emptyLineEveryAfter, emptyLineEveryAfter) || other.emptyLineEveryAfter == emptyLineEveryAfter)&&(identical(other.newLineAfterFirst, newLineAfterFirst) || other.newLineAfterFirst == newLineAfterFirst)&&(identical(other.newLineBeforeLast, newLineBeforeLast) || other.newLineBeforeLast == newLineBeforeLast)&&(identical(other.formatAsDate, formatAsDate) || other.formatAsDate == formatAsDate)&&(identical(other.useDashSeparator, useDashSeparator) || other.useDashSeparator == useDashSeparator)&&const DeepCollectionEquality().equals(other.sources, _sources));
 }
 
 
 @override
 int get hashCode {
-    return Object.hashAll([runtimeType,id,name,fieldType,xMm,yMm,widthMm,heightMm,fontSizePt,lineHeightMm,keyWidthMm,valueWidthMm,bold,isList,lineGapMm,isQr,const DeepCollectionEquality().hash(_removeWords),bulletList,emptyLineEveryAfter,newLineAfterFirst,newLineBeforeLast,formatAsDate,useDashSeparator,const DeepCollectionEquality().hash(_sources)]);
+    return Object.hashAll([runtimeType,id,name,fieldType,xMm,yMm,widthMm,heightMm,fontSizePt,lineHeightMm,keyWidthMm,valueWidthMm,bold,isList,lineGapMm,isQr,const DeepCollectionEquality().hash(_removeWords),dateFormat,bulletList,emptyLineEveryAfter,newLineAfterFirst,newLineBeforeLast,formatAsDate,useDashSeparator,const DeepCollectionEquality().hash(_sources)]);
 }
 
 @override
 String toString() {
-    return 'LayerGroup(id: $id, name: $name, fieldType: $fieldType, xMm: $xMm, yMm: $yMm, widthMm: $widthMm, heightMm: $heightMm, fontSizePt: $fontSizePt, lineHeightMm: $lineHeightMm, keyWidthMm: $keyWidthMm, valueWidthMm: $valueWidthMm, bold: $bold, isList: $isList, lineGapMm: $lineGapMm, isQr: $isQr, removeWords: $removeWords, bulletList: $bulletList, emptyLineEveryAfter: $emptyLineEveryAfter, newLineAfterFirst: $newLineAfterFirst, newLineBeforeLast: $newLineBeforeLast, formatAsDate: $formatAsDate, useDashSeparator: $useDashSeparator, sources: $sources)';
+    return 'LayerGroup(id: $id, name: $name, fieldType: $fieldType, xMm: $xMm, yMm: $yMm, widthMm: $widthMm, heightMm: $heightMm, fontSizePt: $fontSizePt, lineHeightMm: $lineHeightMm, keyWidthMm: $keyWidthMm, valueWidthMm: $valueWidthMm, bold: $bold, isList: $isList, lineGapMm: $lineGapMm, isQr: $isQr, removeWords: $removeWords, dateFormat: $dateFormat, bulletList: $bulletList, emptyLineEveryAfter: $emptyLineEveryAfter, newLineAfterFirst: $newLineAfterFirst, newLineBeforeLast: $newLineBeforeLast, formatAsDate: $formatAsDate, useDashSeparator: $useDashSeparator, sources: $sources)';
 }
 
 
@@ -612,7 +620,7 @@ abstract mixin class _$LayerGroupCopyWith<$Res> implements $LayerGroupCopyWith<$
   factory _$LayerGroupCopyWith(_LayerGroup value, $Res Function(_LayerGroup) _then) = __$LayerGroupCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, LayerFieldType fieldType, double xMm, double yMm, double? widthMm, double? heightMm, double fontSizePt, double lineHeightMm, double? keyWidthMm, double? valueWidthMm, bool bold, bool isList, double lineGapMm, bool isQr, List<String> removeWords, bool bulletList, bool emptyLineEveryAfter, bool newLineAfterFirst, bool newLineBeforeLast, bool formatAsDate, bool useDashSeparator, List<LayerSourceItem> sources
+ String id, String name, LayerFieldType fieldType, double xMm, double yMm, double? widthMm, double? heightMm, double fontSizePt, double lineHeightMm, double? keyWidthMm, double? valueWidthMm, bool bold, bool isList, double lineGapMm, bool isQr, List<String> removeWords, String? dateFormat, bool bulletList, bool emptyLineEveryAfter, bool newLineAfterFirst, bool newLineBeforeLast, bool formatAsDate, bool useDashSeparator, List<LayerSourceItem> sources
 });
 
 
@@ -629,7 +637,7 @@ class __$LayerGroupCopyWithImpl<$Res>
 
 /// Create a copy of LayerGroup
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? fieldType = null,Object? xMm = null,Object? yMm = null,Object? widthMm = freezed,Object? heightMm = freezed,Object? fontSizePt = null,Object? lineHeightMm = null,Object? keyWidthMm = freezed,Object? valueWidthMm = freezed,Object? bold = null,Object? isList = null,Object? lineGapMm = null,Object? isQr = null,Object? removeWords = null,Object? bulletList = null,Object? emptyLineEveryAfter = null,Object? newLineAfterFirst = null,Object? newLineBeforeLast = null,Object? formatAsDate = null,Object? useDashSeparator = null,Object? sources = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? fieldType = null,Object? xMm = null,Object? yMm = null,Object? widthMm = freezed,Object? heightMm = freezed,Object? fontSizePt = null,Object? lineHeightMm = null,Object? keyWidthMm = freezed,Object? valueWidthMm = freezed,Object? bold = null,Object? isList = null,Object? lineGapMm = null,Object? isQr = null,Object? removeWords = null,Object? dateFormat = freezed,Object? bulletList = null,Object? emptyLineEveryAfter = null,Object? newLineAfterFirst = null,Object? newLineBeforeLast = null,Object? formatAsDate = null,Object? useDashSeparator = null,Object? sources = null,}) {
   return _then(_LayerGroup(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -647,7 +655,8 @@ as bool,isList: null == isList ? _self.isList : isList // ignore: cast_nullable_
 as bool,lineGapMm: null == lineGapMm ? _self.lineGapMm : lineGapMm // ignore: cast_nullable_to_non_nullable
 as double,isQr: null == isQr ? _self.isQr : isQr // ignore: cast_nullable_to_non_nullable
 as bool,removeWords: null == removeWords ? _self._removeWords : removeWords // ignore: cast_nullable_to_non_nullable
-as List<String>,bulletList: null == bulletList ? _self.bulletList : bulletList // ignore: cast_nullable_to_non_nullable
+as List<String>,dateFormat: freezed == dateFormat ? _self.dateFormat : dateFormat // ignore: cast_nullable_to_non_nullable
+as String?,bulletList: null == bulletList ? _self.bulletList : bulletList // ignore: cast_nullable_to_non_nullable
 as bool,emptyLineEveryAfter: null == emptyLineEveryAfter ? _self.emptyLineEveryAfter : emptyLineEveryAfter // ignore: cast_nullable_to_non_nullable
 as bool,newLineAfterFirst: null == newLineAfterFirst ? _self.newLineAfterFirst : newLineAfterFirst // ignore: cast_nullable_to_non_nullable
 as bool,newLineBeforeLast: null == newLineBeforeLast ? _self.newLineBeforeLast : newLineBeforeLast // ignore: cast_nullable_to_non_nullable

@@ -1,3 +1,4 @@
+import 'date_formatter.dart';
 import 'template_layer.dart';
 import 'value_cleaner.dart';
 
@@ -38,9 +39,13 @@ class BulletRow {
 }
 
 extension LayerGroupText on LayerGroup {
-  /// A field's value as printed in a combined layer: trimmed, with the layer's words to remove
-  /// taken out. Must match the backend's ValueCleaner.RemoveWords(value.Trim()).Trim().
-  String cleanValue(String? value) => removeWordsFrom((value ?? '').trim(), removeWords).trim();
+  /// A field's value as printed: the layer's words to remove are taken out first (so a label in
+  /// front of a date does not hide it), then a value that is a date is put in the layer's date
+  /// format. Not trimmed. Must match the backend's PdfGenerationService.PrepareValue.
+  String formatValue(String? raw) => reformatDate(removeWordsFrom(raw ?? '', removeWords), dateFormat);
+
+  /// [formatValue] of the trimmed value, trimmed - how a field in a combined layer is printed.
+  String cleanValue(String? value) => formatValue((value ?? '').trim()).trim();
 
   /// A combined layer with a key width: every field is its own row and the keys share
   /// one column ([keyWidthMm] wide) so the separators and values line up. (Bullets are
