@@ -6,7 +6,11 @@ import '../../core_engine/templates/domain/date_formatter.dart';
 /// printed in this format ("01/01/1968" for dd/MM/yyyy). Type a format or pick a preset; blank
 /// leaves dates as they are. Shows what the format looks like.
 class DateFormatEditor extends StatefulWidget {
-  const DateFormatEditor({super.key, required this.format, required this.onChanged});
+  const DateFormatEditor({
+    super.key,
+    required this.format,
+    required this.onChanged,
+  });
 
   final String? format;
 
@@ -28,7 +32,9 @@ class DateFormatEditor extends StatefulWidget {
 }
 
 class _DateFormatEditorState extends State<DateFormatEditor> {
-  late final TextEditingController _controller = TextEditingController(text: widget.format ?? '');
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.format ?? '',
+  );
 
   @override
   void didUpdateWidget(DateFormatEditor old) {
@@ -65,7 +71,9 @@ class _DateFormatEditorState extends State<DateFormatEditor> {
                 controller: _controller,
                 decoration: InputDecoration(
                   labelText: 'Format for date values (e.g. dd/MM/yyyy)',
-                  helperText: example == null ? 'Blank keeps dates as they are' : 'Prints as $example',
+                  helperText: example == null
+                      ? 'Blank keeps dates as they are'
+                      : 'Prints as $example',
                   isDense: true,
                 ),
                 onChanged: (text) {
@@ -84,7 +92,10 @@ class _DateFormatEditorState extends State<DateFormatEditor> {
               },
               itemBuilder: (_) => [
                 for (final f in DateFormatEditor.presets)
-                  PopupMenuItem(value: f, child: Text('$f   (${exampleForFormat(f)})')),
+                  PopupMenuItem(
+                    value: f,
+                    child: Text('$f   (${exampleForFormat(f)})'),
+                  ),
               ],
             ),
           ],

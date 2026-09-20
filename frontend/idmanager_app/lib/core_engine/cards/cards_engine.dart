@@ -1,3 +1,4 @@
+import '../templates/domain/template_layer.dart';
 import 'dart:typed_data';
 
 import '../../foundation/network/api_exception.dart';
@@ -32,5 +33,5 @@ class CardsEngineService {
     }
   }
 
-  Future<Uint8List> download(int idCardId) => _repository.download(idCardId);
+  Future<Uint8List> download(int idCardId, List<TemplateLayer> layers) => _repository.download(idCardId, layers);
 }

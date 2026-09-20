@@ -17,6 +17,13 @@ public class QrImageDto
     public byte[] Bytes { get; set; } = Array.Empty<byte>();
 }
 
+public class DownloadCardRequest
+{
+    /// The card's layers as the user adjusted them in the preview (positions, sizes, values).
+    /// When present these are printed instead of the layers re-matched from the template.
+    public List<TemplateLayerDto>? Layers { get; set; }
+}
+
 public class GenerateCardResponse
 {
     public int IdCardId { get; set; }

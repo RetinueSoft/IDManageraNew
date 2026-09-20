@@ -1,3 +1,4 @@
+import '../../core_engine/templates/domain/template_layer.dart';
 import 'dart:typed_data';
 
 import '../../core_engine/cards/cards_engine.dart';
@@ -54,5 +55,6 @@ class CardGenerationService {
     qrImages: qrImages,
   );
 
-  Future<Uint8List> downloadPdf(int idCardId) => _cardsEngine.download(idCardId);
+  Future<Uint8List> downloadPdf(int idCardId, List<TemplateLayer> layers) =>
+      _cardsEngine.download(idCardId, layers);
 }

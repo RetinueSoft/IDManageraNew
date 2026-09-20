@@ -34,7 +34,7 @@ final class GenerateCardControllerProvider
 }
 
 String _$generateCardControllerHash() =>
-    r'abcd9dcd2cf645e56e0e94ee9c9572555d7e7206';
+    r'18e2cd8ea1ded802db4a990fc27aa24e0587c42e';
 
 abstract class _$GenerateCardController
     extends $AsyncNotifier<GenerateCardState> {

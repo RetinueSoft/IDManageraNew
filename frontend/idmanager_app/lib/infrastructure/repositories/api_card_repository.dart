@@ -1,3 +1,4 @@
+import '../../core_engine/templates/domain/template_layer.dart';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -55,9 +56,10 @@ class ApiCardRepository implements CardRepository {
   });
 
   @override
-  Future<Uint8List> download(int idCardId) => _client.guard(() async {
+  Future<Uint8List> download(int idCardId, List<TemplateLayer> layers) => _client.guard(() async {
     final response = await _client.dio.post<List<int>>(
       '/cards/$idCardId/download',
+      data: {'layers': layers.map(templateLayerToJson).toList()},
       options: Options(responseType: ResponseType.bytes),
     );
     return Uint8List.fromList(response.data ?? []);

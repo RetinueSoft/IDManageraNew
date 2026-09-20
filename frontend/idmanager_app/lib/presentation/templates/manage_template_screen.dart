@@ -20,7 +20,8 @@ class ManageTemplateScreen extends ConsumerStatefulWidget {
   final int? templateId;
 
   @override
-  ConsumerState<ManageTemplateScreen> createState() => _ManageTemplateScreenState();
+  ConsumerState<ManageTemplateScreen> createState() =>
+      _ManageTemplateScreenState();
 }
 
 class _ManageTemplateScreenState extends ConsumerState<ManageTemplateScreen> {
@@ -41,10 +42,19 @@ class _ManageTemplateScreenState extends ConsumerState<ManageTemplateScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage(TemplateFormController controller, bool isFront) async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
+  Future<void> _pickImage(
+    TemplateFormController controller,
+    bool isFront,
+  ) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
     if (result == null || result.files.isEmpty) return;
-    final file = UploadedFile(result.files.first.bytes!, result.files.first.name);
+    final file = UploadedFile(
+      result.files.first.bytes!,
+      result.files.first.name,
+    );
     controller.updateFields(
       (s) => isFront ? s.copyWith(frontFile: file) : s.copyWith(backFile: file),
     );
@@ -58,7 +68,9 @@ class _ManageTemplateScreenState extends ConsumerState<ManageTemplateScreen> {
 
     return formAsync.when(
       loading: () => Scaffold(
-        appBar: AppBar(title: Text(_isEditMode ? 'Edit Template' : 'New Template')),
+        appBar: AppBar(
+          title: Text(_isEditMode ? 'Edit Template' : 'New Template'),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       ),
       error: (e, _) => Scaffold(
@@ -88,46 +100,59 @@ class _ManageTemplateScreenState extends ConsumerState<ManageTemplateScreen> {
               children: [
                 TextField(
                   controller: _name,
-                  decoration: InputDecoration(labelText: 'Name', errorText: state.errors['name']),
-                  onChanged: (v) => controller.updateFields((s) => s.copyWith(name: v)),
+                  decoration: InputDecoration(
+                    labelText: 'Name',
+                    errorText: state.errors['name'],
+                  ),
+                  onChanged: (v) =>
+                      controller.updateFields((s) => s.copyWith(name: v)),
                 ),
                 Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _width,
-                          decoration: InputDecoration(
-                            labelText: 'Width (mm)',
-                            errorText: state.errors['cardWidthMm'],
-                          ),
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          onChanged: (v) => controller.updateFields(
-                            (s) => s.copyWith(cardWidthMm: double.tryParse(v) ?? s.cardWidthMm),
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _width,
+                        decoration: InputDecoration(
+                          labelText: 'Width (mm)',
+                          errorText: state.errors['cardWidthMm'],
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        onChanged: (v) => controller.updateFields(
+                          (s) => s.copyWith(
+                            cardWidthMm: double.tryParse(v) ?? s.cardWidthMm,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _height,
-                          decoration: InputDecoration(
-                            labelText: 'Height (mm)',
-                            errorText: state.errors['cardHeightMm'],
-                          ),
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          onChanged: (v) => controller.updateFields(
-                            (s) => s.copyWith(cardHeightMm: double.tryParse(v) ?? s.cardHeightMm),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _height,
+                        decoration: InputDecoration(
+                          labelText: 'Height (mm)',
+                          errorText: state.errors['cardHeightMm'],
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        onChanged: (v) => controller.updateFields(
+                          (s) => s.copyWith(
+                            cardHeightMm: double.tryParse(v) ?? s.cardHeightMm,
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
                 TextField(
                   controller: _pointCost,
                   decoration: const InputDecoration(labelText: 'Point cost'),
                   keyboardType: TextInputType.number,
                   onChanged: (v) => controller.updateFields(
-                    (s) => s.copyWith(pointCost: int.tryParse(v) ?? s.pointCost),
+                    (s) =>
+                        s.copyWith(pointCost: int.tryParse(v) ?? s.pointCost),
                   ),
                 ),
                 if (_isEditMode)
@@ -135,7 +160,8 @@ class _ManageTemplateScreenState extends ConsumerState<ManageTemplateScreen> {
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Active'),
                     value: state.isActive,
-                    onChanged: (v) => controller.updateFields((s) => s.copyWith(isActive: v)),
+                    onChanged: (v) =>
+                        controller.updateFields((s) => s.copyWith(isActive: v)),
                   ),
               ],
             ),
@@ -163,7 +189,9 @@ class _ManageTemplateScreenState extends ConsumerState<ManageTemplateScreen> {
             final id = await controller.save();
             if (id == null) return false;
             if (context.mounted) {
-              _isEditMode ? context.go(AppRoutes.templates) : context.go(AppRoutes.templateDesign(id));
+              _isEditMode
+                  ? context.go(AppRoutes.templates)
+                  : context.go(AppRoutes.templateDesign(id));
             }
             return true;
           },
@@ -195,18 +223,31 @@ class _ImagePickerTile extends StatelessWidget {
         if (file != null)
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.memory(file!.bytes, width: 56, height: 56, fit: BoxFit.cover),
+            child: Image.memory(
+              file!.bytes,
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+            ),
           )
         else if (existingBase64 != null && existingBase64!.isNotEmpty)
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.memory(base64Decode(existingBase64!), width: 56, height: 56, fit: BoxFit.cover),
+            child: Image.memory(
+              base64Decode(existingBase64!),
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+            ),
           )
         else
           Container(
             width: 56,
             height: 56,
-            decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(
+              color: Colors.black12,
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: const Icon(Icons.image_outlined),
           ),
         const SizedBox(width: 12),
@@ -218,7 +259,11 @@ class _ImagePickerTile extends StatelessWidget {
         ),
         if (errorText != null) ...[
           const SizedBox(width: 8),
-          Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error, size: 18),
+          Icon(
+            Icons.error_outline,
+            color: Theme.of(context).colorScheme.error,
+            size: 18,
+          ),
         ],
       ],
     );

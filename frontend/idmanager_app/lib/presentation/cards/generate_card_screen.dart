@@ -1,17 +1,12 @@
-import 'dart:convert';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/cards/generate_card_controller.dart';
-import '../../core_engine/cards/domain/generated_card.dart';
 import '../../core_engine/common/enums.dart';
 import '../../core_engine/common/uploaded_file.dart';
-import '../../core_engine/templates/domain/template_layer.dart';
-import '../shared/widgets/card_text_layer.dart';
-import '../shared/widgets/zoomable_canvas.dart';
+import '../templates/layout_workspace.dart';
 
 class GenerateCardScreen extends ConsumerStatefulWidget {
   const GenerateCardScreen({super.key});
@@ -21,10 +16,6 @@ class GenerateCardScreen extends ConsumerStatefulWidget {
 }
 
 class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
-  // Same fine base scale as the designer (see TemplateEditorScreen.pxPerMm).
-  static const double pxPerMm = 12.0;
-
-  CardSide _side = CardSide.front;
   PlatformFile? _pickedFile;
 
   Future<void> _pickPdf(GenerateCardController controller) async {
@@ -181,88 +172,33 @@ class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
                         'Preview will appear here after parsing the PDF.',
                       ),
                     )
-                  : Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: SegmentedButton<CardSide>(
-                            segments: const [
-                              ButtonSegment(
-                                value: CardSide.front,
-                                label: Text('Front'),
-                              ),
-                              ButtonSegment(
-                                value: CardSide.back,
-                                label: Text('Back'),
-                              ),
-                            ],
-                            selected: {_side},
-                            onSelectionChanged: (s) =>
-                                setState(() => _side = s.first),
-                          ),
+                  // The same working area as the template designer; the layer name and the
+                  // field keys are read-only and the template's structure cannot change.
+                  : LayoutWorkspace(
+                      designer: false,
+                      layers: state.result!.layers,
+                      cardWidthMm: state.result!.cardWidthMm,
+                      cardHeightMm: state.result!.cardHeightMm,
+                      frontImageBase64: state.result!.frontImageBase64,
+                      backImageBase64: state.result!.backImageBase64,
+                      side: state.side,
+                      combined: state.combined,
+                      selectedGroupId: state.selectedGroupId,
+                      onSelectView: (view) => switch (view) {
+                        EditorView.combined => controller.selectCombined(),
+                        EditorView.front => controller.selectSide(
+                          CardSide.front,
                         ),
-                        Expanded(
-                          child: ZoomableCanvas(
-                            contentSize: Size(
-                              state.result!.cardWidthMm * pxPerMm,
-                              state.result!.cardHeightMm * pxPerMm,
-                            ),
-                            child: _buildPreview(state.result!),
-                          ),
-                        ),
-                      ],
+                        EditorView.back => controller.selectSide(CardSide.back),
+                      },
+                      onSelectLayer: controller.selectLayer,
+                      onMoveGroup: controller.moveGroup,
+                      onChanged: controller.updateGroup,
+                      onDelete: controller.deleteSelected,
                     ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildPreview(GeneratedCard result) {
-    final widthPx = result.cardWidthMm * pxPerMm;
-    final heightPx = result.cardHeightMm * pxPerMm;
-    final imageBase64 = _side == CardSide.front
-        ? result.frontImageBase64
-        : result.backImageBase64;
-    final layer = result.layers.firstWhere(
-      (l) => l.side == _side,
-      orElse: () => TemplateLayer(side: _side),
-    );
-
-    return Container(
-      width: widthPx,
-      height: heightPx,
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.black26),
-        color: Colors.white,
-      ),
-      child: Stack(
-        children: [
-          if (imageBase64.isNotEmpty)
-            Positioned.fill(
-              child: Image.memory(base64Decode(imageBase64), fit: BoxFit.fill),
-            ),
-          for (final group in layer.groups)
-            Positioned(
-              left: group.xMm * pxPerMm,
-              top: group.yMm * pxPerMm,
-              child: group.fieldType == LayerFieldType.image
-                  ? SizedBox(
-                      width: (group.widthMm ?? 20) * pxPerMm,
-                      height: (group.heightMm ?? 20) * pxPerMm,
-                      child:
-                          group.sources.isNotEmpty &&
-                              (group.sources.first.value ?? '').isNotEmpty
-                          ? Image.memory(
-                              base64Decode(group.sources.first.value!),
-                              fit: BoxFit.fill,
-                            )
-                          : const ColoredBox(color: Colors.black12),
-                    )
-                  : CardTextLayer(group: group, pxPerMm: pxPerMm),
-            ),
-        ],
       ),
     );
   }

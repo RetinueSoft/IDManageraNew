@@ -86,7 +86,13 @@ public class CardService(
     /// Renders the final print-ready PDF directly from the template's layer
     /// geometry (true vector positions, exact physical card size) and completes the
     /// pending points transaction - no client-side screenshotting involved.
-    public async Task<OperationResult<byte[]>> DownloadAsync(int userId, int idCardId, CancellationToken ct)
+    ///
+    /// [adjustedLayers] are the layers as the user adjusted them on the preview; when given they
+    /// are printed instead of the ones re-matched from the template (the images and the card
+    /// size still come from the template). Null prints the template's layers with the stored
+    /// member data.
+    public async Task<OperationResult<byte[]>> DownloadAsync(
+        int userId, int idCardId, List<TemplateLayerDto>? adjustedLayers, CancellationToken ct)
     {
         var idCard = await db.IDCards.FirstOrDefaultAsync(c => c.Id == idCardId, ct);
         if (idCard is null) return OperationResult<byte[]>.NotFound("Card not found.");
@@ -105,7 +111,8 @@ public class CardService(
         {
             return OperationResult<byte[]>.NotFound(matchResult.Error ?? "Combination not found.");
         }
-        var (layers, frontImage, backImage) = matchResult.Value;
+        var (matchedLayers, frontImage, backImage) = matchResult.Value;
+        var layers = adjustedLayers ?? matchedLayers;
 
         var pdfBytes = pdfGenerationService.GenerateCardPdf(frontImage, backImage, template.CardWidthMm, template.CardHeightMm, layers);
 

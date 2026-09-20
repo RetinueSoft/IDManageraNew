@@ -31,7 +31,9 @@ class TemplateListScreen extends ConsumerWidget {
         error: (e, _) => Center(child: Text('Failed to load templates: $e')),
         data: (templates) {
           if (templates.isEmpty) {
-            return const Center(child: Text('No templates yet. Tap + to create one.'));
+            return const Center(
+              child: Text('No templates yet. Tap + to create one.'),
+            );
           }
           return GridView.builder(
             padding: const EdgeInsets.all(16),
@@ -42,7 +44,8 @@ class TemplateListScreen extends ConsumerWidget {
               childAspectRatio: 0.85,
             ),
             itemCount: templates.length,
-            itemBuilder: (context, index) => _TemplateCard(template: templates[index]),
+            itemBuilder: (context, index) =>
+                _TemplateCard(template: templates[index]),
           );
         },
       ),
@@ -66,8 +69,14 @@ class _TemplateCard extends StatelessWidget {
           children: [
             Expanded(
               child: template.frontImageBase64.isNotEmpty
-                  ? Image.memory(base64Decode(template.frontImageBase64), fit: BoxFit.cover)
-                  : const ColoredBox(color: Colors.black12, child: Icon(Icons.credit_card)),
+                  ? Image.memory(
+                      base64Decode(template.frontImageBase64),
+                      fit: BoxFit.cover,
+                    )
+                  : const ColoredBox(
+                      color: Colors.black12,
+                      child: Icon(Icons.credit_card),
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
@@ -77,15 +86,21 @@ class _TemplateCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(template.name, style: Theme.of(context).textTheme.titleSmall),
-                        Text('${template.pointCost} pt · ${template.isActive ? "Active" : "Inactive"}'),
+                        Text(
+                          template.name,
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        Text(
+                          '${template.pointCost} pt · ${template.isActive ? "Active" : "Inactive"}',
+                        ),
                       ],
                     ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.edit_outlined, size: 20),
                     tooltip: 'Edit details',
-                    onPressed: () => context.go(AppRoutes.templateEdit(template.id)),
+                    onPressed: () =>
+                        context.go(AppRoutes.templateEdit(template.id)),
                   ),
                 ],
               ),

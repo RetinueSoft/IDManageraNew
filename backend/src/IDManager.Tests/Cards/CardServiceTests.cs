@@ -102,7 +102,7 @@ public class CardServiceTests
         using var testDb = TestDb.Create();
         var service = NewService(testDb.Context);
 
-        var result = await service.DownloadAsync(1, 999_999, CancellationToken.None);
+        var result = await service.DownloadAsync(1, 999_999, null, CancellationToken.None);
 
         Assert.Equal(ResultStatus.NotFound, result.Status);
     }
@@ -129,7 +129,7 @@ public class CardServiceTests
         var cardId = db.IDCards.Single().Id;
 
         var service = NewService(db);
-        var result = await service.DownloadAsync(intruder.Id, cardId, CancellationToken.None);
+        var result = await service.DownloadAsync(intruder.Id, cardId, null, CancellationToken.None);
 
         Assert.Equal(ResultStatus.Forbidden, result.Status);
     }
@@ -184,5 +184,67 @@ public class CardServiceTests
         Assert.Equal(17, retailer.Points);   // paid 3
         Assert.Equal(3, sa.Points);          // received 3
         Assert.Equal(50, distributor.Points); // the parent gets nothing
+    }
+
+    // ---- adjusted layers on download ----
+
+    private static string PdfText(byte[] pdf)
+    {
+        using var doc = UglyToad.PdfPig.PdfDocument.Open(pdf);
+        return string.Join(" ", doc.GetPages().Select(p => p.Text));
+    }
+
+    private static TemplateLayerDto TextLayer(string value) => new()
+    {
+        Side = CardSide.Front,
+        Groups =
+        [
+            new LayerGroupDto
+            {
+                Name = "Adjusted",
+                FieldType = LayerFieldType.Text,
+                XMm = 5,
+                YMm = 5,
+                Sources = [new LayerSourceItemDto { Value = value, Type = LayerFieldType.Text }],
+            },
+        ],
+    };
+
+    [Fact]
+    public async Task DownloadAsync_WithAdjustedLayers_PrintsThoseInsteadOfTheTemplateLayers()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (templateId, combinationId) = await CreateTemplateWithCombinationAsync(db);
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var service = NewService(db);
+        var generated = await service.GenerateAsync(
+            sa.Id,
+            new GenerateCardCommand { TemplateId = templateId, CombinationId = combinationId, PdfBytes = ValidPdf() },
+            CancellationToken.None);
+
+        var download = await service.DownloadAsync(sa.Id, generated.Value!.IdCardId, [TextLayer("ADJUSTED VALUE")], CancellationToken.None);
+
+        Assert.Equal(ResultStatus.Success, download.Status);
+        Assert.Contains("ADJUSTED VALUE", PdfText(download.Value!));
+    }
+
+    [Fact]
+    public async Task DownloadAsync_WithAnEmptyLayerList_PrintsNoLayers()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (templateId, combinationId) = await CreateTemplateWithCombinationAsync(db);
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var service = NewService(db);
+        var generated = await service.GenerateAsync(
+            sa.Id,
+            new GenerateCardCommand { TemplateId = templateId, CombinationId = combinationId, PdfBytes = ValidPdf() },
+            CancellationToken.None);
+
+        var download = await service.DownloadAsync(sa.Id, generated.Value!.IdCardId, [], CancellationToken.None);
+
+        Assert.Equal(ResultStatus.Success, download.Status);
+        Assert.Equal("", PdfText(download.Value!).Trim());
     }
 }

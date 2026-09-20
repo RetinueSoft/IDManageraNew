@@ -54,9 +54,15 @@ public static class CardEndpoints
             return result.ToHttpResult();
         }).DisableAntiforgery();
 
-        group.MapPost("/{idCardId:int}/download", async (int idCardId, CardService service, HttpContext http, CancellationToken ct) =>
+        // The body is optional: the card's layers as adjusted on the preview.
+        group.MapPost("/{idCardId:int}/download", async (
+            int idCardId,
+            [Microsoft.AspNetCore.Mvc.FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] DownloadCardRequest? request,
+            CardService service,
+            HttpContext http,
+            CancellationToken ct) =>
         {
-            var result = await service.DownloadAsync(http.User.GetUserId(), idCardId, ct);
+            var result = await service.DownloadAsync(http.User.GetUserId(), idCardId, request?.Layers, ct);
             return result.ToFileResult("application/pdf", $"card-{idCardId}.pdf");
         });
     }
