@@ -84,7 +84,7 @@ public class CardService(
         var forName = PdfFileNameBuilder.Build(template.FileNamePattern, FieldValues(extractedFields, layers))
             ?? extractedFields.FirstOrDefault(f => f.Type == LayerFieldType.Text)?.Value
             ?? "Unknown";
-        var idCardId = await pointsService.CreateIdCardAsync(idCard, forName, ct);
+        var idCardId = await pointsService.CreateIdCardAsync(idCard, await CardLabelAsync(template.Name, command.CombinationId, ct), forName, ct);
 
         return OperationResult<GenerateCardResponse>.Success(new GenerateCardResponse
         {
@@ -155,10 +155,23 @@ public class CardService(
         await db.SaveChangesAsync(ct);
         // The points history shows the card under the name the file is saved as (a value corrected
         // on the preview may have changed it since the card was generated).
-        await pointsService.RenameCardTransactionsAsync(idCard.Id, fileName, ct);
+        await pointsService.RenameCardTransactionsAsync(idCard.Id, await CardLabelAsync(template.Name, idCard.CombinationId ?? 0, ct), fileName, ct);
         await pointsService.CompletePaymentTransactionAsync(idCard.Id, ct);
 
         return OperationResult<DownloadedCardDto>.Success(new DownloadedCardDto { Pdf = pdfBytes, FileName = fileName });
+    }
+
+    /// What the points history calls a card: "<template name> <background name>", e.g. "Smart Card
+    /// Blue" - the background is "Default" when the card is on the template's own images.
+    private async Task<string> CardLabelAsync(string templateName, int combinationId, CancellationToken ct)
+    {
+        var background = "Default";
+        if (combinationId > 0)
+        {
+            var combination = await db.TemplateCombinations.FindAsync([combinationId], ct);
+            if (combination is not null && !string.IsNullOrWhiteSpace(combination.Name)) background = combination.Name.Trim();
+        }
+        return $"{templateName} {background}";
     }
 
     /// The values a file name pattern can use, by PDF field name: what was extracted from the

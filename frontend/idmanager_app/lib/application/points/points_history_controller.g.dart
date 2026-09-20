@@ -20,7 +20,7 @@ final class PointsHistoryControllerProvider
         > {
   PointsHistoryControllerProvider._({
     required PointsHistoryControllerFamily super.from,
-    required int super.argument,
+    required (int, {bool includeIncomplete}) super.argument,
   }) : super(
          retry: null,
          name: r'pointsHistoryControllerProvider',
@@ -36,7 +36,7 @@ final class PointsHistoryControllerProvider
   String toString() {
     return r'pointsHistoryControllerProvider'
         ''
-        '($argument)';
+        '$argument';
   }
 
   @$internal
@@ -56,7 +56,7 @@ final class PointsHistoryControllerProvider
 }
 
 String _$pointsHistoryControllerHash() =>
-    r'34b7f52809c5b7542d0b07a9db54858df1659814';
+    r'b868b63de7c2d33225bb9a9ec2226f7051629f43';
 
 final class PointsHistoryControllerFamily extends $Family
     with
@@ -65,7 +65,7 @@ final class PointsHistoryControllerFamily extends $Family
           AsyncValue<List<PointTransaction>>,
           List<PointTransaction>,
           FutureOr<List<PointTransaction>>,
-          int
+          (int, {bool includeIncomplete})
         > {
   PointsHistoryControllerFamily._()
     : super(
@@ -76,8 +76,13 @@ final class PointsHistoryControllerFamily extends $Family
         isAutoDispose: true,
       );
 
-  PointsHistoryControllerProvider call(int userId) =>
-      PointsHistoryControllerProvider._(argument: userId, from: this);
+  PointsHistoryControllerProvider call(
+    int userId, {
+    bool includeIncomplete = false,
+  }) => PointsHistoryControllerProvider._(
+    argument: (userId, includeIncomplete: includeIncomplete),
+    from: this,
+  );
 
   @override
   String toString() => r'pointsHistoryControllerProvider';
@@ -85,10 +90,14 @@ final class PointsHistoryControllerFamily extends $Family
 
 abstract class _$PointsHistoryController
     extends $AsyncNotifier<List<PointTransaction>> {
-  late final _$args = ref.$arg as int;
-  int get userId => _$args;
+  late final _$args = ref.$arg as (int, {bool includeIncomplete});
+  int get userId => _$args.$1;
+  bool get includeIncomplete => _$args.includeIncomplete;
 
-  FutureOr<List<PointTransaction>> build(int userId);
+  FutureOr<List<PointTransaction>> build(
+    int userId, {
+    bool includeIncomplete = false,
+  });
   @$mustCallSuper
   @override
   WhenComplete runBuild() {
@@ -106,6 +115,9 @@ abstract class _$PointsHistoryController
               Object?,
               Object?
             >;
-    return element.handleCreate(ref, () => build(_$args));
+    return element.handleCreate(
+      ref,
+      () => build(_$args.$1, includeIncomplete: _$args.includeIncomplete),
+    );
   }
 }

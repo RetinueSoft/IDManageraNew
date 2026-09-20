@@ -20,6 +20,9 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
   /// The member picked in the drop-down; null until one is picked (then it is you).
   int? _selectedUserId;
 
+  /// A Super Admin's switch: also list the pending and failed transactions (off by default).
+  bool _showIncomplete = false;
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(sessionControllerProvider).value;
@@ -28,7 +31,13 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
     final isManager = user.role.canManageMembers;
     // The history shown is the picked member's; with nobody picked, or yourself picked, it is your own.
     final viewedId = isManager ? (_selectedUserId ?? user.id) : user.id;
-    final historyAsync = ref.watch(pointsHistoryControllerProvider(viewedId));
+    final isSuperAdmin = user.role == UserRole.superAdmin;
+    final historyAsync = ref.watch(
+      pointsHistoryControllerProvider(
+        viewedId,
+        includeIncomplete: isSuperAdmin && _showIncomplete,
+      ),
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Points')),
@@ -42,6 +51,15 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
               onSelected: (id) => setState(() => _selectedUserId = id),
             ),
           if (isManager) _HistoryHeader(viewedId: viewedId, myUserId: user.id),
+          // Only a Super Admin can see the pending and failed ones; everyone else sees completed only.
+          if (isSuperAdmin)
+            SwitchListTile(
+              dense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              title: const Text('Show pending and failed transactions'),
+              value: _showIncomplete,
+              onChanged: (v) => setState(() => _showIncomplete = v),
+            ),
           Expanded(
             child: historyAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -102,6 +120,35 @@ class _HistoryHeader extends ConsumerWidget {
   }
 }
 
+/// "Pending" / "Failed" next to a transaction that is not completed.
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status});
+
+  final PointStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final failed = status == PointStatus.failed;
+    final color = failed ? Colors.red : Colors.orange;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        border: Border.all(color: color),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        failed ? 'Failed' : 'Pending',
+        style: TextStyle(
+          fontSize: 11,
+          color: color.shade800,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
 /// The size of the points figure in the history list - clearly bigger than the list's other text
 /// (the description is about 16, the date about 14).
 const pointsFontSize = 22.0;
@@ -120,7 +167,16 @@ class _TransactionTile extends StatelessWidget {
         color: isNegative ? Colors.red : Colors.green,
       ),
       title: Text(t.description),
-      subtitle: Text('${t.date.toLocal()}'.split('.').first),
+      subtitle: Row(
+        children: [
+          Text('${t.date.toLocal()}'.split('.').first),
+          // Only shown for the rows a Super Admin asked for: completed ones need no label.
+          if (t.status != PointStatus.completed) ...[
+            const SizedBox(width: 8),
+            _StatusBadge(status: t.status),
+          ],
+        ],
+      ),
       trailing: Text(
         '${isNegative ? '' : '+'}${t.points}',
         // The points are what the eye looks for in this list, so they are set larger than the

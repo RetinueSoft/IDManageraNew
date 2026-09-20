@@ -443,7 +443,7 @@ public class PointsServiceTests
 
         var service = new PointsService(db);
         var card = new IDCardEntity { UserId = user.Id, TemplateId = 1, PointsDeducted = 3 };
-        var cardId = await service.CreateIdCardAsync(card, "Test Member", CancellationToken.None);
+        var cardId = await service.CreateIdCardAsync(card, "Smart Card Default", "Test Member", CancellationToken.None);
 
         Assert.True(cardId > 0);
         var transactions = db.PointTransactions.Where(t => t.ForIdCardId == cardId).ToList();
@@ -468,7 +468,7 @@ public class PointsServiceTests
 
         var service = new PointsService(db);
         var card = new IDCardEntity { UserId = user.Id, TemplateId = 1, PointsDeducted = 2 };
-        var cardId = await service.CreateIdCardAsync(card, "Test Member", CancellationToken.None);
+        var cardId = await service.CreateIdCardAsync(card, "Smart Card Default", "Test Member", CancellationToken.None);
 
         // CreateIdCardAsync only records the pending transactions - it doesn't
         // touch balances yet, so they should be unchanged until payment completes.
@@ -619,5 +619,105 @@ public class PointsServiceTests
 
         Assert.Equal(ResultStatus.Success, own.Status);
         Assert.Equal(ResultStatus.NotFound, stranger.Status);
+    }
+
+    // ---- history: completed only, unless a Super Admin asks for the rest ----
+
+    private static async Task<(PointsService service, UserEntity sa, UserEntity distributor, UserEntity member)> HistoryScenarioAsync(TestDb testDb)
+    {
+        var db = testDb.Context;
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var distributor = await TestUsers.AddAsync(db, "D", UserRole.Distributor, sa);
+        var member = await TestUsers.AddAsync(db, "M", UserRole.Retailer, distributor);
+        db.PointTransactions.AddRange(
+            new PointTransactionEntity { UserId = member.Id, Points = 1, Type = PointTransType.Earn, Status = PointStatus.Completed, Reason = "done" },
+            new PointTransactionEntity { UserId = member.Id, Points = 2, Type = PointTransType.SpendForCard, Status = PointStatus.Pending, Reason = "held" },
+            new PointTransactionEntity { UserId = member.Id, Points = 3, Type = PointTransType.Earn, Status = PointStatus.Failed, Reason = "broken" });
+        await db.SaveChangesAsync();
+        return (new PointsService(db), sa, distributor, member);
+    }
+
+    private static Task<OperationResult<PagedResult<PointTransactionDto>>> HistoryAsync(PointsService service, int caller, int member, bool includeIncomplete) =>
+        service.GetAllAsync(caller, new GetPointsRequest { UserId = member, IncludeIncompleteAlso = includeIncomplete, PageIndex = 1, PageSize = 50 }, CancellationToken.None);
+
+    [Fact]
+    public async Task History_ByDefault_ListsOnlyCompletedTransactions_ForEveryone()
+    {
+        using var testDb = TestDb.Create();
+        var (service, sa, distributor, member) = await HistoryScenarioAsync(testDb);
+
+        foreach (var caller in new[] { sa.Id, distributor.Id, member.Id })
+        {
+            var result = await HistoryAsync(service, caller, member.Id, includeIncomplete: false);
+            Assert.Equal(["done"], result.Value!.Items.Select(i => i.Description));
+            Assert.Equal(1, result.Value.TotalCount);
+        }
+    }
+
+    [Fact]
+    public async Task History_ASuperAdminCanAskForPendingAndFailedToo()
+    {
+        using var testDb = TestDb.Create();
+        var (service, sa, _, member) = await HistoryScenarioAsync(testDb);
+
+        var result = await HistoryAsync(service, sa.Id, member.Id, includeIncomplete: true);
+
+        Assert.Equal(3, result.Value!.TotalCount);
+        Assert.Equal(new[] { PointStatus.Pending, PointStatus.Completed, PointStatus.Failed }, result.Value.Items.Select(i => i.Status).OrderBy(x => (int)x));
+    }
+
+    [Theory]
+    [InlineData(UserRole.Distributor)]
+    [InlineData(UserRole.Retailer)]
+    public async Task History_AnyoneElseAskingForTheRestStillGetsOnlyCompleted(UserRole role)
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (service, sa, distributor, member) = await HistoryScenarioAsync(testDb);
+        var caller = role == UserRole.Distributor ? distributor : member;
+
+        var result = await HistoryAsync(service, caller.Id, member.Id, includeIncomplete: true);
+
+        Assert.Equal(1, result.Value!.TotalCount);
+        Assert.All(result.Value.Items, i => Assert.Equal(PointStatus.Completed, i.Status));
+        _ = sa; _ = db;
+    }
+
+    [Fact]
+    public async Task History_ASuperAdminsOwnListAlsoHidesIncompleteUntilAsked()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        db.PointTransactions.AddRange(
+            new PointTransactionEntity { UserId = sa.Id, Points = 1, Type = PointTransType.EarnForCard, Status = PointStatus.Completed, Reason = "a" },
+            new PointTransactionEntity { UserId = sa.Id, Points = 1, Type = PointTransType.EarnForCard, Status = PointStatus.Pending, Reason = "b" });
+        await db.SaveChangesAsync();
+        var service = new PointsService(db);
+
+        Assert.Equal(1, (await HistoryAsync(service, sa.Id, sa.Id, false)).Value!.TotalCount);
+        Assert.Equal(2, (await HistoryAsync(service, sa.Id, sa.Id, true)).Value!.TotalCount);
+    }
+
+    [Fact]
+    public async Task CreateIdCardAsync_TheHistoryReadsTemplateBackgroundGeneratedFor()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var admin = NewUser(UserRole.SuperAdmin);
+        db.Users.Add(admin);
+        await db.SaveChangesAsync();
+        var user = NewUser(UserRole.User);
+        user.Name = "Priya";
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        await new PointsService(db).CreateIdCardAsync(
+            new IDCardEntity { UserId = user.Id, TemplateId = 1, PointsDeducted = 1 }, "Smart Card Blue", "Ravi Kumar", CancellationToken.None);
+
+        var reasons = db.PointTransactions.ToList().ToDictionary(t => t.Type, t => t.Reason);
+        Assert.Equal("Smart Card Blue generated for Ravi Kumar", reasons[PointTransType.SpendForCard]);
+        Assert.Equal("Smart Card Blue generated by Priya for Ravi Kumar", reasons[PointTransType.EarnForCard]);
+        Assert.DoesNotContain(reasons.Values, r => r.StartsWith("Card generated"));
     }
 }

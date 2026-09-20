@@ -140,7 +140,9 @@ The Admin role is gone, so what Admin used to do is now SuperAdmin-only unless s
 - Points screen: every role sees their own history; SuperAdmin / Distributor / Retailer
   also see the allocate/reclaim panel, and the history shown follows the member picked in its
   drop-down (the member's point details, headed with their name and balance); picking yourself, or
-  nobody, shows your own.
+  nobody, shows your own. The history lists **completed** transactions only; a SuperAdmin has a
+  switch to list the pending and failed ones too (marked, and enforced on the server - nobody else
+  can ask for them).
 
 ## 8. Checklist for any member-related change
 

@@ -10,9 +10,8 @@ import 'points_history_controller.dart';
 /// history and balance change too, not only the other member's, and the members' point
 /// totals in the Users list.
 void refreshPointsData(Ref ref, {int? alsoUserId}) {
-  final myId = ref.read(sessionControllerProvider).value?.id;
-  if (myId != null) ref.invalidate(pointsHistoryControllerProvider(myId));
-  if (alsoUserId != null) ref.invalidate(pointsHistoryControllerProvider(alsoUserId));
+  // Every member's history (with or without the pending ones) is fetched again next time it is shown.
+  ref.invalidate(pointsHistoryControllerProvider);
   ref.invalidate(pointsBalanceProvider);
   ref.invalidate(userListControllerProvider);
 }

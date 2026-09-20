@@ -22,12 +22,12 @@ User member(int id, String name, UserRole role, {int? parentId, int points = 0})
   parentId: parentId,
 );
 
-PointTransaction tx(String description, int points) => PointTransaction(
+PointTransaction tx(String description, int points, {PointStatus status = PointStatus.completed}) => PointTransaction(
   date: DateTime(2026, 9, 1),
   description: description,
   points: points,
   type: points < 0 ? PointTransType.spend : PointTransType.earn,
-  status: PointStatus.completed,
+  status: status,
 );
 
 class _FakeSession extends SessionController {
@@ -40,8 +40,9 @@ class _FakeSession extends SessionController {
 }
 
 class _FakePoints implements PointsService {
-  /// Whose history was asked for, in order.
+  /// Whose history was asked for, in order, and whether the pending and failed ones were asked for too.
   final asked = <int>[];
+  final askedIncomplete = <bool>[];
 
   final histories = <int, List<PointTransaction>>{};
 
@@ -69,7 +70,12 @@ class _FakePoints implements PointsService {
     int pageSize = 20,
   }) async {
     asked.add(userId);
-    final items = histories[userId] ?? const [];
+    askedIncomplete.add(includeIncompleteAlso);
+    // Like the server: completed ones only, unless the rest were asked for.
+    final items = [
+      for (final t in histories[userId] ?? const <PointTransaction>[])
+        if (includeIncompleteAlso || t.status == PointStatus.completed) t,
+    ];
     return PagedResult(items: items, totalCount: items.length, pageIndex: 1, pageSize: pageSize);
   }
 
@@ -105,7 +111,11 @@ Future<_FakePoints> pump(WidgetTester tester, UserRole myRole) async {
   addTearDown(tester.view.reset);
   final net = network(myRole);
   final points = _FakePoints()
-    ..histories[1] = [tx('My own entry', 7)]
+    ..histories[1] = [
+      tx('My own entry', 7),
+      tx('My held card', -1, status: PointStatus.pending),
+      tx('My broken move', 4, status: PointStatus.failed),
+    ]
     ..histories[2] = [tx('Anu entry', 3)]
     ..histories[3] = [tx('Ravi entry', -2)];
   await tester.pumpWidget(
@@ -332,5 +342,70 @@ void main() {
     expect(points, greaterThan(drawn('My own entry') + 3));
     expect(points, greaterThan(sizeOf('+7') - 1)); // sanity
     expect(find.text('+7'), findsOneWidget);
+  });
+
+  group('completed only, with a switch for a Super Admin', () {
+    Finder theSwitch() => find.widgetWithText(SwitchListTile, 'Show pending and failed transactions');
+
+    testWidgets('the list shows only completed transactions by default', (tester) async {
+      final points = await pump(tester, UserRole.superAdmin);
+
+      expect(find.text('My own entry'), findsOneWidget);
+      expect(find.text('My held card'), findsNothing);
+      expect(find.text('My broken move'), findsNothing);
+      expect(find.text('Pending'), findsNothing);
+      expect(points.askedIncomplete, [false]);
+    });
+
+    testWidgets('a Super Admin has the switch, off at first', (tester) async {
+      await pump(tester, UserRole.superAdmin);
+
+      expect(theSwitch(), findsOneWidget);
+      expect(tester.widget<SwitchListTile>(theSwitch()).value, isFalse);
+    });
+
+    testWidgets('switching it on lists the pending and failed ones, marked, and off hides them again', (tester) async {
+      final points = await pump(tester, UserRole.superAdmin);
+
+      await tester.tap(theSwitch());
+      await tester.pumpAndSettle();
+
+      expect(find.text('My own entry'), findsOneWidget);
+      expect(find.text('My held card'), findsOneWidget);
+      expect(find.text('My broken move'), findsOneWidget);
+      expect(find.text('Pending'), findsOneWidget);
+      expect(find.text('Failed'), findsOneWidget);
+      expect(points.askedIncomplete.last, isTrue);
+
+      await tester.tap(theSwitch());
+      await tester.pumpAndSettle();
+
+      expect(find.text('My held card'), findsNothing);
+      expect(find.text('Failed'), findsNothing);
+    });
+
+    testWidgets('the switch applies to whichever member is picked', (tester) async {
+      final points = await pump(tester, UserRole.superAdmin);
+      points.histories[2] = [tx('Anu entry', 3), tx('Anu held', 3, status: PointStatus.pending)];
+      await tester.tap(theSwitch());
+      await tester.pumpAndSettle();
+
+      await choose(tester, 'Anu');
+
+      expect(find.text('Anu entry'), findsOneWidget);
+      expect(find.text('Anu held'), findsOneWidget);
+      expect(points.askedIncomplete.last, isTrue);
+    });
+
+    for (final role in [UserRole.distributor, UserRole.retailer, UserRole.user]) {
+      testWidgets('a ${role.label} has no switch and only ever asks for completed ones', (tester) async {
+        final points = await pump(tester, role);
+
+        expect(theSwitch(), findsNothing);
+        expect(find.text('My own entry'), findsOneWidget);
+        expect(find.text('My held card'), findsNothing);
+        expect(points.askedIncomplete.every((asked) => asked == false), isTrue);
+      });
+    }
   });
 }
