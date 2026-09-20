@@ -40,6 +40,7 @@ class LayoutWorkspace extends StatelessWidget {
     required this.onDelete,
     this.sampleFields = const [],
     this.onMergeLayer,
+    this.topBar,
   });
 
   final bool designer;
@@ -66,6 +67,9 @@ class LayoutWorkspace extends StatelessWidget {
   /// The fields of the template's sample PDF (designer only).
   final List<ExtractedField> sampleFields;
   final void Function(String groupId, String otherId)? onMergeLayer;
+
+  /// Shown under the view switch - the background picker.
+  final Widget? topBar;
 
   /// Screen pixels per millimeter at 100%. Flutter rounds each text line's height to a whole
   /// pixel, so the card is laid out at a fine scale (the error is at most half a pixel = 0.04 mm
@@ -127,6 +131,7 @@ class LayoutWorkspace extends StatelessWidget {
             onSelectionChanged: (v) => onSelectView(v.first),
           ),
         ),
+        if (topBar != null) topBar!,
         Expanded(
           child: Container(
             color: Colors.grey.shade300,

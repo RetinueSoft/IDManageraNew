@@ -101,8 +101,12 @@ public class CardService(
     /// are printed instead of the ones re-matched from the template (the images and the card
     /// size still come from the template). Null prints the template's layers with the stored
     /// member data.
+    ///
+    /// [combinationId] is the background the user last picked on the preview (0 = the template's
+    /// own images); null keeps the one the card was generated with. It must belong to the
+    /// card's template.
     public async Task<OperationResult<byte[]>> DownloadAsync(
-        int userId, int idCardId, List<TemplateLayerDto>? adjustedLayers, CancellationToken ct)
+        int userId, int idCardId, List<TemplateLayerDto>? adjustedLayers, int? combinationId, CancellationToken ct)
     {
         var idCard = await db.IDCards.FirstOrDefaultAsync(c => c.Id == idCardId, ct);
         if (idCard is null) return OperationResult<byte[]>.NotFound("Card not found.");
@@ -114,6 +118,20 @@ public class CardService(
             return OperationResult<byte[]>.NotFound(templateResult.Error ?? "Template not found.");
         }
         var template = templateResult.Value!;
+
+        if (combinationId.HasValue)
+        {
+            if (combinationId.Value < 0) return OperationResult<byte[]>.Invalid("Choose one of this template's backgrounds.");
+            if (combinationId.Value > 0)
+            {
+                var combination = await db.TemplateCombinations.FindAsync([combinationId.Value], ct);
+                if (combination is null || combination.TemplateId != idCard.TemplateId)
+                {
+                    return OperationResult<byte[]>.Invalid("That background does not belong to this card's template.");
+                }
+            }
+            idCard.CombinationId = combinationId.Value > 0 ? combinationId.Value : null;
+        }
 
         var extractedFields = JsonSerializer.Deserialize<List<ExtractedFieldDto>>(idCard.ExtractedDataJson) ?? [];
         var matchResult = await templateService.MatchToTemplateAsync(idCard.TemplateId, idCard.CombinationId ?? 0, extractedFields, ct);

@@ -22,6 +22,11 @@ public class DownloadCardRequest
     /// The card's layers as the user adjusted them in the preview (positions, sizes, values).
     /// When present these are printed instead of the layers re-matched from the template.
     public List<TemplateLayerDto>? Layers { get; set; }
+
+    /// The background chosen on the preview (0 = the template's own). The user can switch it after
+    /// generating, so the card is printed on what they last picked. Null keeps the one the card
+    /// was generated with.
+    public int? CombinationId { get; set; }
 }
 
 public class GenerateCardResponse

@@ -1,4 +1,5 @@
 import '../../templates/domain/template_layer.dart';
+
 import 'dart:typed_data';
 
 import '../../common/uploaded_file.dart';
@@ -22,5 +23,11 @@ abstract interface class CardRepository {
   /// Raw, print-ready PDF bytes.
   /// [layers] are the card's layers as shown (with any adjustments made in the preview); they
   /// are printed instead of the ones re-matched from the template.
-  Future<Uint8List> download(int idCardId, List<TemplateLayer> layers);
+  ///
+  /// [combinationId] is the background picked on the preview (0 = the template's own).
+  Future<Uint8List> download(
+    int idCardId,
+    List<TemplateLayer> layers,
+    int combinationId,
+  );
 }

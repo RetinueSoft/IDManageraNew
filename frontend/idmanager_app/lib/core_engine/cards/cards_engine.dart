@@ -1,4 +1,5 @@
 import '../templates/domain/template_layer.dart';
+
 import 'dart:typed_data';
 
 import '../../foundation/network/api_exception.dart';
@@ -13,7 +14,8 @@ class CardsEngineService {
 
   final CardRepository _repository;
 
-  Future<List<ExtractedField>> parsePdf(UploadedFile file) => _repository.parsePdf(file);
+  Future<List<ExtractedField>> parsePdf(UploadedFile file) =>
+      _repository.parsePdf(file);
 
   Future<GeneratedCard> generate({
     required int templateId,
@@ -33,5 +35,9 @@ class CardsEngineService {
     }
   }
 
-  Future<Uint8List> download(int idCardId, List<TemplateLayer> layers) => _repository.download(idCardId, layers);
+  Future<Uint8List> download(
+    int idCardId,
+    List<TemplateLayer> layers,
+    int combinationId,
+  ) => _repository.download(idCardId, layers, combinationId);
 }

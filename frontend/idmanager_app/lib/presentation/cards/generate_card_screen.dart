@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/cards/generate_card_controller.dart';
 import '../../core_engine/common/enums.dart';
 import '../../core_engine/common/uploaded_file.dart';
+import '../../application/cards/generate_card_state.dart';
+import '../../core_engine/templates/domain/card_background.dart';
 import '../templates/layout_workspace.dart';
 
 class GenerateCardScreen extends ConsumerStatefulWidget {
@@ -91,24 +95,29 @@ class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
                     ],
                     onChanged: controller.selectTemplate,
                   ),
-                  if (state.selectedTemplateId != null &&
-                      state.combinationOptions.isEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      "This template has no combinations, so its own front and back images are used.",
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                  if (state.combinationOptions.isNotEmpty) ...[
+                  if (state.template != null) ...[
                     const SizedBox(height: 12),
+                    // The template's backgrounds. Picking another one takes effect on the next
+                    // Preview.
                     DropdownButtonFormField<int>(
-                      initialValue: state.selectedCombinationId,
+                      key: ValueKey('background-${state.selectedTemplateId}'),
+                      initialValue: backgroundOrDefault(
+                        state.template!.backgrounds,
+                        state.selectedCombinationId,
+                      ).id,
+                      isExpanded: true,
                       decoration: const InputDecoration(
-                        labelText: 'Combination',
+                        labelText: 'Background',
                       ),
                       items: [
-                        for (final c in state.combinationOptions)
-                          DropdownMenuItem(value: c.id, child: Text(c.label)),
+                        for (final b in state.template!.backgrounds)
+                          DropdownMenuItem(
+                            value: b.id,
+                            child: Text(
+                              b.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                       ],
                       onChanged: controller.selectCombination,
                     ),
@@ -165,41 +174,47 @@ class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
               ),
             ),
             const VerticalDivider(width: 1),
-            Expanded(
-              child: state.result == null
-                  ? const Center(
-                      child: Text(
-                        'Preview will appear here after parsing the PDF.',
-                      ),
-                    )
-                  // The same working area as the template designer; the layer name and the
-                  // field keys are read-only and the template's structure cannot change.
-                  : LayoutWorkspace(
-                      designer: false,
-                      layers: state.result!.layers,
-                      cardWidthMm: state.result!.cardWidthMm,
-                      cardHeightMm: state.result!.cardHeightMm,
-                      frontImageBase64: state.result!.frontImageBase64,
-                      backImageBase64: state.result!.backImageBase64,
-                      side: state.side,
-                      combined: state.combined,
-                      selectedGroupId: state.selectedGroupId,
-                      onSelectView: (view) => switch (view) {
-                        EditorView.combined => controller.selectCombined(),
-                        EditorView.front => controller.selectSide(
-                          CardSide.front,
-                        ),
-                        EditorView.back => controller.selectSide(CardSide.back),
-                      },
-                      onSelectLayer: controller.selectLayer,
-                      onMoveGroup: controller.moveGroup,
-                      onChanged: controller.updateGroup,
-                      onDelete: controller.deleteSelected,
-                    ),
-            ),
+            Expanded(child: _buildRight(state, controller)),
           ],
         ),
       ),
+    );
+  }
+
+  /// The working area: empty until the card is previewed, then the same workspace as the
+  /// template designer, showing only the background the card was previewed with.
+  Widget _buildRight(
+    GenerateCardState state,
+    GenerateCardController controller,
+  ) {
+    final result = state.result;
+    if (result == null) {
+      return const Center(
+        child: Text('Preview will appear here after parsing the PDF.'),
+      );
+    }
+
+    // The layer name and the field keys are hidden or read-only and the template's structure
+    // cannot change.
+    return LayoutWorkspace(
+      designer: false,
+      layers: result.layers,
+      cardWidthMm: result.cardWidthMm,
+      cardHeightMm: result.cardHeightMm,
+      frontImageBase64: result.frontImageBase64,
+      backImageBase64: result.backImageBase64,
+      side: state.side,
+      combined: state.combined,
+      selectedGroupId: state.selectedGroupId,
+      onSelectView: (view) => switch (view) {
+        EditorView.combined => controller.selectCombined(),
+        EditorView.front => controller.selectSide(CardSide.front),
+        EditorView.back => controller.selectSide(CardSide.back),
+      },
+      onSelectLayer: controller.selectLayer,
+      onMoveGroup: controller.moveGroup,
+      onChanged: controller.updateGroup,
+      onDelete: controller.deleteSelected,
     );
   }
 }

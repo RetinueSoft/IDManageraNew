@@ -62,7 +62,7 @@ public static class CardEndpoints
             HttpContext http,
             CancellationToken ct) =>
         {
-            var result = await service.DownloadAsync(http.User.GetUserId(), idCardId, request?.Layers, ct);
+            var result = await service.DownloadAsync(http.User.GetUserId(), idCardId, request?.Layers, request?.CombinationId, ct);
             return result.ToFileResult("application/pdf", $"card-{idCardId}.pdf");
         });
     }

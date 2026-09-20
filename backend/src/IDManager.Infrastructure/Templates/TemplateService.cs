@@ -128,6 +128,11 @@ public class TemplateService(IDManagerDbContext db)
     {
         var template = await db.CardTemplates.FindAsync([command.TemplateId], ct);
         if (template is null) return OperationResult<CombinationDto>.NotFound("Template not found.");
+        if (string.IsNullOrWhiteSpace(command.Name)) return OperationResult<CombinationDto>.Invalid("Give the background a name.");
+        if (command.FrontImageBytes.Length == 0 || command.BackImageBytes.Length == 0)
+        {
+            return OperationResult<CombinationDto>.Invalid("A background needs both a front and a back image.");
+        }
 
         var combination = new TemplateCombinationEntity
         {

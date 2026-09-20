@@ -102,7 +102,7 @@ public class CardServiceTests
         using var testDb = TestDb.Create();
         var service = NewService(testDb.Context);
 
-        var result = await service.DownloadAsync(1, 999_999, null, CancellationToken.None);
+        var result = await service.DownloadAsync(1, 999_999, null, null, CancellationToken.None);
 
         Assert.Equal(ResultStatus.NotFound, result.Status);
     }
@@ -129,7 +129,7 @@ public class CardServiceTests
         var cardId = db.IDCards.Single().Id;
 
         var service = NewService(db);
-        var result = await service.DownloadAsync(intruder.Id, cardId, null, CancellationToken.None);
+        var result = await service.DownloadAsync(intruder.Id, cardId, null, null, CancellationToken.None);
 
         Assert.Equal(ResultStatus.Forbidden, result.Status);
     }
@@ -223,7 +223,7 @@ public class CardServiceTests
             new GenerateCardCommand { TemplateId = templateId, CombinationId = combinationId, PdfBytes = ValidPdf() },
             CancellationToken.None);
 
-        var download = await service.DownloadAsync(sa.Id, generated.Value!.IdCardId, [TextLayer("ADJUSTED VALUE")], CancellationToken.None);
+        var download = await service.DownloadAsync(sa.Id, generated.Value!.IdCardId, [TextLayer("ADJUSTED VALUE")], null, CancellationToken.None);
 
         Assert.Equal(ResultStatus.Success, download.Status);
         Assert.Contains("ADJUSTED VALUE", PdfText(download.Value!));
@@ -242,7 +242,7 @@ public class CardServiceTests
             new GenerateCardCommand { TemplateId = templateId, CombinationId = combinationId, PdfBytes = ValidPdf() },
             CancellationToken.None);
 
-        var download = await service.DownloadAsync(sa.Id, generated.Value!.IdCardId, [], CancellationToken.None);
+        var download = await service.DownloadAsync(sa.Id, generated.Value!.IdCardId, [], null, CancellationToken.None);
 
         Assert.Equal(ResultStatus.Success, download.Status);
         Assert.Equal("", PdfText(download.Value!).Trim());
@@ -315,5 +315,72 @@ public class CardServiceTests
         Assert.Equal(ResultStatus.ValidationFailed, result.Status);
         Assert.Contains("QR 1", result.Error);
         Assert.Empty(db.IDCards);
+    }
+
+    // ---- switching the background after previewing ----
+
+    [Fact]
+    public async Task DownloadAsync_WithAnotherBackgroundOfTheTemplate_PrintsOnThatBackground()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (templateId, defaultCombinationId) = await CreateTemplateWithCombinationAsync(db);
+        var other = (await new TemplateService(db).AddCombinationAsync(new AddCombinationCommand
+        {
+            TemplateId = templateId,
+            Name = "Blue",
+            FrontImageBytes = Png,
+            BackImageBytes = Png,
+        }, CancellationToken.None)).Value!;
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var service = NewService(db);
+        var generated = await service.GenerateAsync(
+            sa.Id,
+            new GenerateCardCommand { TemplateId = templateId, CombinationId = defaultCombinationId, PdfBytes = ValidPdf() },
+            CancellationToken.None);
+
+        var download = await service.DownloadAsync(sa.Id, generated.Value!.IdCardId, null, other.Id, CancellationToken.None);
+
+        Assert.Equal(ResultStatus.Success, download.Status);
+        Assert.Equal(other.Id, db.IDCards.Single().CombinationId);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_BackgroundZero_MeansTheTemplatesOwnImages()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (templateId, combinationId) = await CreateTemplateWithCombinationAsync(db);
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var service = NewService(db);
+        var generated = await service.GenerateAsync(
+            sa.Id,
+            new GenerateCardCommand { TemplateId = templateId, CombinationId = combinationId, PdfBytes = ValidPdf() },
+            CancellationToken.None);
+
+        var download = await service.DownloadAsync(sa.Id, generated.Value!.IdCardId, null, 0, CancellationToken.None);
+
+        Assert.Equal(ResultStatus.Success, download.Status);
+        Assert.Null(db.IDCards.Single().CombinationId);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_ABackgroundOfAnotherTemplate_IsRefused()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (templateId, combinationId) = await CreateTemplateWithCombinationAsync(db);
+        var (_, foreignCombinationId) = await CreateTemplateWithCombinationAsync(db);
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var service = NewService(db);
+        var generated = await service.GenerateAsync(
+            sa.Id,
+            new GenerateCardCommand { TemplateId = templateId, CombinationId = combinationId, PdfBytes = ValidPdf() },
+            CancellationToken.None);
+
+        var download = await service.DownloadAsync(sa.Id, generated.Value!.IdCardId, null, foreignCombinationId, CancellationToken.None);
+
+        Assert.Equal(ResultStatus.ValidationFailed, download.Status);
+        Assert.Equal(combinationId, db.IDCards.Single().CombinationId);
     }
 }

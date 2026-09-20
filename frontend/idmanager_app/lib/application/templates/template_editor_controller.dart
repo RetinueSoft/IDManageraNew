@@ -4,6 +4,7 @@ import '../../business_service/providers.dart';
 import '../../core_engine/common/enums.dart';
 import '../../core_engine/common/id_generator.dart';
 import '../../core_engine/common/uploaded_file.dart';
+import '../../core_engine/templates/domain/card_background.dart';
 import '../../core_engine/templates/domain/field_group.dart';
 import '../../core_engine/templates/domain/template_layer.dart';
 import 'template_editor_state.dart';
@@ -19,7 +20,9 @@ part 'template_editor_controller.g.dart';
 class TemplateEditorController extends _$TemplateEditorController {
   @override
   Future<TemplateEditorState> build(int templateId) async {
-    final detail = await ref.watch(templateServiceProvider).getTemplate(templateId);
+    final detail = await ref
+        .watch(templateServiceProvider)
+        .getTemplate(templateId);
     if (detail == null) throw StateError('Template $templateId not found.');
 
     final layers = List<TemplateLayer>.from(detail.layers);
@@ -42,7 +45,9 @@ class TemplateEditorController extends _$TemplateEditorController {
   void selectSide(CardSide side) {
     final current = state.value;
     if (current == null) return;
-    state = AsyncData(current.copyWith(side: side, combined: false, selectedGroupId: null));
+    state = AsyncData(
+      current.copyWith(side: side, combined: false, selectedGroupId: null),
+    );
   }
 
   /// Show front and back side by side. The active side is kept.
@@ -58,6 +63,72 @@ class TemplateEditorController extends _$TemplateEditorController {
     final current = state.value;
     if (current == null) return;
     state = AsyncData(current.copyWith(side: side, selectedGroupId: groupId));
+  }
+
+  /// Shows the template's background [id] behind the layers (0 = the template's own).
+  void selectBackground(int id) {
+    final current = state.value;
+    if (current == null) return;
+    state = AsyncData(current.copyWith(selectedBackgroundId: id));
+  }
+
+  /// Adds a background (a front and back image) to the template and shows it. It is saved right
+  /// away, like the template's own images - it does not wait for "Save".
+  Future<String?> addBackground({
+    required String name,
+    required UploadedFile front,
+    required UploadedFile back,
+  }) async {
+    final current = state.value;
+    if (current == null) return 'Not loaded.';
+    try {
+      final added = await ref
+          .read(templateServiceProvider)
+          .addCombination(
+            templateId: templateId,
+            name: name,
+            frontFile: front,
+            backFile: back,
+          );
+      final latest = state.value ?? current;
+      state = AsyncData(
+        latest.copyWith(
+          template: latest.template.copyWith(
+            combinations: [...latest.template.combinations, added],
+          ),
+          selectedBackgroundId: added.id,
+        ),
+      );
+      return null;
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
+  /// Removes a background from the template (never the template's own).
+  Future<String?> deleteBackground(int id) async {
+    final current = state.value;
+    if (current == null || id == CardBackground.defaultId) return null;
+    try {
+      await ref.read(templateServiceProvider).deleteCombination(id);
+      final latest = state.value ?? current;
+      state = AsyncData(
+        latest.copyWith(
+          template: latest.template.copyWith(
+            combinations: [
+              for (final c in latest.template.combinations)
+                if (c.id != id) c,
+            ],
+          ),
+          selectedBackgroundId: latest.selectedBackgroundId == id
+              ? CardBackground.defaultId
+              : latest.selectedBackgroundId,
+        ),
+      );
+      return null;
+    } catch (e) {
+      return e.toString();
+    }
   }
 
   void selectGroup(String? groupId) {
@@ -88,10 +159,15 @@ class TemplateEditorController extends _$TemplateEditorController {
       ],
     );
 
-    state = AsyncData(current.copyWith(
-      layers: _replaceCurrentGroups(current, [..._currentLayer(current).groups, group]),
-      selectedGroupId: id,
-    ));
+    state = AsyncData(
+      current.copyWith(
+        layers: _replaceCurrentGroups(current, [
+          ..._currentLayer(current).groups,
+          group,
+        ]),
+        selectedGroupId: id,
+      ),
+    );
   }
 
   /// A template has exactly one sample PDF: importing replaces the stored field
@@ -130,46 +206,73 @@ class TemplateEditorController extends _$TemplateEditorController {
     final id = IdGenerator.generate();
     final LayerGroup group;
     if (field.type == LayerFieldType.image) {
-      final index = existing.where((g) => g.fieldType == LayerFieldType.image).length;
+      final index = existing
+          .where((g) => g.fieldType == LayerFieldType.image)
+          .length;
       group = LayerGroup(
         id: id,
         name: field.key ?? 'Image',
         fieldType: LayerFieldType.image,
-        xMm: (template.cardWidthMm - margin - imageSizeMm - index * (imageSizeMm + margin))
-            .clamp(0, template.cardWidthMm - 1),
+        xMm:
+            (template.cardWidthMm -
+                    margin -
+                    imageSizeMm -
+                    index * (imageSizeMm + margin))
+                .clamp(0, template.cardWidthMm - 1),
         yMm: margin,
         widthMm: imageSizeMm,
         heightMm: imageSizeMm,
-        sources: [LayerSourceItem(key: field.key, value: field.value, type: LayerFieldType.image)],
+        sources: [
+          LayerSourceItem(
+            key: field.key,
+            value: field.value,
+            type: LayerFieldType.image,
+          ),
+        ],
       );
     } else {
-      final index = existing.where((g) => g.fieldType == LayerFieldType.text).length;
-      final rowsPerColumn = ((template.cardHeightMm - margin) / textStepMm).floor().clamp(1, 1000);
+      final index = existing
+          .where((g) => g.fieldType == LayerFieldType.text)
+          .length;
+      final rowsPerColumn = ((template.cardHeightMm - margin) / textStepMm)
+          .floor()
+          .clamp(1, 1000);
       group = LayerGroup(
         id: id,
         name: field.key ?? 'Text',
-        xMm: (margin + (index ~/ rowsPerColumn) * textColumnMm).clamp(0, template.cardWidthMm - 1),
+        xMm: (margin + (index ~/ rowsPerColumn) * textColumnMm).clamp(
+          0,
+          template.cardWidthMm - 1,
+        ),
         yMm: margin + (index % rowsPerColumn) * textStepMm,
         widthMm: textColumnMm - margin,
         sources: [LayerSourceItem(key: field.key, value: field.value)],
       );
     }
 
-    state = AsyncData(current.copyWith(
-      layers: _replaceCurrentGroups(current, [...existing, group]),
-      selectedGroupId: id,
-    ));
+    state = AsyncData(
+      current.copyWith(
+        layers: _replaceCurrentGroups(current, [...existing, group]),
+        selectedGroupId: id,
+      ),
+    );
   }
 
   void deleteGroup(String groupId) {
     final current = state.value;
     if (current == null) return;
 
-    final groups = _currentLayer(current).groups.where((g) => g.id != groupId).toList();
-    state = AsyncData(current.copyWith(
-      layers: _replaceCurrentGroups(current, groups),
-      selectedGroupId: current.selectedGroupId == groupId ? null : current.selectedGroupId,
-    ));
+    final groups = _currentLayer(current).groups
+        .where((g) => g.id != groupId)
+        .toList();
+    state = AsyncData(
+      current.copyWith(
+        layers: _replaceCurrentGroups(current, groups),
+        selectedGroupId: current.selectedGroupId == groupId
+            ? null
+            : current.selectedGroupId,
+      ),
+    );
   }
 
   /// Adds an empty QR code image layer. Nothing is picked here: the card generator
@@ -200,10 +303,15 @@ class TemplateEditorController extends _$TemplateEditorController {
       heightMm: 20,
       sources: [LayerSourceItem(key: 'QR $n', type: LayerFieldType.image)],
     );
-    state = AsyncData(current.copyWith(
-      layers: _replaceCurrentGroups(current, [..._currentLayer(current).groups, group]),
-      selectedGroupId: id,
-    ));
+    state = AsyncData(
+      current.copyWith(
+        layers: _replaceCurrentGroups(current, [
+          ..._currentLayer(current).groups,
+          group,
+        ]),
+        selectedGroupId: id,
+      ),
+    );
   }
 
   /// Adds an empty combined (List) text layer - its fields are added from the
@@ -221,10 +329,15 @@ class TemplateEditorController extends _$TemplateEditorController {
       widthMm: 40,
       isList: true,
     );
-    state = AsyncData(current.copyWith(
-      layers: _replaceCurrentGroups(current, [..._currentLayer(current).groups, group]),
-      selectedGroupId: id,
-    ));
+    state = AsyncData(
+      current.copyWith(
+        layers: _replaceCurrentGroups(current, [
+          ..._currentLayer(current).groups,
+          group,
+        ]),
+        selectedGroupId: id,
+      ),
+    );
   }
 
   /// Moves the text fields of another layer on the current side into a combined
@@ -240,25 +353,39 @@ class TemplateEditorController extends _$TemplateEditorController {
     final merged = [
       for (final g in groups)
         if (g.id == groupId)
-          g.copyWith(sources: [...g.sources, ...other.sources.where((s) => s.type == LayerFieldType.text)])
+          g.copyWith(
+            sources: [
+              ...g.sources,
+              ...other.sources.where((s) => s.type == LayerFieldType.text),
+            ],
+          )
         else if (g.id != otherId)
           g,
     ];
-    state = AsyncData(current.copyWith(layers: _replaceCurrentGroups(current, merged)));
+    state = AsyncData(
+      current.copyWith(layers: _replaceCurrentGroups(current, merged)),
+    );
   }
 
   void deleteSelected() {
     final current = state.value;
     if (current == null || current.selectedGroupId == null) return;
 
-    final groups = _currentLayer(current).groups.where((g) => g.id != current.selectedGroupId).toList();
-    state = AsyncData(current.copyWith(
-      layers: _replaceCurrentGroups(current, groups),
-      selectedGroupId: null,
-    ));
+    final groups = _currentLayer(current).groups
+        .where((g) => g.id != current.selectedGroupId)
+        .toList();
+    state = AsyncData(
+      current.copyWith(
+        layers: _replaceCurrentGroups(current, groups),
+        selectedGroupId: null,
+      ),
+    );
   }
 
-  void updateGroup(String groupId, LayerGroup Function(LayerGroup current) update) {
+  void updateGroup(
+    String groupId,
+    LayerGroup Function(LayerGroup current) update,
+  ) {
     final current = state.value;
     if (current == null) return;
 
@@ -266,7 +393,9 @@ class TemplateEditorController extends _$TemplateEditorController {
       for (final g in _currentLayer(current).groups)
         if (g.id == groupId) update(g) else g,
     ];
-    state = AsyncData(current.copyWith(layers: _replaceCurrentGroups(current, groups)));
+    state = AsyncData(
+      current.copyWith(layers: _replaceCurrentGroups(current, groups)),
+    );
   }
 
   void moveGroup(String groupId, double dxMm, double dyMm) {
@@ -275,13 +404,19 @@ class TemplateEditorController extends _$TemplateEditorController {
     final cardWidth = current.template.template.cardWidthMm;
     final cardHeight = current.template.template.cardHeightMm;
 
-    updateGroup(groupId, (g) => g.copyWith(
-      xMm: (g.xMm + dxMm).clamp(0, cardWidth - 1),
-      yMm: (g.yMm + dyMm).clamp(0, cardHeight - 1),
-    ));
+    updateGroup(
+      groupId,
+      (g) => g.copyWith(
+        xMm: (g.xMm + dxMm).clamp(0, cardWidth - 1),
+        yMm: (g.yMm + dyMm).clamp(0, cardHeight - 1),
+      ),
+    );
   }
 
-  List<TemplateLayer> _replaceCurrentGroups(TemplateEditorState current, List<LayerGroup> groups) => [
+  List<TemplateLayer> _replaceCurrentGroups(
+    TemplateEditorState current,
+    List<LayerGroup> groups,
+  ) => [
     for (final l in current.layers)
       if (l.side == current.side) l.copyWith(groups: groups) else l,
   ];
@@ -292,11 +427,15 @@ class TemplateEditorController extends _$TemplateEditorController {
 
     state = AsyncData(current.copyWith(isSaving: true));
     try {
-      await ref.read(templateServiceProvider).saveLayers(
-        templateId,
-        current.layers,
-        groups: [FieldGroup(name: 'Sample PDF', items: current.sampleFields)],
-      );
+      await ref
+          .read(templateServiceProvider)
+          .saveLayers(
+            templateId,
+            current.layers,
+            groups: [
+              FieldGroup(name: 'Sample PDF', items: current.sampleFields),
+            ],
+          );
       state = AsyncData(current.copyWith(isSaving: false));
       return true;
     } catch (_) {

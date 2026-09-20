@@ -1,4 +1,5 @@
 import '../../core_engine/templates/domain/template_layer.dart';
+
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -16,15 +17,16 @@ class ApiCardRepository implements CardRepository {
   final ApiClient _client;
 
   @override
-  Future<List<ExtractedField>> parsePdf(UploadedFile file) => _client.guard(() async {
-    final form = FormData.fromMap({
-      'file': MultipartFile.fromBytes(file.bytes, filename: file.name),
-    });
-    final response = await _client.dio.post('/cards/parse-pdf', data: form);
-    return (response.data as List<dynamic>)
-        .map((e) => extractedFieldFromJson(e as Map<String, dynamic>))
-        .toList();
-  });
+  Future<List<ExtractedField>> parsePdf(UploadedFile file) =>
+      _client.guard(() async {
+        final form = FormData.fromMap({
+          'file': MultipartFile.fromBytes(file.bytes, filename: file.name),
+        });
+        final response = await _client.dio.post('/cards/parse-pdf', data: form);
+        return (response.data as List<dynamic>)
+            .map((e) => extractedFieldFromJson(e as Map<String, dynamic>))
+            .toList();
+      });
 
   @override
   Future<GeneratedCard> generate({
@@ -39,7 +41,10 @@ class ApiCardRepository implements CardRepository {
       'file': MultipartFile.fromBytes(file.bytes, filename: file.name),
       // Each QR slot's image goes as a file named "qr:<slot key>".
       for (final entry in qrImages.entries)
-        'qr:${entry.key}': MultipartFile.fromBytes(entry.value.bytes, filename: entry.value.name),
+        'qr:${entry.key}': MultipartFile.fromBytes(
+          entry.value.bytes,
+          filename: entry.value.name,
+        ),
     });
     final response = await _client.dio.post('/cards/generate', data: form);
     final body = response.data as Map<String, dynamic>;
@@ -56,10 +61,17 @@ class ApiCardRepository implements CardRepository {
   });
 
   @override
-  Future<Uint8List> download(int idCardId, List<TemplateLayer> layers) => _client.guard(() async {
+  Future<Uint8List> download(
+    int idCardId,
+    List<TemplateLayer> layers,
+    int combinationId,
+  ) => _client.guard(() async {
     final response = await _client.dio.post<List<int>>(
       '/cards/$idCardId/download',
-      data: {'layers': layers.map(templateLayerToJson).toList()},
+      data: {
+        'layers': layers.map(templateLayerToJson).toList(),
+        'combinationId': combinationId,
+      },
       options: Options(responseType: ResponseType.bytes),
     );
     return Uint8List.fromList(response.data ?? []);

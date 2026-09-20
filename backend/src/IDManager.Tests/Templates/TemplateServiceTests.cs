@@ -620,4 +620,22 @@ public class TemplateServiceTests
 
         Assert.True(string.IsNullOrEmpty(sources.Single().Value));
     }
+
+    [Theory]
+    [InlineData("", new byte[] { 1 }, new byte[] { 2 })]
+    [InlineData("Blue", new byte[0], new byte[] { 2 })]
+    [InlineData("Blue", new byte[] { 1 }, new byte[0])]
+    public async Task AddCombinationAsync_NeedsANameAndBothImages(string name, byte[] front, byte[] back)
+    {
+        using var testDb = TestDb.Create();
+        var service = new TemplateService(testDb.Context);
+        var created = (await service.CreateAsync(1, ValidCommand(), CancellationToken.None)).Value!;
+
+        var result = await service.AddCombinationAsync(
+            new AddCombinationCommand { TemplateId = created.Id, Name = name, FrontImageBytes = front, BackImageBytes = back },
+            CancellationToken.None);
+
+        Assert.Equal(ResultStatus.ValidationFailed, result.Status);
+        Assert.Empty(testDb.Context.TemplateCombinations);
+    }
 }

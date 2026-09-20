@@ -15,7 +15,12 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$GenerateCardState {
 
- List<LookupOption> get templateOptions; int? get selectedTemplateId; List<LookupOption> get combinationOptions; int? get selectedCombinationId; UploadedFile? get pdfFile; List<QrSlot> get qrSlots; Map<String, UploadedFile> get qrFiles; GeneratedCard? get result;/// The preview works like the template designer's canvas: front and back side by side by
+ List<LookupOption> get templateOptions; int? get selectedTemplateId;/// The selected template with its backgrounds (its own plus any it has added).
+ CardTemplateDetail? get template;/// The background the card is printed on (0 = the template's own). It can be switched
+/// before and after previewing without generating again.
+ int get selectedCombinationId; UploadedFile? get pdfFile; List<QrSlot> get qrSlots; Map<String, UploadedFile> get qrFiles; GeneratedCard? get result;/// The background [result] was generated with - what the download prints on. Choosing another
+/// background does not change the preview until Preview is pressed again.
+ int? get resultCombinationId;/// The preview works like the template designer's canvas: front and back side by side by
 /// default, [side] is the card edits go to, and one layer can be selected and adjusted.
  CardSide get side; bool get combined; String? get selectedGroupId; bool get isBusy; String? get error;
 /// Create a copy of GenerateCardState
@@ -29,20 +34,20 @@ $GenerateCardStateCopyWith<GenerateCardState> get copyWith => _$GenerateCardStat
 @override
 bool operator ==(Object other) {
   final _this = this as GenerateCardState;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is GenerateCardState&&const DeepCollectionEquality().equals(other.templateOptions, _this.templateOptions)&&(identical(other.selectedTemplateId, _this.selectedTemplateId) || other.selectedTemplateId == _this.selectedTemplateId)&&const DeepCollectionEquality().equals(other.combinationOptions, _this.combinationOptions)&&(identical(other.selectedCombinationId, _this.selectedCombinationId) || other.selectedCombinationId == _this.selectedCombinationId)&&(identical(other.pdfFile, _this.pdfFile) || other.pdfFile == _this.pdfFile)&&const DeepCollectionEquality().equals(other.qrSlots, _this.qrSlots)&&const DeepCollectionEquality().equals(other.qrFiles, _this.qrFiles)&&(identical(other.result, _this.result) || other.result == _this.result)&&(identical(other.side, _this.side) || other.side == _this.side)&&(identical(other.combined, _this.combined) || other.combined == _this.combined)&&(identical(other.selectedGroupId, _this.selectedGroupId) || other.selectedGroupId == _this.selectedGroupId)&&(identical(other.isBusy, _this.isBusy) || other.isBusy == _this.isBusy)&&(identical(other.error, _this.error) || other.error == _this.error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GenerateCardState&&const DeepCollectionEquality().equals(other.templateOptions, _this.templateOptions)&&(identical(other.selectedTemplateId, _this.selectedTemplateId) || other.selectedTemplateId == _this.selectedTemplateId)&&(identical(other.template, _this.template) || other.template == _this.template)&&(identical(other.selectedCombinationId, _this.selectedCombinationId) || other.selectedCombinationId == _this.selectedCombinationId)&&(identical(other.pdfFile, _this.pdfFile) || other.pdfFile == _this.pdfFile)&&const DeepCollectionEquality().equals(other.qrSlots, _this.qrSlots)&&const DeepCollectionEquality().equals(other.qrFiles, _this.qrFiles)&&(identical(other.result, _this.result) || other.result == _this.result)&&(identical(other.resultCombinationId, _this.resultCombinationId) || other.resultCombinationId == _this.resultCombinationId)&&(identical(other.side, _this.side) || other.side == _this.side)&&(identical(other.combined, _this.combined) || other.combined == _this.combined)&&(identical(other.selectedGroupId, _this.selectedGroupId) || other.selectedGroupId == _this.selectedGroupId)&&(identical(other.isBusy, _this.isBusy) || other.isBusy == _this.isBusy)&&(identical(other.error, _this.error) || other.error == _this.error));
 }
 
 
 @override
 int get hashCode {
   final _this = this as GenerateCardState;
-  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.templateOptions),_this.selectedTemplateId,const DeepCollectionEquality().hash(_this.combinationOptions),_this.selectedCombinationId,_this.pdfFile,const DeepCollectionEquality().hash(_this.qrSlots),const DeepCollectionEquality().hash(_this.qrFiles),_this.result,_this.side,_this.combined,_this.selectedGroupId,_this.isBusy,_this.error);
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.templateOptions),_this.selectedTemplateId,_this.template,_this.selectedCombinationId,_this.pdfFile,const DeepCollectionEquality().hash(_this.qrSlots),const DeepCollectionEquality().hash(_this.qrFiles),_this.result,_this.resultCombinationId,_this.side,_this.combined,_this.selectedGroupId,_this.isBusy,_this.error);
 }
 
 @override
 String toString() {
   final _this = this as GenerateCardState;
-  return 'GenerateCardState(templateOptions: ${_this.templateOptions}, selectedTemplateId: ${_this.selectedTemplateId}, combinationOptions: ${_this.combinationOptions}, selectedCombinationId: ${_this.selectedCombinationId}, pdfFile: ${_this.pdfFile}, qrSlots: ${_this.qrSlots}, qrFiles: ${_this.qrFiles}, result: ${_this.result}, side: ${_this.side}, combined: ${_this.combined}, selectedGroupId: ${_this.selectedGroupId}, isBusy: ${_this.isBusy}, error: ${_this.error})';
+  return 'GenerateCardState(templateOptions: ${_this.templateOptions}, selectedTemplateId: ${_this.selectedTemplateId}, template: ${_this.template}, selectedCombinationId: ${_this.selectedCombinationId}, pdfFile: ${_this.pdfFile}, qrSlots: ${_this.qrSlots}, qrFiles: ${_this.qrFiles}, result: ${_this.result}, resultCombinationId: ${_this.resultCombinationId}, side: ${_this.side}, combined: ${_this.combined}, selectedGroupId: ${_this.selectedGroupId}, isBusy: ${_this.isBusy}, error: ${_this.error})';
 }
 
 
@@ -53,11 +58,11 @@ abstract mixin class $GenerateCardStateCopyWith<$Res>  {
   factory $GenerateCardStateCopyWith(GenerateCardState value, $Res Function(GenerateCardState) _then) = _$GenerateCardStateCopyWithImpl;
 @useResult
 $Res call({
- List<LookupOption> templateOptions, int? selectedTemplateId, List<LookupOption> combinationOptions, int? selectedCombinationId, UploadedFile? pdfFile, List<QrSlot> qrSlots, Map<String, UploadedFile> qrFiles, GeneratedCard? result, CardSide side, bool combined, String? selectedGroupId, bool isBusy, String? error
+ List<LookupOption> templateOptions, int? selectedTemplateId, CardTemplateDetail? template, int selectedCombinationId, UploadedFile? pdfFile, List<QrSlot> qrSlots, Map<String, UploadedFile> qrFiles, GeneratedCard? result, int? resultCombinationId, CardSide side, bool combined, String? selectedGroupId, bool isBusy, String? error
 });
 
 
-$GeneratedCardCopyWith<$Res>? get result;
+$CardTemplateDetailCopyWith<$Res>? get template;$GeneratedCardCopyWith<$Res>? get result;
 
 }
 /// @nodoc
@@ -70,17 +75,18 @@ class _$GenerateCardStateCopyWithImpl<$Res>
 
 /// Create a copy of GenerateCardState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? templateOptions = null,Object? selectedTemplateId = freezed,Object? combinationOptions = null,Object? selectedCombinationId = freezed,Object? pdfFile = freezed,Object? qrSlots = null,Object? qrFiles = null,Object? result = freezed,Object? side = null,Object? combined = null,Object? selectedGroupId = freezed,Object? isBusy = null,Object? error = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? templateOptions = null,Object? selectedTemplateId = freezed,Object? template = freezed,Object? selectedCombinationId = null,Object? pdfFile = freezed,Object? qrSlots = null,Object? qrFiles = null,Object? result = freezed,Object? resultCombinationId = freezed,Object? side = null,Object? combined = null,Object? selectedGroupId = freezed,Object? isBusy = null,Object? error = freezed,}) {
   return _then(GenerateCardState(
 templateOptions: null == templateOptions ? _self.templateOptions : templateOptions // ignore: cast_nullable_to_non_nullable
 as List<LookupOption>,selectedTemplateId: freezed == selectedTemplateId ? _self.selectedTemplateId : selectedTemplateId // ignore: cast_nullable_to_non_nullable
-as int?,combinationOptions: null == combinationOptions ? _self.combinationOptions : combinationOptions // ignore: cast_nullable_to_non_nullable
-as List<LookupOption>,selectedCombinationId: freezed == selectedCombinationId ? _self.selectedCombinationId : selectedCombinationId // ignore: cast_nullable_to_non_nullable
-as int?,pdfFile: freezed == pdfFile ? _self.pdfFile : pdfFile // ignore: cast_nullable_to_non_nullable
+as int?,template: freezed == template ? _self.template : template // ignore: cast_nullable_to_non_nullable
+as CardTemplateDetail?,selectedCombinationId: null == selectedCombinationId ? _self.selectedCombinationId : selectedCombinationId // ignore: cast_nullable_to_non_nullable
+as int,pdfFile: freezed == pdfFile ? _self.pdfFile : pdfFile // ignore: cast_nullable_to_non_nullable
 as UploadedFile?,qrSlots: null == qrSlots ? _self.qrSlots : qrSlots // ignore: cast_nullable_to_non_nullable
 as List<QrSlot>,qrFiles: null == qrFiles ? _self.qrFiles : qrFiles // ignore: cast_nullable_to_non_nullable
 as Map<String, UploadedFile>,result: freezed == result ? _self.result : result // ignore: cast_nullable_to_non_nullable
-as GeneratedCard?,side: null == side ? _self.side : side // ignore: cast_nullable_to_non_nullable
+as GeneratedCard?,resultCombinationId: freezed == resultCombinationId ? _self.resultCombinationId : resultCombinationId // ignore: cast_nullable_to_non_nullable
+as int?,side: null == side ? _self.side : side // ignore: cast_nullable_to_non_nullable
 as CardSide,combined: null == combined ? _self.combined : combined // ignore: cast_nullable_to_non_nullable
 as bool,selectedGroupId: freezed == selectedGroupId ? _self.selectedGroupId : selectedGroupId // ignore: cast_nullable_to_non_nullable
 as String?,isBusy: null == isBusy ? _self.isBusy : isBusy // ignore: cast_nullable_to_non_nullable
@@ -89,6 +95,18 @@ as String?,
   ));
 }
 /// Create a copy of GenerateCardState
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$CardTemplateDetailCopyWith<$Res>? get template {
+    if (_self.template == null) {
+    return null;
+  }
+
+  return $CardTemplateDetailCopyWith<$Res>(_self.template!, (value) {
+    return _then(_self.copyWith(template: value));
+  });
+}/// Create a copy of GenerateCardState
 /// with the given fields replaced by the non-null parameter values.
 @override
 @pragma('vm:prefer-inline')
@@ -179,10 +197,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<LookupOption> templateOptions,  int? selectedTemplateId,  List<LookupOption> combinationOptions,  int? selectedCombinationId,  UploadedFile? pdfFile,  List<QrSlot> qrSlots,  Map<String, UploadedFile> qrFiles,  GeneratedCard? result,  CardSide side,  bool combined,  String? selectedGroupId,  bool isBusy,  String? error)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<LookupOption> templateOptions,  int? selectedTemplateId,  CardTemplateDetail? template,  int selectedCombinationId,  UploadedFile? pdfFile,  List<QrSlot> qrSlots,  Map<String, UploadedFile> qrFiles,  GeneratedCard? result,  int? resultCombinationId,  CardSide side,  bool combined,  String? selectedGroupId,  bool isBusy,  String? error)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _GenerateCardState() when $default != null:
-return $default(_that.templateOptions,_that.selectedTemplateId,_that.combinationOptions,_that.selectedCombinationId,_that.pdfFile,_that.qrSlots,_that.qrFiles,_that.result,_that.side,_that.combined,_that.selectedGroupId,_that.isBusy,_that.error);case _:
+return $default(_that.templateOptions,_that.selectedTemplateId,_that.template,_that.selectedCombinationId,_that.pdfFile,_that.qrSlots,_that.qrFiles,_that.result,_that.resultCombinationId,_that.side,_that.combined,_that.selectedGroupId,_that.isBusy,_that.error);case _:
   return orElse();
 
 }
@@ -200,10 +218,10 @@ return $default(_that.templateOptions,_that.selectedTemplateId,_that.combination
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<LookupOption> templateOptions,  int? selectedTemplateId,  List<LookupOption> combinationOptions,  int? selectedCombinationId,  UploadedFile? pdfFile,  List<QrSlot> qrSlots,  Map<String, UploadedFile> qrFiles,  GeneratedCard? result,  CardSide side,  bool combined,  String? selectedGroupId,  bool isBusy,  String? error)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<LookupOption> templateOptions,  int? selectedTemplateId,  CardTemplateDetail? template,  int selectedCombinationId,  UploadedFile? pdfFile,  List<QrSlot> qrSlots,  Map<String, UploadedFile> qrFiles,  GeneratedCard? result,  int? resultCombinationId,  CardSide side,  bool combined,  String? selectedGroupId,  bool isBusy,  String? error)  $default,) {final _that = this;
 switch (_that) {
 case _GenerateCardState():
-return $default(_that.templateOptions,_that.selectedTemplateId,_that.combinationOptions,_that.selectedCombinationId,_that.pdfFile,_that.qrSlots,_that.qrFiles,_that.result,_that.side,_that.combined,_that.selectedGroupId,_that.isBusy,_that.error);}
+return $default(_that.templateOptions,_that.selectedTemplateId,_that.template,_that.selectedCombinationId,_that.pdfFile,_that.qrSlots,_that.qrFiles,_that.result,_that.resultCombinationId,_that.side,_that.combined,_that.selectedGroupId,_that.isBusy,_that.error);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -217,10 +235,10 @@ return $default(_that.templateOptions,_that.selectedTemplateId,_that.combination
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<LookupOption> templateOptions,  int? selectedTemplateId,  List<LookupOption> combinationOptions,  int? selectedCombinationId,  UploadedFile? pdfFile,  List<QrSlot> qrSlots,  Map<String, UploadedFile> qrFiles,  GeneratedCard? result,  CardSide side,  bool combined,  String? selectedGroupId,  bool isBusy,  String? error)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<LookupOption> templateOptions,  int? selectedTemplateId,  CardTemplateDetail? template,  int selectedCombinationId,  UploadedFile? pdfFile,  List<QrSlot> qrSlots,  Map<String, UploadedFile> qrFiles,  GeneratedCard? result,  int? resultCombinationId,  CardSide side,  bool combined,  String? selectedGroupId,  bool isBusy,  String? error)?  $default,) {final _that = this;
 switch (_that) {
 case _GenerateCardState() when $default != null:
-return $default(_that.templateOptions,_that.selectedTemplateId,_that.combinationOptions,_that.selectedCombinationId,_that.pdfFile,_that.qrSlots,_that.qrFiles,_that.result,_that.side,_that.combined,_that.selectedGroupId,_that.isBusy,_that.error);case _:
+return $default(_that.templateOptions,_that.selectedTemplateId,_that.template,_that.selectedCombinationId,_that.pdfFile,_that.qrSlots,_that.qrFiles,_that.result,_that.resultCombinationId,_that.side,_that.combined,_that.selectedGroupId,_that.isBusy,_that.error);case _:
   return null;
 
 }
@@ -232,7 +250,7 @@ return $default(_that.templateOptions,_that.selectedTemplateId,_that.combination
 
 
 class _GenerateCardState implements GenerateCardState {
-  const _GenerateCardState({ List<LookupOption> templateOptions = const <LookupOption>[], this.selectedTemplateId,  List<LookupOption> combinationOptions = const <LookupOption>[], this.selectedCombinationId, this.pdfFile,  List<QrSlot> qrSlots = const <QrSlot>[],  Map<String, UploadedFile> qrFiles = const <String, UploadedFile>{}, this.result, this.side = CardSide.front, this.combined = true, this.selectedGroupId, this.isBusy = false, this.error}): _templateOptions = templateOptions,_combinationOptions = combinationOptions,_qrSlots = qrSlots,_qrFiles = qrFiles;
+  const _GenerateCardState({ List<LookupOption> templateOptions = const <LookupOption>[], this.selectedTemplateId, this.template, this.selectedCombinationId = 0, this.pdfFile,  List<QrSlot> qrSlots = const <QrSlot>[],  Map<String, UploadedFile> qrFiles = const <String, UploadedFile>{}, this.result, this.resultCombinationId, this.side = CardSide.front, this.combined = true, this.selectedGroupId, this.isBusy = false, this.error}): _templateOptions = templateOptions,_qrSlots = qrSlots,_qrFiles = qrFiles;
   
 
  final  List<LookupOption> _templateOptions;
@@ -243,14 +261,11 @@ class _GenerateCardState implements GenerateCardState {
 }
 
 @override final  int? selectedTemplateId;
- final  List<LookupOption> _combinationOptions;
-@override@JsonKey() List<LookupOption> get combinationOptions {
-  if (_combinationOptions is EqualUnmodifiableListView) return _combinationOptions;
-  // ignore: implicit_dynamic_type
-  return EqualUnmodifiableListView(_combinationOptions);
-}
-
-@override final  int? selectedCombinationId;
+/// The selected template with its backgrounds (its own plus any it has added).
+@override final  CardTemplateDetail? template;
+/// The background the card is printed on (0 = the template's own). It can be switched
+/// before and after previewing without generating again.
+@override@JsonKey() final  int selectedCombinationId;
 @override final  UploadedFile? pdfFile;
  final  List<QrSlot> _qrSlots;
 @override@JsonKey() List<QrSlot> get qrSlots {
@@ -267,6 +282,9 @@ class _GenerateCardState implements GenerateCardState {
 }
 
 @override final  GeneratedCard? result;
+/// The background [result] was generated with - what the download prints on. Choosing another
+/// background does not change the preview until Preview is pressed again.
+@override final  int? resultCombinationId;
 /// The preview works like the template designer's canvas: front and back side by side by
 /// default, [side] is the card edits go to, and one layer can be selected and adjusted.
 @override@JsonKey() final  CardSide side;
@@ -285,18 +303,18 @@ _$GenerateCardStateCopyWith<_GenerateCardState> get copyWith => __$GenerateCardS
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _GenerateCardState&&const DeepCollectionEquality().equals(other.templateOptions, _templateOptions)&&(identical(other.selectedTemplateId, selectedTemplateId) || other.selectedTemplateId == selectedTemplateId)&&const DeepCollectionEquality().equals(other.combinationOptions, _combinationOptions)&&(identical(other.selectedCombinationId, selectedCombinationId) || other.selectedCombinationId == selectedCombinationId)&&(identical(other.pdfFile, pdfFile) || other.pdfFile == pdfFile)&&const DeepCollectionEquality().equals(other.qrSlots, _qrSlots)&&const DeepCollectionEquality().equals(other.qrFiles, _qrFiles)&&(identical(other.result, result) || other.result == result)&&(identical(other.side, side) || other.side == side)&&(identical(other.combined, combined) || other.combined == combined)&&(identical(other.selectedGroupId, selectedGroupId) || other.selectedGroupId == selectedGroupId)&&(identical(other.isBusy, isBusy) || other.isBusy == isBusy)&&(identical(other.error, error) || other.error == error));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _GenerateCardState&&const DeepCollectionEquality().equals(other.templateOptions, _templateOptions)&&(identical(other.selectedTemplateId, selectedTemplateId) || other.selectedTemplateId == selectedTemplateId)&&(identical(other.template, template) || other.template == template)&&(identical(other.selectedCombinationId, selectedCombinationId) || other.selectedCombinationId == selectedCombinationId)&&(identical(other.pdfFile, pdfFile) || other.pdfFile == pdfFile)&&const DeepCollectionEquality().equals(other.qrSlots, _qrSlots)&&const DeepCollectionEquality().equals(other.qrFiles, _qrFiles)&&(identical(other.result, result) || other.result == result)&&(identical(other.resultCombinationId, resultCombinationId) || other.resultCombinationId == resultCombinationId)&&(identical(other.side, side) || other.side == side)&&(identical(other.combined, combined) || other.combined == combined)&&(identical(other.selectedGroupId, selectedGroupId) || other.selectedGroupId == selectedGroupId)&&(identical(other.isBusy, isBusy) || other.isBusy == isBusy)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_templateOptions),selectedTemplateId,const DeepCollectionEquality().hash(_combinationOptions),selectedCombinationId,pdfFile,const DeepCollectionEquality().hash(_qrSlots),const DeepCollectionEquality().hash(_qrFiles),result,side,combined,selectedGroupId,isBusy,error);
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_templateOptions),selectedTemplateId,template,selectedCombinationId,pdfFile,const DeepCollectionEquality().hash(_qrSlots),const DeepCollectionEquality().hash(_qrFiles),result,resultCombinationId,side,combined,selectedGroupId,isBusy,error);
 }
 
 @override
 String toString() {
-    return 'GenerateCardState(templateOptions: $templateOptions, selectedTemplateId: $selectedTemplateId, combinationOptions: $combinationOptions, selectedCombinationId: $selectedCombinationId, pdfFile: $pdfFile, qrSlots: $qrSlots, qrFiles: $qrFiles, result: $result, side: $side, combined: $combined, selectedGroupId: $selectedGroupId, isBusy: $isBusy, error: $error)';
+    return 'GenerateCardState(templateOptions: $templateOptions, selectedTemplateId: $selectedTemplateId, template: $template, selectedCombinationId: $selectedCombinationId, pdfFile: $pdfFile, qrSlots: $qrSlots, qrFiles: $qrFiles, result: $result, resultCombinationId: $resultCombinationId, side: $side, combined: $combined, selectedGroupId: $selectedGroupId, isBusy: $isBusy, error: $error)';
 }
 
 
@@ -307,11 +325,11 @@ abstract mixin class _$GenerateCardStateCopyWith<$Res> implements $GenerateCardS
   factory _$GenerateCardStateCopyWith(_GenerateCardState value, $Res Function(_GenerateCardState) _then) = __$GenerateCardStateCopyWithImpl;
 @override @useResult
 $Res call({
- List<LookupOption> templateOptions, int? selectedTemplateId, List<LookupOption> combinationOptions, int? selectedCombinationId, UploadedFile? pdfFile, List<QrSlot> qrSlots, Map<String, UploadedFile> qrFiles, GeneratedCard? result, CardSide side, bool combined, String? selectedGroupId, bool isBusy, String? error
+ List<LookupOption> templateOptions, int? selectedTemplateId, CardTemplateDetail? template, int selectedCombinationId, UploadedFile? pdfFile, List<QrSlot> qrSlots, Map<String, UploadedFile> qrFiles, GeneratedCard? result, int? resultCombinationId, CardSide side, bool combined, String? selectedGroupId, bool isBusy, String? error
 });
 
 
-@override $GeneratedCardCopyWith<$Res>? get result;
+@override $CardTemplateDetailCopyWith<$Res>? get template;@override $GeneratedCardCopyWith<$Res>? get result;
 
 }
 /// @nodoc
@@ -324,17 +342,18 @@ class __$GenerateCardStateCopyWithImpl<$Res>
 
 /// Create a copy of GenerateCardState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? templateOptions = null,Object? selectedTemplateId = freezed,Object? combinationOptions = null,Object? selectedCombinationId = freezed,Object? pdfFile = freezed,Object? qrSlots = null,Object? qrFiles = null,Object? result = freezed,Object? side = null,Object? combined = null,Object? selectedGroupId = freezed,Object? isBusy = null,Object? error = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? templateOptions = null,Object? selectedTemplateId = freezed,Object? template = freezed,Object? selectedCombinationId = null,Object? pdfFile = freezed,Object? qrSlots = null,Object? qrFiles = null,Object? result = freezed,Object? resultCombinationId = freezed,Object? side = null,Object? combined = null,Object? selectedGroupId = freezed,Object? isBusy = null,Object? error = freezed,}) {
   return _then(_GenerateCardState(
 templateOptions: null == templateOptions ? _self._templateOptions : templateOptions // ignore: cast_nullable_to_non_nullable
 as List<LookupOption>,selectedTemplateId: freezed == selectedTemplateId ? _self.selectedTemplateId : selectedTemplateId // ignore: cast_nullable_to_non_nullable
-as int?,combinationOptions: null == combinationOptions ? _self._combinationOptions : combinationOptions // ignore: cast_nullable_to_non_nullable
-as List<LookupOption>,selectedCombinationId: freezed == selectedCombinationId ? _self.selectedCombinationId : selectedCombinationId // ignore: cast_nullable_to_non_nullable
-as int?,pdfFile: freezed == pdfFile ? _self.pdfFile : pdfFile // ignore: cast_nullable_to_non_nullable
+as int?,template: freezed == template ? _self.template : template // ignore: cast_nullable_to_non_nullable
+as CardTemplateDetail?,selectedCombinationId: null == selectedCombinationId ? _self.selectedCombinationId : selectedCombinationId // ignore: cast_nullable_to_non_nullable
+as int,pdfFile: freezed == pdfFile ? _self.pdfFile : pdfFile // ignore: cast_nullable_to_non_nullable
 as UploadedFile?,qrSlots: null == qrSlots ? _self._qrSlots : qrSlots // ignore: cast_nullable_to_non_nullable
 as List<QrSlot>,qrFiles: null == qrFiles ? _self._qrFiles : qrFiles // ignore: cast_nullable_to_non_nullable
 as Map<String, UploadedFile>,result: freezed == result ? _self.result : result // ignore: cast_nullable_to_non_nullable
-as GeneratedCard?,side: null == side ? _self.side : side // ignore: cast_nullable_to_non_nullable
+as GeneratedCard?,resultCombinationId: freezed == resultCombinationId ? _self.resultCombinationId : resultCombinationId // ignore: cast_nullable_to_non_nullable
+as int?,side: null == side ? _self.side : side // ignore: cast_nullable_to_non_nullable
 as CardSide,combined: null == combined ? _self.combined : combined // ignore: cast_nullable_to_non_nullable
 as bool,selectedGroupId: freezed == selectedGroupId ? _self.selectedGroupId : selectedGroupId // ignore: cast_nullable_to_non_nullable
 as String?,isBusy: null == isBusy ? _self.isBusy : isBusy // ignore: cast_nullable_to_non_nullable
@@ -344,6 +363,18 @@ as String?,
 }
 
 /// Create a copy of GenerateCardState
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$CardTemplateDetailCopyWith<$Res>? get template {
+    if (_self.template == null) {
+    return null;
+  }
+
+  return $CardTemplateDetailCopyWith<$Res>(_self.template!, (value) {
+    return _then(_self.copyWith(template: value));
+  });
+}/// Create a copy of GenerateCardState
 /// with the given fields replaced by the non-null parameter values.
 @override
 @pragma('vm:prefer-inline')

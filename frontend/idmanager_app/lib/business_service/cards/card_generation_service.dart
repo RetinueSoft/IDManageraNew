@@ -1,4 +1,5 @@
 import '../../core_engine/templates/domain/template_layer.dart';
+
 import 'dart:typed_data';
 
 import '../../core_engine/cards/cards_engine.dart';
@@ -33,15 +34,19 @@ class CardGenerationService {
     return [
       for (final layer in template.layers)
         for (final g in layer.groups)
-          if (g.isQr && g.sources.isNotEmpty && (g.sources.first.key ?? '').isNotEmpty)
+          if (g.isQr &&
+              g.sources.isNotEmpty &&
+              (g.sources.first.key ?? '').isNotEmpty)
             (
               key: g.sources.first.key!,
-              label: '${g.name} (${layer.side == CardSide.front ? 'front' : 'back'})',
+              label:
+                  '${g.name} (${layer.side == CardSide.front ? 'front' : 'back'})',
             ),
     ];
   }
 
-  Future<List<ExtractedField>> parsePdf(UploadedFile file) => _cardsEngine.parsePdf(file);
+  Future<List<ExtractedField>> parsePdf(UploadedFile file) =>
+      _cardsEngine.parsePdf(file);
 
   Future<GeneratedCard> generate({
     required int templateId,
@@ -55,6 +60,9 @@ class CardGenerationService {
     qrImages: qrImages,
   );
 
-  Future<Uint8List> downloadPdf(int idCardId, List<TemplateLayer> layers) =>
-      _cardsEngine.download(idCardId, layers);
+  Future<Uint8List> downloadPdf(
+    int idCardId,
+    List<TemplateLayer> layers,
+    int combinationId,
+  ) => _cardsEngine.download(idCardId, layers, combinationId);
 }

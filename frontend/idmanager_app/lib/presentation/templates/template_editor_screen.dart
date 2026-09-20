@@ -12,6 +12,8 @@ import '../../core_engine/common/enums.dart';
 import '../../core_engine/common/uploaded_file.dart';
 import '../../core_engine/templates/domain/field_group.dart';
 import '../../core_engine/templates/domain/template_layer.dart';
+import '../../core_engine/templates/domain/card_background.dart';
+import 'background_bar.dart';
 import 'collapsible_panel.dart';
 import 'layout_workspace.dart';
 import '../routing/app_routes.dart';
@@ -89,9 +91,57 @@ class _EditorBody extends StatelessWidget {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _addBackground(BuildContext context) async {
+    final added = await showAddBackgroundDialog(context);
+    if (added == null) return;
+    final error = await controller.addBackground(
+      name: added.name,
+      front: added.front,
+      back: added.back,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error ?? 'Background "${added.name}" added.')),
+    );
+  }
+
+  Future<void> _deleteBackground(
+    BuildContext context,
+    CardBackground background,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: Text('Remove "${background.name}"?'),
+        content: const Text(
+          'Cards already generated keep working; new cards can no longer use this background.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final error = await controller.deleteBackground(background.id);
+    if (!context.mounted || error == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final template = state.template.template;
+    final backgrounds = state.template.backgrounds;
+    final background = backgroundOrDefault(
+      backgrounds,
+      state.selectedBackgroundId,
+    );
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -150,8 +200,15 @@ class _EditorBody extends StatelessWidget {
               layers: state.layers,
               cardWidthMm: template.cardWidthMm,
               cardHeightMm: template.cardHeightMm,
-              frontImageBase64: template.frontImageBase64,
-              backImageBase64: template.backImageBase64,
+              frontImageBase64: background.frontImageBase64,
+              backImageBase64: background.backImageBase64,
+              topBar: BackgroundBar(
+                backgrounds: backgrounds,
+                selectedId: background.id,
+                onSelect: controller.selectBackground,
+                onAdd: () => _addBackground(context),
+                onDelete: (b) => _deleteBackground(context, b),
+              ),
               side: state.side,
               combined: state.combined,
               selectedGroupId: state.selectedGroupId,

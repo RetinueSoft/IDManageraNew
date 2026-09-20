@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../business_service/providers.dart';
 import '../../core_engine/common/enums.dart';
 import '../../core_engine/common/uploaded_file.dart';
+import '../../core_engine/templates/domain/card_background.dart';
 import '../../core_engine/templates/domain/template_layer.dart';
 import '../points/points_refresh.dart';
 import 'generate_card_state.dart';
@@ -28,33 +29,38 @@ class GenerateCardController extends _$GenerateCardController {
     state = AsyncData(
       current.copyWith(
         selectedTemplateId: templateId,
-        combinationOptions: const [],
-        selectedCombinationId: null,
+        template: null,
+        selectedCombinationId: CardBackground.defaultId,
         qrSlots: const [],
         qrFiles: const {},
         result: null,
+        resultCombinationId: null,
       ),
     );
     if (templateId == null) return;
 
     final service = ref.read(cardGenerationServiceProvider);
-    final options = await service.getCombinationOptions(templateId);
+    final detail = await ref
+        .read(templateServiceProvider)
+        .getTemplate(templateId);
     final slots = await service.getQrSlots(templateId);
     final refreshed = state.value;
-    if (refreshed == null) return;
-    state = AsyncData(
-      refreshed.copyWith(
-        combinationOptions: options,
-        selectedCombinationId: options.isNotEmpty ? options.first.id : null,
-        qrSlots: slots,
-      ),
-    );
+    // The user may have picked another template while this one was loading.
+    if (refreshed == null || refreshed.selectedTemplateId != templateId) return;
+    state = AsyncData(refreshed.copyWith(template: detail, qrSlots: slots));
   }
 
+  /// Chooses the background the next preview is made on (0 = the template's own). The card on
+  /// screen keeps the background it was previewed with until Preview is pressed again - each
+  /// preview is a new card, and points are taken for the card that is downloaded.
   void selectCombination(int? combinationId) {
     final current = state.value;
     if (current == null) return;
-    state = AsyncData(current.copyWith(selectedCombinationId: combinationId));
+    state = AsyncData(
+      current.copyWith(
+        selectedCombinationId: combinationId ?? CardBackground.defaultId,
+      ),
+    );
   }
 
   void setPdfFile(UploadedFile file) {
@@ -167,18 +173,9 @@ class GenerateCardController extends _$GenerateCardController {
   Future<void> generate() async {
     final current = state.value;
     if (current == null) return;
-    // A combination is only needed when the template has some; otherwise the
-    // template's own front and back images are used.
-    final needsCombination = current.combinationOptions.isNotEmpty;
-    if (current.selectedTemplateId == null ||
-        (needsCombination && current.selectedCombinationId == null) ||
-        current.pdfFile == null) {
+    if (current.selectedTemplateId == null || current.pdfFile == null) {
       state = AsyncData(
-        current.copyWith(
-          error: needsCombination
-              ? 'Select a template, a combination and a PDF file.'
-              : 'Select a template and a PDF file.',
-        ),
+        current.copyWith(error: 'Select a template and a PDF file.'),
       );
       return;
     }
@@ -189,7 +186,7 @@ class GenerateCardController extends _$GenerateCardController {
           .read(cardGenerationServiceProvider)
           .generate(
             templateId: current.selectedTemplateId!,
-            combinationId: current.selectedCombinationId ?? 0,
+            combinationId: current.selectedCombinationId,
             file: current.pdfFile!,
             qrImages: current.qrFiles,
           );
@@ -197,6 +194,7 @@ class GenerateCardController extends _$GenerateCardController {
         current.copyWith(
           isBusy: false,
           result: result,
+          resultCombinationId: current.selectedCombinationId,
           combined: true,
           selectedGroupId: null,
         ),
@@ -216,7 +214,11 @@ class GenerateCardController extends _$GenerateCardController {
       // The card is printed as it is shown, including any adjustments made in the preview.
       final bytes = await ref
           .read(cardGenerationServiceProvider)
-          .downloadPdf(current.result!.idCardId, current.result!.layers);
+          .downloadPdf(
+            current.result!.idCardId,
+            current.result!.layers,
+            current.resultCombinationId ?? CardBackground.defaultId,
+          );
       state = AsyncData(current.copyWith(isBusy: false));
       refreshPointsData(
         ref,
