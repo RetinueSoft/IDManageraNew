@@ -247,4 +247,73 @@ public class CardServiceTests
         Assert.Equal(ResultStatus.Success, download.Status);
         Assert.Equal("", PdfText(download.Value!).Trim());
     }
+
+    // ---- QR images are read and regenerated ----
+
+    private static byte[] QrUpload(string text)
+    {
+        // A smaller, softer copy of a QR - the kind of image a user might upload.
+        var sharp = QrCodeRegenerator.Render(text, ZXing.QrCode.Internal.ErrorCorrectionLevel.M);
+        using var source = SkiaSharp.SKBitmap.Decode(sharp);
+        using var small = new SkiaSharp.SKBitmap(260, 260);
+        using (var canvas = new SkiaSharp.SKCanvas(small))
+        {
+            using var paint = new SkiaSharp.SKPaint { FilterQuality = SkiaSharp.SKFilterQuality.High };
+            canvas.DrawBitmap(source, new SkiaSharp.SKRect(0, 0, 260, 260), paint);
+        }
+        using var image = SkiaSharp.SKImage.FromBitmap(small);
+        return image.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100).ToArray();
+    }
+
+    [Fact]
+    public async Task GenerateAsync_ReplacesAnUploadedQrWithOneItGeneratesFromItsContent()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (templateId, combinationId) = await CreateTemplateWithCombinationAsync(db);
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var upload = QrUpload("member-42");
+
+        var result = await NewService(db).GenerateAsync(
+            sa.Id,
+            new GenerateCardCommand
+            {
+                TemplateId = templateId,
+                CombinationId = combinationId,
+                PdfBytes = ValidPdf(),
+                QrImages = [new QrImageDto { Key = "QR 1", Bytes = upload }],
+            },
+            CancellationToken.None);
+
+        Assert.Equal(ResultStatus.Success, result.Status);
+        var stored = System.Text.Json.JsonSerializer.Deserialize<List<ExtractedFieldDto>>(db.IDCards.Single().ExtractedDataJson)!;
+        var qr = Assert.Single(stored, f => f.Key == "QR 1");
+        var storedBytes = Convert.FromBase64String(qr.Value!);
+        Assert.NotEqual(upload, storedBytes);
+        Assert.Equal("member-42", QrCodeRegenerator.Read(storedBytes)?.Text);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_AnUnreadableQrImage_IsRefused_WithoutCreatingACard()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (templateId, combinationId) = await CreateTemplateWithCombinationAsync(db);
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+
+        var result = await NewService(db).GenerateAsync(
+            sa.Id,
+            new GenerateCardCommand
+            {
+                TemplateId = templateId,
+                CombinationId = combinationId,
+                PdfBytes = ValidPdf(),
+                QrImages = [new QrImageDto { Key = "QR 1", Bytes = Png }],
+            },
+            CancellationToken.None);
+
+        Assert.Equal(ResultStatus.ValidationFailed, result.Status);
+        Assert.Contains("QR 1", result.Error);
+        Assert.Empty(db.IDCards);
+    }
 }

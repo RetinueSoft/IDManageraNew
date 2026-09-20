@@ -42,16 +42,26 @@ public class CardService(
 
         var extractedFields = pdfExtractionService.ExtractFields(command.PdfBytes);
 
-        // QR images the user picked are stored with the extracted data (as image fields
-        // keyed by their slot), so the final download re-matches them too.
-        extractedFields.AddRange(command.QrImages
-            .Where(q => q.Bytes.Length > 0 && !string.IsNullOrWhiteSpace(q.Key))
-            .Select(q => new ExtractedFieldDto
+        // Each QR image the user picked is read and a clean QR with the same content is
+        // generated in its place, so a blurry, tilted or badly cropped upload still prints well
+        // (and one that is not a QR at all is refused). The generated images are stored with the
+        // extracted data (as image fields keyed by their slot), so the final download re-matches
+        // them too.
+        foreach (var qr in command.QrImages.Where(q => q.Bytes.Length > 0 && !string.IsNullOrWhiteSpace(q.Key)))
+        {
+            var regenerated = QrCodeRegenerator.Regenerate(qr.Bytes);
+            if (regenerated is null)
             {
-                Key = q.Key,
+                return OperationResult<GenerateCardResponse>.Invalid(
+                    $"Could not read a QR code from the image chosen for '{qr.Key}'. Upload a clear, properly cropped QR image.");
+            }
+            extractedFields.Add(new ExtractedFieldDto
+            {
+                Key = qr.Key,
                 Type = LayerFieldType.Image,
-                Value = Convert.ToBase64String(q.Bytes),
-            }));
+                Value = Convert.ToBase64String(regenerated),
+            });
+        }
 
         var matchResult = await templateService.MatchToTemplateAsync(command.TemplateId, command.CombinationId, extractedFields, ct);
         if (matchResult.Status != ResultStatus.Success)
