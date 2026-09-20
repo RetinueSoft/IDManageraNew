@@ -1,0 +1,7 @@
+# Files that run on Linux (in a container, or on the server) must keep LF line endings even when
+# checked out on Windows - a CR at the end of a shell or Docker line breaks them.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.conf text eol=lf
+docker-compose*.yml text eol=lf
+.env.example text eol=lf
