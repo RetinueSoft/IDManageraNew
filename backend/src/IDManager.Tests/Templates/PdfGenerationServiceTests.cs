@@ -485,4 +485,106 @@ public class PdfGenerationServiceTests
 
         Assert.Contains("DOB: 01-Jan-1968", pdf.GetPage(1).Text);
     }
+
+    // ---- page scale (a larger page for the same card) ----
+
+    private static byte[] RenderScaled(double scale, LayerGroupDto group, byte[]? background = null) =>
+        new PdfGenerationService(scale).GenerateCardPdf(
+            background ?? Png, background ?? Png, 85.6, CardHeightMm,
+            [new TemplateLayerDto { Side = CardSide.Front, Groups = [group] }]);
+
+    private static LayerGroupDto NameAt(double xMm, double yMm, double fontPt = 10) => new()
+    {
+        XMm = xMm, YMm = yMm, WidthMm = 60, FontSizePt = fontPt,
+        Sources = [new LayerSourceItemDto { Value = "Hello" }],
+    };
+
+    [Fact]
+    public void ThePageIsTheCardTimesTheScale_AndDefaultsToTheExactCardSize()
+    {
+        using var exact = PdfDocument.Open(RenderScaled(1, NameAt(10, 10)));
+        using var tripled = PdfDocument.Open(RenderScaled(3, NameAt(10, 10)));
+
+        Assert.Equal(243, exact.GetPage(1).Width, 0);
+        Assert.Equal(153, exact.GetPage(1).Height, 0);
+        // 85.6 x 54 mm scaled by 3, in whole points.
+        Assert.Equal(728, tripled.GetPage(1).Width, 0);
+        Assert.Equal(459, tripled.GetPage(1).Height, 0);
+    }
+
+    [Fact]
+    public void EverySideGetsTheLargerPage()
+    {
+        using var pdf = PdfDocument.Open(RenderScaled(3, NameAt(10, 10)));
+
+        Assert.Equal(2, pdf.NumberOfPages);
+        Assert.Equal(pdf.GetPage(1).Width, pdf.GetPage(2).Width, 1);
+        Assert.Equal(pdf.GetPage(1).Height, pdf.GetPage(2).Height, 1);
+    }
+
+    [Fact]
+    public void TextAndPositionsScaleWithThePage_SoTheLayoutIsTheSame()
+    {
+        using var exact = PdfDocument.Open(RenderScaled(1, NameAt(10, 10, fontPt: 10)));
+        using var tripled = PdfDocument.Open(RenderScaled(3, NameAt(10, 10, fontPt: 10)));
+        var small = exact.GetPage(1).GetWords().First(w => w.Text == "Hello").BoundingBox;
+        var big = tripled.GetPage(1).GetWords().First(w => w.Text == "Hello").BoundingBox;
+
+        // Same place on the card, three times the size on the page (within the page's rounding).
+        Assert.Equal(small.Left * 3, big.Left, 1.5);
+        Assert.Equal(small.Width * 3, big.Width, 1.5);
+        Assert.Equal(small.Height * 3, big.Height, 2.5);
+        // Measured from the top of the card the text is at the same fraction of the page.
+        var smallFromTop = (exact.GetPage(1).Height - small.Top) / exact.GetPage(1).Height;
+        var bigFromTop = (tripled.GetPage(1).Height - big.Top) / tripled.GetPage(1).Height;
+        Assert.Equal(smallFromTop, bigFromTop, 2);
+    }
+
+    [Theory]
+    [InlineData(0.2, 1)]
+    [InlineData(-5, 1)]
+    [InlineData(double.NaN, 1)]
+    [InlineData(2.5, 2.5)]
+    [InlineData(50, 10)]
+    public void ThePageScaleIsKeptWithinSaneLimits(double requested, double expected)
+    {
+        Assert.Equal(expected, new PdfGenerationService(requested).PageScale);
+    }
+
+    [Fact]
+    public void TheAppDefaultIsALargerPage()
+    {
+        Assert.True(PdfGenerationService.DefaultPageScale > 1);
+    }
+
+    [Fact]
+    public void ImagesAreEmbeddedAtTheirFullResolution_AndJpegsAreNotRecompressed()
+    {
+        // A 1600 x 1000 photo-like image, as both a PNG and a JPEG.
+        using var bitmap = new SkiaSharp.SKBitmap(1600, 1000);
+        using (var canvas = new SkiaSharp.SKCanvas(bitmap))
+        {
+            using var paint = new SkiaSharp.SKPaint
+            {
+                Shader = SkiaSharp.SKShader.CreateLinearGradient(
+                    new SkiaSharp.SKPoint(0, 0), new SkiaSharp.SKPoint(1600, 1000),
+                    [SkiaSharp.SKColors.Red, SkiaSharp.SKColors.Blue], SkiaSharp.SKShaderTileMode.Clamp),
+            };
+            canvas.DrawRect(0, 0, 1600, 1000, paint);
+        }
+        using var image = SkiaSharp.SKImage.FromBitmap(bitmap);
+        var png = image.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100).ToArray();
+        var jpeg = image.Encode(SkiaSharp.SKEncodedImageFormat.Jpeg, 92).ToArray();
+
+        foreach (var (source, isJpeg) in new[] { (png, false), (jpeg, true) })
+        {
+            using var pdf = PdfDocument.Open(RenderScaled(3, NameAt(10, 10), source));
+            var embedded = pdf.GetPage(1).GetImages().Single();
+
+            Assert.Equal(1600, embedded.WidthInSamples);
+            Assert.Equal(1000, embedded.HeightInSamples);
+            // A JPEG goes into the PDF as the very same bytes - no second lossy pass.
+            if (isJpeg) Assert.Equal(source, embedded.RawBytes.ToArray());
+        }
+    }
 }

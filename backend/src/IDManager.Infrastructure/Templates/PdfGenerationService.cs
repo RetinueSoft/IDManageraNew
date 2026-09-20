@@ -27,6 +27,28 @@ public class PdfGenerationService
     // CombinedLayerText.lineHeightFactor.
     private const double LineHeightFactor = 1.2;
 
+    /// The page is the card scaled up by this much. 1 is the exact physical card size; the
+    /// app uses a larger page (see DefaultPageScale) so the card is not a tiny page in a
+    /// viewer. Everything on the page - background, layers, text - is scaled together, so the
+    /// layout is the same at any scale, and stays vector.
+    public double PageScale { get; }
+
+    /// What the app uses: a card page 2.31 times the card size (about 198 x 125 mm for an
+    /// 85.6 x 54 mm card).
+    public const double DefaultPageScale = 2.31;
+
+    public const double MinPageScale = 1;
+    public const double MaxPageScale = 10;
+
+    // Resolution for anything the PDF cannot keep as vector or as the original image (effects
+    // such as shadows). Images themselves are embedded at their full original resolution.
+    private const float PdfRasterDpi = 300;
+
+    public PdfGenerationService(double pageScale = 1)
+    {
+        PageScale = Math.Clamp(double.IsFinite(pageScale) ? pageScale : 1, MinPageScale, MaxPageScale);
+    }
+
     public byte[] GenerateCardPdf(
         byte[] frontImage,
         byte[] backImage,
@@ -37,17 +59,29 @@ public class PdfGenerationService
         // A PDF stores its page size in whole points, so the page is the card size rounded to
         // the nearest point (under 0.2 mm off). The background is drawn to that page size so
         // no white sliver is left at the edge; layer positions still use exact millimeters.
-        var widthPt = MathF.Round((float)(cardWidthMm * MmToPt));
-        var heightPt = MathF.Round((float)(cardHeightMm * MmToPt));
+        //
+        // With a page scale the page is that many times larger (rounded to whole points) and the
+        // whole drawing is scaled up to it; the background still covers the page exactly.
+        var scale = (float)PageScale;
+        var pageWidthPt = MathF.Round((float)(cardWidthMm * MmToPt) * scale);
+        var pageHeightPt = MathF.Round((float)(cardHeightMm * MmToPt) * scale);
+        var widthPt = pageWidthPt / scale;
+        var heightPt = pageHeightPt / scale;
 
         using var stream = new SKDynamicMemoryWStream();
-        using (var document = SKDocument.CreatePdf(stream))
+        var metadata = new SKDocumentPdfMetadata
+        {
+            RasterDpi = PdfRasterDpi,
+            EncodingQuality = 101, // lossless: never re-compress an image lossily
+        };
+        using (var document = SKDocument.CreatePdf(stream, metadata))
         using (var renderer = new CardSideRenderer())
         {
             var sides = new[] { (Side: CardSide.Front, Background: frontImage), (Side: CardSide.Back, Background: backImage) };
             foreach (var (side, background) in sides)
             {
-                var canvas = document.BeginPage(widthPt, heightPt);
+                var canvas = document.BeginPage(pageWidthPt, pageHeightPt);
+                canvas.Scale(scale);
                 renderer.Draw(canvas, widthPt, heightPt, background, layers.FirstOrDefault(l => l.Side == side));
                 document.EndPage();
             }

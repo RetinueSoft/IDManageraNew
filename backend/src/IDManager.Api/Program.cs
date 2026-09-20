@@ -30,7 +30,9 @@ builder.Services.AddScoped<TemplateService>();
 builder.Services.AddScoped<CardService>();
 builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddSingleton<PdfExtractionService>();
-builder.Services.AddSingleton<PdfGenerationService>();
+// The card PDF page is the card scaled up by Pdf:PageScale (default 3; 1 = exact card size).
+builder.Services.AddSingleton(sp => new PdfGenerationService(
+    sp.GetRequiredService<IConfiguration>().GetValue("Pdf:PageScale", PdfGenerationService.DefaultPageScale)));
 builder.Services.AddSingleton<JwtTokenGenerator>();
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
