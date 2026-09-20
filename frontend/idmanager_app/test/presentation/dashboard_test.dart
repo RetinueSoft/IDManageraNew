@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,6 +22,7 @@ List<MonthlyPoints> twelveMonths({Map<int, (int, int)> byIndex = const {}}) => [
 ];
 
 DashboardSummary summary({int? members = 4, Map<int, (int, int)> byIndex = const {}}) => DashboardSummary(
+  membersByRole: members == null ? null : MemberRoleCounts(distributors: 1, retailers: members - 2, users: 1),
   balance: 97,
   creditThisMonth: 12,
   debitThisMonth: 3,
@@ -32,29 +34,38 @@ DashboardSummary summary({int? members = 4, Map<int, (int, int)> byIndex = const
   months: twelveMonths(byIndex: byIndex),
 );
 
-final _me = User(
+User _userWith(UserRole role) => User(
   id: 1,
   name: 'Admin',
   phone: '9999999999',
-  role: UserRole.superAdmin,
+  role: role,
   isActive: true,
   points: 0,
   createdAt: DateTime(2024),
 );
 
 class _FakeSession extends SessionController {
+  _FakeSession([this.role = UserRole.superAdmin]);
+
+  final UserRole role;
+
   @override
-  Future<User?> build() async => _me;
+  Future<User?> build() async => _userWith(role);
 }
 
-Future<void> pumpDashboard(WidgetTester tester, DashboardSummary data, {double width = 1400}) async {
+Future<void> pumpDashboard(
+  WidgetTester tester,
+  DashboardSummary data, {
+  double width = 1400,
+  UserRole role = UserRole.superAdmin,
+}) async {
   tester.view.physicalSize = Size(width, 1800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        sessionControllerProvider.overrideWith(_FakeSession.new),
+        sessionControllerProvider.overrideWith(() => _FakeSession(role)),
         dashboardSummaryProvider.overrideWith((ref) async => data),
       ],
       child: const MaterialApp(home: DashboardScreen()),
@@ -113,6 +124,7 @@ void main() {
     expect(data.debitThisMonth, 0);
     expect(data.cardsTotal, 41);
     expect(data.membersCount, isNull);
+    expect(data.membersByRole, isNull);
     expect(data.months.map((m) => (m.month, m.credit, m.debit)), [(9, 5, 2), (8, 0, 0)]);
     expect(dashboardSummaryFromJson({}).months, isEmpty);
   });
@@ -335,6 +347,159 @@ void main() {
 
       expect(find.text('Point balance'), findsOneWidget);
       expect(calls, 2);
+    });
+  });
+
+  group('who sees what', () {
+    const everythingButTheBalance = [
+      'Credited this month',
+      'Debited this month',
+      'Credited as of now',
+      'Debited as of now',
+      'Cards this month',
+      'Cards as of now',
+      'Members',
+    ];
+    const graphTitles = ['Points credited, month by month', 'Points debited, month by month'];
+
+    testWidgets('the Super Admin sees the balance, every card and both graphs', (tester) async {
+      await pumpDashboard(tester, summary(byIndex: {11: (12, 3)}));
+
+      expect(find.text('Point balance'), findsOneWidget);
+      for (final label in everythingButTheBalance) {
+        expect(find.text(label), findsOneWidget, reason: label);
+      }
+      for (final title in graphTitles) {
+        expect(find.text(title), findsOneWidget, reason: title);
+      }
+      expect(find.byKey(const ValueKey('bar-11')), findsNWidgets(2));
+    });
+
+    for (final role in [UserRole.distributor, UserRole.retailer, UserRole.user]) {
+      testWidgets('a ${role.label} sees only the point balance', (tester) async {
+        await pumpDashboard(tester, summary(byIndex: {11: (12, 3)}), role: role);
+
+        expect(find.text('Point balance'), findsOneWidget);
+        expect(find.text('97'), findsOneWidget);
+        // No credit or debit cards, no card counts, no member count ...
+        for (final label in everythingButTheBalance) {
+          expect(find.text(label), findsNothing, reason: label);
+        }
+        // ... and no graphs.
+        for (final title in graphTitles) {
+          expect(find.text(title), findsNothing, reason: title);
+        }
+        expect(find.byType(MonthlyBarChart), findsNothing);
+        // Just the one card.
+        expect(find.byType(Card), findsOneWidget);
+      });
+    }
+
+    testWidgets('the balance is a full-width card for everyone else', (tester) async {
+      await pumpDashboard(tester, summary(), role: UserRole.retailer);
+      final balance = tester.getRect(find.ancestor(of: find.text('Point balance'), matching: find.byType(Card)).first);
+
+      expect(balance.left, closeTo(24, 1));
+      expect(balance.right, closeTo(1400 - 24, 1));
+    });
+
+    testWidgets('someone else cannot get the rest by a summary that happens to carry the numbers', (tester) async {
+      // The server sends every member their own figures; what is shown depends on the role alone.
+      await pumpDashboard(tester, summary(members: 7, byIndex: {11: (500, 400)}), role: UserRole.distributor);
+
+      expect(find.text('500'), findsNothing);
+      expect(find.text('400'), findsNothing);
+      expect(find.text('7'), findsNothing);
+    });
+  });
+
+  group('the Members card counts by role', () {
+    test('the JSON by-role counts are read, and they add up', () {
+      final data = dashboardSummaryFromJson({
+        'membersCount': 7,
+        'membersByRole': {'distributors': 2, 'retailers': 3, 'users': 2},
+      });
+
+      expect(data.membersByRole!.distributors, 2);
+      expect(data.membersByRole!.retailers, 3);
+      expect(data.membersByRole!.users, 2);
+      expect(data.membersByRole!.total, 7);
+      expect(data.membersCount, 7);
+    });
+
+    Tooltip membersTooltipWidget(WidgetTester tester) =>
+        tester.widget<Tooltip>(find.ancestor(of: find.text('Members'), matching: find.byType(Tooltip)).first);
+
+    testWidgets('the tile shows just the total - no role lines on the card itself', (tester) async {
+      await pumpDashboard(tester, summary(members: 6));
+
+      expect(find.text('Members'), findsOneWidget);
+      expect(find.text('6'), findsWidgets);
+      expect(find.textContaining('Distributors'), findsNothing);
+      expect(find.textContaining('Retailers'), findsNothing);
+    });
+
+    testWidgets('it is no taller than the other cards', (tester) async {
+      await pumpDashboard(tester, summary(members: 6));
+      Rect card(String label) =>
+          tester.getRect(find.ancestor(of: find.text(label), matching: find.byType(Card)).first);
+
+      // A label can wrap onto a second line on a narrow card, so compare with the tallest of the others.
+      final others = ['Cards this month', 'Cards as of now', 'Credited this month', 'Debited as of now']
+          .map((label) => card(label).height)
+          .reduce((a, b) => a > b ? a : b);
+      expect(card('Members').height, lessThanOrEqualTo(others));
+    });
+
+    testWidgets('hovering it shows the count by role', (tester) async {
+      await pumpDashboard(tester, summary(members: 6));
+
+      expect(membersTooltipWidget(tester).message, 'Distributors: 1\nRetailers: 4\nUsers: 1');
+
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(gesture.removePointer);
+      await gesture.moveTo(tester.getCenter(find.text('Members')));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.text('Distributors: 1\nRetailers: 4\nUsers: 1'), findsOneWidget);
+    });
+
+    testWidgets('a role with nobody in it still shows in the tooltip, as 0', (tester) async {
+      final data = DashboardSummary(
+        balance: 1,
+        creditThisMonth: 0,
+        debitThisMonth: 0,
+        creditTotal: 0,
+        debitTotal: 0,
+        cardsThisMonth: 0,
+        cardsTotal: 0,
+        membersCount: 3,
+        membersByRole: const MemberRoleCounts(distributors: 0, retailers: 3, users: 0),
+        months: twelveMonths(),
+      );
+      await pumpDashboard(tester, data);
+
+      expect(membersTooltipWidget(tester).message, 'Distributors: 0\nRetailers: 3\nUsers: 0');
+    });
+
+    test('membersTooltip lists the roles one per line', () {
+      expect(
+        membersTooltip(const MemberRoleCounts(distributors: 2, retailers: 3, users: 5)),
+        'Distributors: 2\nRetailers: 3\nUsers: 5',
+      );
+    });
+
+    testWidgets('the other cards have no tooltip', (tester) async {
+      await pumpDashboard(tester, summary(members: 6));
+
+      expect(find.byType(Tooltip).evaluate().where((e) => ((e.widget as Tooltip).message ?? '').contains('Distributors')), hasLength(1));
+    });
+
+    testWidgets('other roles do not get the tile at all', (tester) async {
+      await pumpDashboard(tester, summary(members: 6), role: UserRole.distributor);
+
+      expect(find.text('Members'), findsNothing);
+      expect(find.textContaining('Distributors'), findsNothing);
     });
   });
 }

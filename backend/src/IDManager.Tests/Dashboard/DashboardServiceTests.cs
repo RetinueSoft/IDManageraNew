@@ -156,7 +156,7 @@ public class DashboardServiceTests
     // ------------------------------------------------------------------ cards and members
 
     [Fact]
-    public async Task CardsCountOnlyDownloadedOnes_ThisMonthAndInAll()
+    public async Task CardsCountEveryCardGenerated_DownloadedOrNot_ThisMonthAndInAll()
     {
         using var testDb = TestDb.Create();
         var db = testDb.Context;
@@ -168,8 +168,8 @@ public class DashboardServiceTests
 
         var summary = await SummaryAsync(db, user.Id);
 
-        Assert.Equal(2, summary.CardsThisMonth);
-        Assert.Equal(3, summary.CardsTotal);
+        Assert.Equal(3, summary.CardsThisMonth); // the previewed one counts too
+        Assert.Equal(4, summary.CardsTotal);
     }
 
     [Fact]
@@ -192,8 +192,9 @@ public class DashboardServiceTests
         var forB = await SummaryAsync(db, b.Id);
         var forC = await SummaryAsync(db, c.Id);
 
-        // The SuperAdmin sees everyone; a Retailer only themselves and their own members.
+        // The SuperAdmin counts the whole app: every card, and every member but themselves.
         Assert.Equal((4, 3), (forSa.CardsTotal, forSa.MembersCount));
+        // A Retailer only themselves and their own members.
         Assert.Equal((3, 1), (forA.CardsTotal, forA.MembersCount));  // A + B (not C)
         Assert.Equal((3, 1), (forB.CardsTotal, forB.MembersCount));  // B + C (not A)
         // A User has no member screens: no member count, and only their own cards.
@@ -219,5 +220,101 @@ public class DashboardServiceTests
 
         Assert.Equal(2, summary.MembersCount);   // R and U, not the outsider
         Assert.Equal(1, summary.CardsTotal);
+    }
+
+    [Fact]
+    public async Task TheSuperAdminsCountsCoverTheWholeApp_EvenMembersDeepInTheTree()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var d = await TestUsers.AddAsync(db, "D", UserRole.Distributor, sa);
+        var r = await TestUsers.AddAsync(db, "R", UserRole.Retailer, d);
+        var u = await TestUsers.AddAsync(db, "U", UserRole.User, r);
+        var other = await TestUsers.AddAsync(db, "O", UserRole.Distributor, sa);
+        var when = new DateTime(2026, 9, 3, 0, 0, 0, DateTimeKind.Utc);
+        foreach (var member in new[] { sa, d, r, u, other })
+        {
+            await AddCardAsync(db, member.Id, when, downloaded: member.Id % 2 == 0);
+        }
+
+        var summary = await SummaryAsync(db, sa.Id);
+
+        Assert.Equal(5, summary.CardsTotal);
+        Assert.Equal(5, summary.CardsThisMonth);
+        Assert.Equal(4, summary.MembersCount); // everyone but the Super Admin
+    }
+
+    [Fact]
+    public async Task ADistributorsCountsStayWithTheirBranch()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var d = await TestUsers.AddAsync(db, "D", UserRole.Distributor, sa);
+        var r = await TestUsers.AddAsync(db, "R", UserRole.Retailer, d);
+        var outsider = await TestUsers.AddAsync(db, "O", UserRole.Distributor, sa);
+        var when = new DateTime(2026, 9, 3, 0, 0, 0, DateTimeKind.Utc);
+        await AddCardAsync(db, d.Id, when, downloaded: false);
+        await AddCardAsync(db, r.Id, when);
+        await AddCardAsync(db, outsider.Id, when);
+
+        var summary = await SummaryAsync(db, d.Id);
+
+        Assert.Equal(2, summary.CardsTotal);   // their own and R's, not the outsider's
+        Assert.Equal(1, summary.MembersCount); // R
+    }
+
+    [Fact]
+    public async Task Members_AreCountedByRole_ForTheSuperAdmin_WithoutTheSuperAdmin()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var d1 = await TestUsers.AddAsync(db, "D1", UserRole.Distributor, sa);
+        await TestUsers.AddAsync(db, "D2", UserRole.Distributor, sa);
+        var r1 = await TestUsers.AddAsync(db, "R1", UserRole.Retailer, d1);
+        await TestUsers.AddAsync(db, "R2", UserRole.Retailer, sa);
+        await TestUsers.AddAsync(db, "R3", UserRole.Retailer, r1);
+        await TestUsers.AddAsync(db, "U1", UserRole.User, r1);
+        await TestUsers.AddAsync(db, "U2", UserRole.User, sa);
+
+        var summary = await SummaryAsync(db, sa.Id);
+
+        Assert.Equal((2, 3, 2), (summary.MembersByRole!.Distributors, summary.MembersByRole.Retailers, summary.MembersByRole.Users));
+        Assert.Equal(7, summary.MembersCount);
+        Assert.Equal(summary.MembersCount, summary.MembersByRole.Total);
+    }
+
+    [Fact]
+    public async Task Members_ForADistributor_AreTheirBranchByRole()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var d = await TestUsers.AddAsync(db, "D", UserRole.Distributor, sa);
+        var r = await TestUsers.AddAsync(db, "R", UserRole.Retailer, d);
+        await TestUsers.AddAsync(db, "U", UserRole.User, r);
+        var outsider = await TestUsers.AddAsync(db, "O", UserRole.Distributor, sa);
+        await TestUsers.AddAsync(db, "OU", UserRole.User, outsider);
+
+        var summary = await SummaryAsync(db, d.Id);
+
+        Assert.Equal((0, 1, 1), (summary.MembersByRole!.Distributors, summary.MembersByRole.Retailers, summary.MembersByRole.Users));
+        Assert.Equal(2, summary.MembersCount);
+    }
+
+    [Fact]
+    public async Task Members_ForAUser_AreNotCountedAtAll()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var u = await TestUsers.AddAsync(db, "U", UserRole.User, sa);
+
+        var summary = await SummaryAsync(db, u.Id);
+
+        Assert.Null(summary.MembersCount);
+        Assert.Null(summary.MembersByRole);
     }
 }

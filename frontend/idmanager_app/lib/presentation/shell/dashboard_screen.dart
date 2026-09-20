@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/dashboard/dashboard_controller.dart';
 import '../../application/security/session_controller.dart';
+import '../../core_engine/common/enums.dart';
 import '../../core_engine/dashboard/domain/dashboard_summary.dart';
 import 'monthly_bar_chart.dart';
 
@@ -55,7 +56,11 @@ class DashboardScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            data: (summary) => DashboardContent(summary: summary),
+            data: (summary) => DashboardContent(
+              summary: summary,
+              // Everything but the point balance is for the Super Admin alone.
+              isSuperAdmin: user?.role == UserRole.superAdmin,
+            ),
           ),
         ],
       ),
@@ -63,11 +68,18 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-/// The dashboard's cards and month-wise graphs for [summary].
+/// The dashboard's cards and month-wise graphs for [summary]. Everyone sees their point balance; the
+/// rest - the points credited and debited, the card counts, the member count and the two month-wise
+/// graphs - is shown only when [isSuperAdmin] is set.
 class DashboardContent extends StatelessWidget {
-  const DashboardContent({super.key, required this.summary});
+  const DashboardContent({
+    super.key,
+    required this.summary,
+    this.isSuperAdmin = false,
+  });
 
   final DashboardSummary summary;
+  final bool isSuperAdmin;
 
   @override
   Widget build(BuildContext context) {
@@ -94,30 +106,32 @@ class DashboardContent extends StatelessWidget {
       ),
     ];
     final detailRow = [
-      _StatCard(
-        icon: Icons.south_west,
-        value: summary.creditThisMonth,
-        label: 'Credited this month',
-        color: creditColor,
-      ),
-      _StatCard(
-        icon: Icons.north_east,
-        value: summary.debitThisMonth,
-        label: 'Debited this month',
-        color: debitColor,
-      ),
-      _StatCard(
-        icon: Icons.add_circle_outline,
-        value: summary.creditTotal,
-        label: 'Credited as of now',
-        color: creditColor,
-      ),
-      _StatCard(
-        icon: Icons.remove_circle_outline,
-        value: summary.debitTotal,
-        label: 'Debited as of now',
-        color: debitColor,
-      ),
+      if (isSuperAdmin) ...[
+        _StatCard(
+          icon: Icons.south_west,
+          value: summary.creditThisMonth,
+          label: 'Credited this month',
+          color: creditColor,
+        ),
+        _StatCard(
+          icon: Icons.north_east,
+          value: summary.debitThisMonth,
+          label: 'Debited this month',
+          color: debitColor,
+        ),
+        _StatCard(
+          icon: Icons.add_circle_outline,
+          value: summary.creditTotal,
+          label: 'Credited as of now',
+          color: creditColor,
+        ),
+        _StatCard(
+          icon: Icons.remove_circle_outline,
+          value: summary.debitTotal,
+          label: 'Debited as of now',
+          color: debitColor,
+        ),
+      ],
       _StatCard(
         icon: Icons.badge_outlined,
         value: summary.cardsThisMonth,
@@ -136,6 +150,10 @@ class DashboardContent extends StatelessWidget {
           value: summary.membersCount!,
           label: 'Members',
           color: scheme.secondary,
+          // Hover the card for the breakdown by role (the card itself stays the same size as the others).
+          tooltip: summary.membersByRole == null
+              ? null
+              : membersTooltip(summary.membersByRole!),
         ),
     ];
 
@@ -158,27 +176,29 @@ class DashboardContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _StretchedRow(children: balanceRow),
-        const SizedBox(height: 16),
-        _StretchedRow(children: detailRow),
-        const SizedBox(height: 20),
-        LayoutBuilder(
-          builder: (context, constraints) => constraints.maxWidth >= 900
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: creditChart),
-                    const SizedBox(width: 16),
-                    Expanded(child: debitChart),
-                  ],
-                )
-              : Column(
-                  children: [
-                    creditChart,
-                    const SizedBox(height: 16),
-                    debitChart,
-                  ],
-                ),
-        ),
+        if (isSuperAdmin) ...[
+          const SizedBox(height: 16),
+          _StretchedRow(children: detailRow),
+          const SizedBox(height: 20),
+          LayoutBuilder(
+            builder: (context, constraints) => constraints.maxWidth >= 900
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: creditChart),
+                      const SizedBox(width: 16),
+                      Expanded(child: debitChart),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      creditChart,
+                      const SizedBox(height: 16),
+                      debitChart,
+                    ],
+                  ),
+          ),
+        ],
       ],
     );
   }
@@ -190,6 +210,7 @@ class _StatCard extends StatelessWidget {
     required this.value,
     required this.label,
     required this.color,
+    this.tooltip,
   });
 
   final IconData icon;
@@ -197,8 +218,21 @@ class _StatCard extends StatelessWidget {
   final String label;
   final Color color;
 
+  /// Shown when the pointer rests on the card (the Members card gives its count by role).
+  final String? tooltip;
+
   @override
   Widget build(BuildContext context) {
+    final card = _card(context);
+    if (tooltip == null) return card;
+    return Tooltip(
+      message: tooltip!,
+      waitDuration: const Duration(milliseconds: 250),
+      child: MouseRegion(cursor: SystemMouseCursors.help, child: card),
+    );
+  }
+
+  Widget _card(BuildContext context) {
     return Card(
       margin: EdgeInsets.zero,
       child: SizedBox(
@@ -260,3 +294,7 @@ class _StretchedRow extends StatelessWidget {
     );
   }
 }
+
+/// What the Members card says when hovered: the members counted by role, one line each.
+String membersTooltip(MemberRoleCounts counts) =>
+    'Distributors: ${counts.distributors}\nRetailers: ${counts.retailers}\nUsers: ${counts.users}';

@@ -51,8 +51,29 @@ public class DashboardService(IDManagerDbContext db)
         var creditTotal = await own.Where(t => t.Type == PointTransType.Earn || t.Type == PointTransType.EarnForCard).SumAsync(t => (int?)t.Points, ct) ?? 0;
         var debitTotal = await own.Where(t => t.Type == PointTransType.Spend || t.Type == PointTransType.SpendForCard).SumAsync(t => (int?)t.Points, ct) ?? 0;
 
-        var visible = (await _hierarchy.GetVisibleMembersAsync(user, ct)).Select(m => m.Id);
-        var cards = db.IDCards.Where(c => c.GeneratedPdf != null && visible.Contains(c.UserId));
+        var visibleMembers = await _hierarchy.GetVisibleMembersAsync(user, ct);
+        var visible = visibleMembers.Select(m => m.Id);
+        // Every card generated - previewed or downloaded. The Super Admin sees everyone, so theirs is the whole app.
+        var cards = db.IDCards.Where(c => visible.Contains(c.UserId));
+
+        // Members: everyone they can see, except themselves and any Super Admin - for the Super Admin that
+        // is every member of the whole app - counted by role. Nobody without member screens has any.
+        MemberRoleCountsDto? members = null;
+        if (MemberHierarchyService.CanManageMembers(user.Role))
+        {
+            var roles = await visibleMembers
+                .Where(m => m.Id != userId && m.Role != UserRole.SuperAdmin)
+                .GroupBy(m => m.Role)
+                .Select(g => new { Role = g.Key, Count = g.Count() })
+                .ToListAsync(ct);
+            int Of(UserRole role) => roles.FirstOrDefault(r => r.Role == role)?.Count ?? 0;
+            members = new MemberRoleCountsDto
+            {
+                Distributors = Of(UserRole.Distributor),
+                Retailers = Of(UserRole.Retailer),
+                Users = Of(UserRole.User),
+            };
+        }
 
         var current = months[^1];
         return OperationResult<DashboardSummaryDto>.Success(new DashboardSummaryDto
@@ -64,9 +85,8 @@ public class DashboardService(IDManagerDbContext db)
             DebitTotal = debitTotal,
             CardsThisMonth = await cards.CountAsync(c => c.CreatedAt >= thisMonth, ct),
             CardsTotal = await cards.CountAsync(ct),
-            MembersCount = MemberHierarchyService.CanManageMembers(user.Role)
-                ? await visible.CountAsync(id => id != userId, ct)
-                : null,
+            MembersCount = members?.Total,
+            MembersByRole = members,
             Months = months,
         });
     }

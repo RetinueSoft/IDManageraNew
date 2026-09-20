@@ -15,6 +15,21 @@ class MonthlyPoints {
   final int debit;
 }
 
+/// The members counted by role (a Super Admin is never counted as a member).
+class MemberRoleCounts {
+  const MemberRoleCounts({
+    required this.distributors,
+    required this.retailers,
+    required this.users,
+  });
+
+  final int distributors;
+  final int retailers;
+  final int users;
+
+  int get total => distributors + retailers + users;
+}
+
 /// What the dashboard shows the signed-in member.
 class DashboardSummary {
   const DashboardSummary({
@@ -27,6 +42,7 @@ class DashboardSummary {
     required this.cardsTotal,
     required this.membersCount,
     required this.months,
+    this.membersByRole,
   });
 
   final int balance;
@@ -39,6 +55,9 @@ class DashboardSummary {
 
   /// How many members they can see (not counting themselves); null when they have no member screens.
   final int? membersCount;
+
+  /// The same members by role; null when [membersCount] is.
+  final MemberRoleCounts? membersByRole;
 
   /// The last twelve months, oldest first.
   final List<MonthlyPoints> months;

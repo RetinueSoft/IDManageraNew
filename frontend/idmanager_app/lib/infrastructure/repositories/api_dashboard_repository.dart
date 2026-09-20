@@ -12,6 +12,23 @@ DashboardSummary dashboardSummaryFromJson(Map<String, dynamic> json) =>
       cardsThisMonth: json['cardsThisMonth'] as int? ?? 0,
       cardsTotal: json['cardsTotal'] as int? ?? 0,
       membersCount: json['membersCount'] as int?,
+      membersByRole: json['membersByRole'] is Map<String, dynamic>
+          ? MemberRoleCounts(
+              distributors:
+                  (json['membersByRole']
+                          as Map<String, dynamic>)['distributors']
+                      as int? ??
+                  0,
+              retailers:
+                  (json['membersByRole'] as Map<String, dynamic>)['retailers']
+                      as int? ??
+                  0,
+              users:
+                  (json['membersByRole'] as Map<String, dynamic>)['users']
+                      as int? ??
+                  0,
+            )
+          : null,
       months: [
         for (final m in json['months'] as List<dynamic>? ?? const [])
           MonthlyPoints(
