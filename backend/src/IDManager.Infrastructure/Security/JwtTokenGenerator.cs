@@ -9,6 +9,8 @@ namespace IDManager.Infrastructure.Security;
 
 public class JwtTokenGenerator
 {
+    public const int DefaultExpiryMinutes = 30;
+
     private readonly string _key;
     private readonly int _expiryMinutes;
 
@@ -16,7 +18,8 @@ public class JwtTokenGenerator
     {
         _key = configuration["Jwt:Key"]
             ?? throw new InvalidOperationException("Jwt:Key is not configured.");
-        _expiryMinutes = configuration.GetValue("Jwt:ExpiryMinutes", 480);
+        // A login lasts this long from the moment of login (30 minutes unless configured otherwise).
+        _expiryMinutes = configuration.GetValue("Jwt:ExpiryMinutes", DefaultExpiryMinutes);
     }
 
     public string GenerateToken(UserEntity user)

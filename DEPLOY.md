@@ -93,6 +93,7 @@ docker compose exec postgres pg_dump -U postgres IDManager > idmanager-$(date +%
 | --------------------- | ------ | -------------------------------------------------------------------------------- |
 | `POSTGRES_PASSWORD`   | yes    | the database password                                                            |
 | `JWT_KEY`             | yes    | secret that signs login tokens (32+ random characters); changing it logs everyone out |
+| `JWT_EXPIRY_MINUTES`  | no     | how long a login lasts, from the moment of login (default `30`)                  |
 | `IDCM_PUBLIC_HOST`    | no     | server IP/domain, for the API's CORS origin (defaults to `localhost`)            |
 | `SEED_ADMIN_PHONE`    | no     | first Super Admin's phone (default `9943135008`)                                 |
 | `SEED_ADMIN_PASSWORD` | no     | first Super Admin's password (default `Red@123`)                                 |

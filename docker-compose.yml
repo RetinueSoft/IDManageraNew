@@ -31,6 +31,8 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Default: "Host=postgres;Port=5432;Database=IDManager;Username=postgres;Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}"
       Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env}
+      # How long a login lasts, in minutes, from the moment of login.
+      Jwt__ExpiryMinutes: ${JWT_EXPIRY_MINUTES:-30}
       Cors__AllowedOrigins__0: "http://${IDCM_PUBLIC_HOST:-localhost}:5144"
       # The Super Admin created on the very first start (only when the database has no users).
       SeedAdmin__Phone: ${SEED_ADMIN_PHONE:-9943135008}

@@ -108,4 +108,27 @@ public class AuthServiceTests
 
         Assert.Equal(ResultStatus.Forbidden, result.Status);
     }
+
+    [Fact]
+    public void ALoginLastsThirtyMinutesUnlessConfiguredOtherwise()
+    {
+        var withoutSetting = new JwtTokenGenerator(new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Jwt:Key"] = "test-signing-key-at-least-32-characters-long" })
+            .Build());
+        var user = new UserEntity { Id = 1, Name = "A", Role = UserRole.User };
+
+        var token = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().ReadJwtToken(withoutSetting.GenerateToken(user));
+
+        Assert.Equal(30, JwtTokenGenerator.DefaultExpiryMinutes);
+        Assert.InRange((token.ValidTo - DateTime.UtcNow).TotalMinutes, 29, 30.1);
+    }
+
+    [Fact]
+    public void TheApiShipsWith30MinutesInItsSettingsFile()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "IDManager.Api", "appsettings.json");
+        var json = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
+
+        Assert.Equal(30, json.RootElement.GetProperty("Jwt").GetProperty("ExpiryMinutes").GetInt32());
+    }
 }
