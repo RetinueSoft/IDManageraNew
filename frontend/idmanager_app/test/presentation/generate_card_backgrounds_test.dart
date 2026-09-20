@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:idmanager_app/application/cards/generate_card_controller.dart';
+import 'package:idmanager_app/application/security/session_controller.dart';
 import 'package:idmanager_app/business_service/cards/card_generation_service.dart';
 import 'package:idmanager_app/business_service/providers.dart';
 import 'package:idmanager_app/business_service/templates/template_service.dart';
@@ -14,9 +15,26 @@ import 'package:idmanager_app/core_engine/common/enums.dart';
 import 'package:idmanager_app/core_engine/common/lookup_option.dart';
 import 'package:idmanager_app/core_engine/common/uploaded_file.dart';
 import 'package:idmanager_app/core_engine/templates/domain/card_template.dart';
+import 'package:idmanager_app/core_engine/security/domain/user.dart';
 import 'package:idmanager_app/core_engine/templates/domain/template_layer.dart';
+import 'package:idmanager_app/presentation/shared/widgets/preview_watermark.dart';
 import 'package:idmanager_app/presentation/cards/generate_card_screen.dart';
 import 'package:idmanager_app/presentation/templates/collapsible_panel.dart';
+
+final _me = User(
+  id: 1,
+  name: 'Ravi Kumar',
+  phone: '9943135008',
+  role: UserRole.retailer,
+  isActive: true,
+  points: 10,
+  createdAt: DateTime(2024),
+);
+
+class _FakeSession extends SessionController {
+  @override
+  Future<User?> build() async => _me;
+}
 
 class _FakeTemplates implements TemplateService {
   @override
@@ -99,6 +117,7 @@ Future<(ProviderContainer, _FakeCards)> pumpGenerator(WidgetTester tester) async
       overrides: [
         templateServiceProvider.overrideWithValue(_FakeTemplates()),
         cardGenerationServiceProvider.overrideWithValue(cards),
+        sessionControllerProvider.overrideWith(_FakeSession.new),
       ],
       child: const MaterialApp(home: GenerateCardScreen()),
     ),
@@ -250,5 +269,50 @@ void main() {
     expect(state.result, isNull);
     expect(state.resultCombinationId, isNull);
     expect(find.text(placeholder), findsOneWidget);
+  });
+
+  group('the preview watermark', () {
+    Iterable<String> watermarkTexts(WidgetTester tester) => tester
+        .widgetList<CustomPaint>(find.byKey(const ValueKey('preview-watermark')))
+        .map((p) => (p.painter as WatermarkPainter).text);
+
+    testWidgets('nothing is marked until there is a preview', (tester) async {
+      await pumpGenerator(tester);
+
+      expect(find.byKey(const ValueKey('preview-watermark')), findsNothing);
+    });
+
+    testWidgets('after Preview each card carries who is previewing, and PREVIEW', (tester) async {
+      final (container, _) = await pumpGenerator(tester);
+      await preview(tester, container);
+
+      final texts = watermarkTexts(tester).toList();
+      expect(texts, hasLength(2)); // front and back, side by side
+      for (final text in texts) {
+        expect(text, startsWith('PREVIEW'));
+        expect(text, contains('Ravi Kumar'));
+        expect(text, contains('9943135008'));
+      }
+    });
+
+    testWidgets('one card on show, one watermark', (tester) async {
+      final (container, _) = await pumpGenerator(tester);
+      await preview(tester, container);
+
+      container.read(generateCardControllerProvider.notifier).selectSide(CardSide.back);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('preview-watermark')), findsOneWidget);
+    });
+
+    testWidgets('the downloaded PDF is not affected: it is fetched exactly as before', (tester) async {
+      final (container, cards) = await pumpGenerator(tester);
+      await preview(tester, container);
+
+      final pdf = await container.read(generateCardControllerProvider.notifier).downloadPdf();
+
+      expect(cards.downloadedWith, [0]);
+      expect(pdf, isNotNull);
+    });
   });
 }

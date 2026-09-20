@@ -1,14 +1,15 @@
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/cards/generate_card_controller.dart';
 import '../../core_engine/common/enums.dart';
 import '../../core_engine/common/uploaded_file.dart';
+import '../../foundation/files/pdf_download.dart';
 import '../../application/cards/generate_card_state.dart';
+import '../../application/security/session_controller.dart';
 import '../../core_engine/templates/domain/card_background.dart';
 import '../templates/collapsible_panel.dart';
 import '../templates/layout_workspace.dart';
@@ -57,16 +58,12 @@ class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
   Future<void> _download(GenerateCardController controller) async {
     final pdf = await controller.downloadPdf();
     if (pdf == null) return;
-    // Named from the template's file name pattern (e.g. the member's name).
-    await FileSaver.instance.saveFile(
-      name: pdf.name,
-      bytes: pdf.bytes,
-      ext: 'pdf',
-      mimeType: MimeType.pdf,
-    );
+    // Named from the template's file name pattern (e.g. the member's name). It goes into Downloads
+    // without replacing a file that is already there ("Ravi.pdf", then "Ravi (1).pdf" ...).
+    final savedAs = await savePdfDownload(name: pdf.name, bytes: pdf.bytes);
     if (mounted) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Saved ${pdf.name}.pdf')));
+          .showSnackBar(SnackBar(content: Text('Saved $savedAs')));
     }
   }
 
@@ -200,10 +197,20 @@ class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
       );
     }
 
+    // The preview is marked with who is previewing and when, so a screenshot or a photo of it is
+    // traceable and not the real card (the downloaded PDF has no watermark).
+    final user = ref.watch(sessionControllerProvider).value;
+    final watermark = previewWatermarkText(
+      name: user?.name ?? '',
+      phone: user?.phone ?? '',
+      date: DateTime.now(),
+    );
+
     // The layer name and the field keys are hidden or read-only and the template's structure
     // cannot change.
     return LayoutWorkspace(
       designer: false,
+      watermark: watermark,
       layers: result.layers,
       cardWidthMm: result.cardWidthMm,
       cardHeightMm: result.cardHeightMm,
@@ -223,4 +230,35 @@ class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
       onDelete: controller.deleteSelected,
     );
   }
+}
+
+const _months = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+/// The words repeated across the preview: "PREVIEW", who is previewing and the date, e.g.
+/// "PREVIEW  Ravi  9943135008  20 Sep 2026". Whatever of the name and phone is missing is left out.
+String previewWatermarkText({
+  required String name,
+  required String phone,
+  required DateTime date,
+}) {
+  final day = '${date.day} ${_months[date.month - 1]} ${date.year}';
+  return [
+    'PREVIEW',
+    name.trim(),
+    phone.trim(),
+    day,
+  ].where((part) => part.isNotEmpty).join('   ');
 }

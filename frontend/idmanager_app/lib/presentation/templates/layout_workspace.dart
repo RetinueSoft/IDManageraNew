@@ -7,6 +7,7 @@ import '../../core_engine/common/enums.dart';
 import '../../core_engine/templates/domain/field_group.dart';
 import '../../core_engine/templates/domain/template_layer.dart';
 import '../shared/widgets/card_text_layer.dart';
+import '../shared/widgets/preview_watermark.dart';
 import '../shared/widgets/zoomable_canvas.dart';
 import 'collapsible_panel.dart';
 import 'layer_properties_panel.dart';
@@ -41,6 +42,7 @@ class LayoutWorkspace extends StatelessWidget {
     this.sampleFields = const [],
     this.onMergeLayer,
     this.topBar,
+    this.watermark,
   });
 
   final bool designer;
@@ -70,6 +72,10 @@ class LayoutWorkspace extends StatelessWidget {
 
   /// Shown under the view switch - the background picker.
   final Widget? topBar;
+
+  /// When set, this text is laid over every card, on top of the layers, as a slanted repeated
+  /// watermark (the card generator's preview). It takes no taps, so editing works through it.
+  final String? watermark;
 
   /// Screen pixels per millimeter at 100%. Flutter rounds each text line's height to a whole
   /// pixel, so the card is laid out at a fine scale (the error is at most half a pixel = 0.04 mm
@@ -204,6 +210,9 @@ class LayoutWorkspace extends StatelessWidget {
               ),
             for (final group in _groupsOf(cardSide))
               _buildLayerWidget(cardSide, group),
+            // Above everything, so a screenshot or photo of the preview is marked.
+            if (watermark != null)
+              Positioned.fill(child: PreviewWatermark(text: watermark!)),
           ],
         ),
       ),
