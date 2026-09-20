@@ -17,7 +17,9 @@ mixin _$User {
 
  int get id; String get name; String get phone; UserRole get role; bool get isActive; int get points; DateTime get createdAt;/// The member who created this one - only when the viewer may see them (a viewer
 /// never sees their own upline, see docs/member-hierarchy.md).
- int? get parentId; String? get parentName; UserRole? get parentRole;
+ int? get parentId; String? get parentName; UserRole? get parentRole;/// The member's shop and identity proof details (all optional).
+ UserProfile get profile;/// Whether their identity card images exist. The images are fetched separately.
+ bool get hasIdFront; bool get hasIdBack;
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,20 +31,20 @@ $UserCopyWith<User> get copyWith => _$UserCopyWithImpl<User>(this as User, _$ide
 @override
 bool operator ==(Object other) {
   final _this = this as User;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is User&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.phone, _this.phone) || other.phone == _this.phone)&&(identical(other.role, _this.role) || other.role == _this.role)&&(identical(other.isActive, _this.isActive) || other.isActive == _this.isActive)&&(identical(other.points, _this.points) || other.points == _this.points)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.parentId, _this.parentId) || other.parentId == _this.parentId)&&(identical(other.parentName, _this.parentName) || other.parentName == _this.parentName)&&(identical(other.parentRole, _this.parentRole) || other.parentRole == _this.parentRole));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is User&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.phone, _this.phone) || other.phone == _this.phone)&&(identical(other.role, _this.role) || other.role == _this.role)&&(identical(other.isActive, _this.isActive) || other.isActive == _this.isActive)&&(identical(other.points, _this.points) || other.points == _this.points)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.parentId, _this.parentId) || other.parentId == _this.parentId)&&(identical(other.parentName, _this.parentName) || other.parentName == _this.parentName)&&(identical(other.parentRole, _this.parentRole) || other.parentRole == _this.parentRole)&&(identical(other.profile, _this.profile) || other.profile == _this.profile)&&(identical(other.hasIdFront, _this.hasIdFront) || other.hasIdFront == _this.hasIdFront)&&(identical(other.hasIdBack, _this.hasIdBack) || other.hasIdBack == _this.hasIdBack));
 }
 
 
 @override
 int get hashCode {
   final _this = this as User;
-  return Object.hash(runtimeType,_this.id,_this.name,_this.phone,_this.role,_this.isActive,_this.points,_this.createdAt,_this.parentId,_this.parentName,_this.parentRole);
+  return Object.hash(runtimeType,_this.id,_this.name,_this.phone,_this.role,_this.isActive,_this.points,_this.createdAt,_this.parentId,_this.parentName,_this.parentRole,_this.profile,_this.hasIdFront,_this.hasIdBack);
 }
 
 @override
 String toString() {
   final _this = this as User;
-  return 'User(id: ${_this.id}, name: ${_this.name}, phone: ${_this.phone}, role: ${_this.role}, isActive: ${_this.isActive}, points: ${_this.points}, createdAt: ${_this.createdAt}, parentId: ${_this.parentId}, parentName: ${_this.parentName}, parentRole: ${_this.parentRole})';
+  return 'User(id: ${_this.id}, name: ${_this.name}, phone: ${_this.phone}, role: ${_this.role}, isActive: ${_this.isActive}, points: ${_this.points}, createdAt: ${_this.createdAt}, parentId: ${_this.parentId}, parentName: ${_this.parentName}, parentRole: ${_this.parentRole}, profile: ${_this.profile}, hasIdFront: ${_this.hasIdFront}, hasIdBack: ${_this.hasIdBack})';
 }
 
 
@@ -53,11 +55,11 @@ abstract mixin class $UserCopyWith<$Res>  {
   factory $UserCopyWith(User value, $Res Function(User) _then) = _$UserCopyWithImpl;
 @useResult
 $Res call({
- int id, String name, String phone, UserRole role, bool isActive, int points, DateTime createdAt, int? parentId, String? parentName, UserRole? parentRole
+ int id, String name, String phone, UserRole role, bool isActive, int points, DateTime createdAt, int? parentId, String? parentName, UserRole? parentRole, UserProfile profile, bool hasIdFront, bool hasIdBack
 });
 
 
-
+$UserProfileCopyWith<$Res> get profile;
 
 }
 /// @nodoc
@@ -70,7 +72,7 @@ class _$UserCopyWithImpl<$Res>
 
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? phone = null,Object? role = null,Object? isActive = null,Object? points = null,Object? createdAt = null,Object? parentId = freezed,Object? parentName = freezed,Object? parentRole = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? phone = null,Object? role = null,Object? isActive = null,Object? points = null,Object? createdAt = null,Object? parentId = freezed,Object? parentName = freezed,Object? parentRole = freezed,Object? profile = null,Object? hasIdFront = null,Object? hasIdBack = null,}) {
   return _then(User(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -82,10 +84,22 @@ as int,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cas
 as DateTime,parentId: freezed == parentId ? _self.parentId : parentId // ignore: cast_nullable_to_non_nullable
 as int?,parentName: freezed == parentName ? _self.parentName : parentName // ignore: cast_nullable_to_non_nullable
 as String?,parentRole: freezed == parentRole ? _self.parentRole : parentRole // ignore: cast_nullable_to_non_nullable
-as UserRole?,
+as UserRole?,profile: null == profile ? _self.profile : profile // ignore: cast_nullable_to_non_nullable
+as UserProfile,hasIdFront: null == hasIdFront ? _self.hasIdFront : hasIdFront // ignore: cast_nullable_to_non_nullable
+as bool,hasIdBack: null == hasIdBack ? _self.hasIdBack : hasIdBack // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
-
+/// Create a copy of User
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserProfileCopyWith<$Res> get profile {
+  
+  return $UserProfileCopyWith<$Res>(_self.profile, (value) {
+    return _then(_self.copyWith(profile: value));
+  });
+}
 }
 
 
@@ -164,10 +178,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  String phone,  UserRole role,  bool isActive,  int points,  DateTime createdAt,  int? parentId,  String? parentName,  UserRole? parentRole)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  String phone,  UserRole role,  bool isActive,  int points,  DateTime createdAt,  int? parentId,  String? parentName,  UserRole? parentRole,  UserProfile profile,  bool hasIdFront,  bool hasIdBack)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _User() when $default != null:
-return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.points,_that.createdAt,_that.parentId,_that.parentName,_that.parentRole);case _:
+return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.points,_that.createdAt,_that.parentId,_that.parentName,_that.parentRole,_that.profile,_that.hasIdFront,_that.hasIdBack);case _:
   return orElse();
 
 }
@@ -185,10 +199,10 @@ return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  String phone,  UserRole role,  bool isActive,  int points,  DateTime createdAt,  int? parentId,  String? parentName,  UserRole? parentRole)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  String phone,  UserRole role,  bool isActive,  int points,  DateTime createdAt,  int? parentId,  String? parentName,  UserRole? parentRole,  UserProfile profile,  bool hasIdFront,  bool hasIdBack)  $default,) {final _that = this;
 switch (_that) {
 case _User():
-return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.points,_that.createdAt,_that.parentId,_that.parentName,_that.parentRole);}
+return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.points,_that.createdAt,_that.parentId,_that.parentName,_that.parentRole,_that.profile,_that.hasIdFront,_that.hasIdBack);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -202,10 +216,10 @@ return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  String phone,  UserRole role,  bool isActive,  int points,  DateTime createdAt,  int? parentId,  String? parentName,  UserRole? parentRole)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  String phone,  UserRole role,  bool isActive,  int points,  DateTime createdAt,  int? parentId,  String? parentName,  UserRole? parentRole,  UserProfile profile,  bool hasIdFront,  bool hasIdBack)?  $default,) {final _that = this;
 switch (_that) {
 case _User() when $default != null:
-return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.points,_that.createdAt,_that.parentId,_that.parentName,_that.parentRole);case _:
+return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.points,_that.createdAt,_that.parentId,_that.parentName,_that.parentRole,_that.profile,_that.hasIdFront,_that.hasIdBack);case _:
   return null;
 
 }
@@ -217,7 +231,7 @@ return $default(_that.id,_that.name,_that.phone,_that.role,_that.isActive,_that.
 
 
 class _User implements User {
-  const _User({required this.id, required this.name, required this.phone, required this.role, required this.isActive, required this.points, required this.createdAt, this.parentId, this.parentName, this.parentRole});
+  const _User({required this.id, required this.name, required this.phone, required this.role, required this.isActive, required this.points, required this.createdAt, this.parentId, this.parentName, this.parentRole, this.profile = const UserProfile(), this.hasIdFront = false, this.hasIdBack = false});
   
 
 @override final  int id;
@@ -232,6 +246,11 @@ class _User implements User {
 @override final  int? parentId;
 @override final  String? parentName;
 @override final  UserRole? parentRole;
+/// The member's shop and identity proof details (all optional).
+@override@JsonKey() final  UserProfile profile;
+/// Whether their identity card images exist. The images are fetched separately.
+@override@JsonKey() final  bool hasIdFront;
+@override@JsonKey() final  bool hasIdBack;
 
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
@@ -243,18 +262,18 @@ _$UserCopyWith<_User> get copyWith => __$UserCopyWithImpl<_User>(this, _$identit
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _User&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.role, role) || other.role == role)&&(identical(other.isActive, isActive) || other.isActive == isActive)&&(identical(other.points, points) || other.points == points)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.parentId, parentId) || other.parentId == parentId)&&(identical(other.parentName, parentName) || other.parentName == parentName)&&(identical(other.parentRole, parentRole) || other.parentRole == parentRole));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _User&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.role, role) || other.role == role)&&(identical(other.isActive, isActive) || other.isActive == isActive)&&(identical(other.points, points) || other.points == points)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.parentId, parentId) || other.parentId == parentId)&&(identical(other.parentName, parentName) || other.parentName == parentName)&&(identical(other.parentRole, parentRole) || other.parentRole == parentRole)&&(identical(other.profile, profile) || other.profile == profile)&&(identical(other.hasIdFront, hasIdFront) || other.hasIdFront == hasIdFront)&&(identical(other.hasIdBack, hasIdBack) || other.hasIdBack == hasIdBack));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,name,phone,role,isActive,points,createdAt,parentId,parentName,parentRole);
+    return Object.hash(runtimeType,id,name,phone,role,isActive,points,createdAt,parentId,parentName,parentRole,profile,hasIdFront,hasIdBack);
 }
 
 @override
 String toString() {
-    return 'User(id: $id, name: $name, phone: $phone, role: $role, isActive: $isActive, points: $points, createdAt: $createdAt, parentId: $parentId, parentName: $parentName, parentRole: $parentRole)';
+    return 'User(id: $id, name: $name, phone: $phone, role: $role, isActive: $isActive, points: $points, createdAt: $createdAt, parentId: $parentId, parentName: $parentName, parentRole: $parentRole, profile: $profile, hasIdFront: $hasIdFront, hasIdBack: $hasIdBack)';
 }
 
 
@@ -265,11 +284,11 @@ abstract mixin class _$UserCopyWith<$Res> implements $UserCopyWith<$Res> {
   factory _$UserCopyWith(_User value, $Res Function(_User) _then) = __$UserCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String name, String phone, UserRole role, bool isActive, int points, DateTime createdAt, int? parentId, String? parentName, UserRole? parentRole
+ int id, String name, String phone, UserRole role, bool isActive, int points, DateTime createdAt, int? parentId, String? parentName, UserRole? parentRole, UserProfile profile, bool hasIdFront, bool hasIdBack
 });
 
 
-
+@override $UserProfileCopyWith<$Res> get profile;
 
 }
 /// @nodoc
@@ -282,7 +301,7 @@ class __$UserCopyWithImpl<$Res>
 
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? phone = null,Object? role = null,Object? isActive = null,Object? points = null,Object? createdAt = null,Object? parentId = freezed,Object? parentName = freezed,Object? parentRole = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? phone = null,Object? role = null,Object? isActive = null,Object? points = null,Object? createdAt = null,Object? parentId = freezed,Object? parentName = freezed,Object? parentRole = freezed,Object? profile = null,Object? hasIdFront = null,Object? hasIdBack = null,}) {
   return _then(_User(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -294,11 +313,23 @@ as int,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cas
 as DateTime,parentId: freezed == parentId ? _self.parentId : parentId // ignore: cast_nullable_to_non_nullable
 as int?,parentName: freezed == parentName ? _self.parentName : parentName // ignore: cast_nullable_to_non_nullable
 as String?,parentRole: freezed == parentRole ? _self.parentRole : parentRole // ignore: cast_nullable_to_non_nullable
-as UserRole?,
+as UserRole?,profile: null == profile ? _self.profile : profile // ignore: cast_nullable_to_non_nullable
+as UserProfile,hasIdFront: null == hasIdFront ? _self.hasIdFront : hasIdFront // ignore: cast_nullable_to_non_nullable
+as bool,hasIdBack: null == hasIdBack ? _self.hasIdBack : hasIdBack // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
-
+/// Create a copy of User
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserProfileCopyWith<$Res> get profile {
+  
+  return $UserProfileCopyWith<$Res>(_self.profile, (value) {
+    return _then(_self.copyWith(profile: value));
+  });
+}
 }
 
 // dart format on

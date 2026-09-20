@@ -1,10 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:idmanager_app/core_engine/common/enums.dart';
 import 'package:idmanager_app/core_engine/common/paged_result.dart';
+import 'package:idmanager_app/core_engine/common/uploaded_file.dart';
 import 'package:idmanager_app/core_engine/common/validation_exception.dart';
 import 'package:idmanager_app/core_engine/security/contracts/auth_repository.dart';
 import 'package:idmanager_app/core_engine/security/contracts/user_repository.dart';
 import 'package:idmanager_app/core_engine/security/domain/user.dart';
+import 'package:idmanager_app/core_engine/security/domain/user_profile.dart';
 import 'package:idmanager_app/core_engine/security/security_engine.dart';
 import 'package:idmanager_app/foundation/network/api_exception.dart';
 
@@ -35,6 +39,7 @@ class _FakeUserRepository implements UserRepository {
   User? createReturns;
   User? updateReturns;
   CreateUserRequestCapture? capturedCreate;
+  UserProfile? capturedUpdateProfile;
 
   @override
   Future<PagedResult<User>> getAll({int pageIndex = 1, int pageSize = 20, String? searchBy}) async =>
@@ -49,8 +54,9 @@ class _FakeUserRepository implements UserRepository {
     required String phone,
     required String password,
     required UserRole role,
+    UserProfile profile = const UserProfile(),
   }) async {
-    capturedCreate = CreateUserRequestCapture(name, phone, password, role);
+    capturedCreate = CreateUserRequestCapture(name, phone, password, role, profile);
     if (createError != null) throw createError!;
     return createReturns!;
   }
@@ -61,21 +67,33 @@ class _FakeUserRepository implements UserRepository {
     required String name,
     required bool isActive,
     String? password,
+    UserProfile? profile,
   }) async {
+    capturedUpdateProfile = profile;
     if (updateError != null) throw updateError!;
     return updateReturns!;
   }
 
   @override
   Future<void> deactivate(int id) async {}
+
+  @override
+  Future<Uint8List?> getIdentityImage(int userId, IdentitySide side) async => null;
+
+  @override
+  Future<void> setIdentityImage(int userId, IdentitySide side, UploadedFile file) async {}
+
+  @override
+  Future<void> deleteIdentityImage(int userId, IdentitySide side) async {}
 }
 
 class CreateUserRequestCapture {
-  CreateUserRequestCapture(this.name, this.phone, this.password, this.role);
+  CreateUserRequestCapture(this.name, this.phone, this.password, this.role, this.profile);
   final String name;
   final String phone;
   final String password;
   final UserRole role;
+  final UserProfile profile;
 }
 
 void main() {

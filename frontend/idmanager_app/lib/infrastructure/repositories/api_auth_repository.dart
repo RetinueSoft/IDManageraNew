@@ -1,6 +1,7 @@
 import '../../core_engine/common/enums.dart';
 import '../../core_engine/security/contracts/auth_repository.dart';
 import '../../core_engine/security/domain/user.dart';
+import '../../business_service/security/user_json.dart' show userProfileFromJson;
 import '../../foundation/network/api_client.dart';
 
 User userFromJson(Map<String, dynamic> json) => User(
@@ -14,6 +15,9 @@ User userFromJson(Map<String, dynamic> json) => User(
   isActive: json['isActive'] as bool? ?? false,
   points: json['points'] as int? ?? 0,
   createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now(),
+  profile: userProfileFromJson(json),
+  hasIdFront: json['hasIdFront'] as bool? ?? false,
+  hasIdBack: json['hasIdBack'] as bool? ?? false,
 );
 
 class ApiAuthRepository implements AuthRepository {

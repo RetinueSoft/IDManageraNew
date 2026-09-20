@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../common/enums.dart';
+import 'user_profile.dart';
 
 part 'user.freezed.dart';
 
@@ -20,5 +21,12 @@ sealed class User with _$User {
     int? parentId,
     String? parentName,
     UserRole? parentRole,
+
+    /// The member's shop and identity proof details (all optional).
+    @Default(UserProfile()) UserProfile profile,
+
+    /// Whether their identity card images exist. The images are fetched separately.
+    @Default(false) bool hasIdFront,
+    @Default(false) bool hasIdBack,
   }) = _User;
 }

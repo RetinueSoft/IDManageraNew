@@ -13,12 +13,19 @@ public class IDManagerDbContext : DbContext
     public DbSet<CardTemplateEntity> CardTemplates => Set<CardTemplateEntity>();
     public DbSet<TemplateCombinationEntity> TemplateCombinations => Set<TemplateCombinationEntity>();
     public DbSet<IDCardEntity> IDCards => Set<IDCardEntity>();
+    public DbSet<UserIdentityEntity> UserIdentities => Set<UserIdentityEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<UserEntity>(e =>
         {
             e.HasIndex(u => u.Phone).IsUnique();
+        });
+
+        modelBuilder.Entity<UserIdentityEntity>(e =>
+        {
+            e.HasKey(i => i.UserId);
+            e.HasOne<UserEntity>().WithOne().HasForeignKey<UserIdentityEntity>(i => i.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<CardTemplateEntity>(e =>

@@ -1,7 +1,11 @@
+import 'dart:typed_data';
+
 import '../../core_engine/common/enums.dart';
 import '../../core_engine/common/paged_result.dart';
 import '../../core_engine/common/validation_exception.dart';
+import '../../core_engine/common/uploaded_file.dart';
 import '../../core_engine/security/domain/user.dart';
+import '../../core_engine/security/domain/user_profile.dart';
 import '../../core_engine/security/security_engine.dart';
 
 class UserService {
@@ -19,7 +23,8 @@ class UserService {
     required String phone,
     required String password,
     required UserRole role,
-  }) => _engine.create(name: name, phone: phone, password: password, role: role);
+    UserProfile profile = const UserProfile(),
+  }) => _engine.create(name: name, phone: phone, password: password, role: role, profile: profile);
 
   /// A user is never allowed to deactivate their own account - the acting user's
   /// id is passed in so this business rule can be enforced independent of
@@ -30,12 +35,20 @@ class UserService {
     required String name,
     required bool isActive,
     String? password,
+    UserProfile? profile,
   }) {
     if (id == actingUserId && !isActive) {
       throw ValidationException({'isActive': 'You cannot deactivate your own account.'});
     }
-    return _engine.update(id: id, name: name, isActive: isActive, password: password);
+    return _engine.update(id: id, name: name, isActive: isActive, password: password, profile: profile);
   }
+
+  Future<Uint8List?> getIdentityImage(int userId, IdentitySide side) => _engine.getIdentityImage(userId, side);
+
+  Future<void> setIdentityImage(int userId, IdentitySide side, UploadedFile file) =>
+      _engine.setIdentityImage(userId, side, file);
+
+  Future<void> deleteIdentityImage(int userId, IdentitySide side) => _engine.deleteIdentityImage(userId, side);
 
   Future<void> deactivate(int actingUserId, int id) {
     if (id == actingUserId) {

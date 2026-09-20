@@ -1,10 +1,14 @@
+import 'dart:typed_data';
+
 import '../../foundation/network/api_exception.dart';
 import '../common/enums.dart';
 import '../common/paged_result.dart';
 import '../common/validation_exception.dart';
 import 'contracts/auth_repository.dart';
 import 'contracts/user_repository.dart';
+import '../common/uploaded_file.dart';
 import 'domain/user.dart';
+import 'domain/user_profile.dart';
 
 class AuthEngineService {
   AuthEngineService(this._repository);
@@ -30,6 +34,7 @@ class UserEngineService {
     required String phone,
     required String password,
     required UserRole role,
+    UserProfile profile = const UserProfile(),
   }) async {
     final errors = <String, String>{};
     if (name.trim().isEmpty) errors['name'] = 'Name is required.';
@@ -38,7 +43,7 @@ class UserEngineService {
     if (errors.isNotEmpty) throw ValidationException(errors);
 
     try {
-      return await _repository.create(name: name, phone: phone, password: password, role: role);
+      return await _repository.create(name: name, phone: phone, password: password, role: role, profile: profile);
     } on ApiException catch (e) {
       if (e.fieldErrors != null) throw ValidationException(e.fieldErrors!);
       rethrow;
@@ -50,12 +55,13 @@ class UserEngineService {
     required String name,
     required bool isActive,
     String? password,
+    UserProfile? profile,
   }) async {
     if (name.trim().isEmpty) {
       throw ValidationException({'name': 'Name is required.'});
     }
     try {
-      return await _repository.update(id: id, name: name, isActive: isActive, password: password);
+      return await _repository.update(id: id, name: name, isActive: isActive, password: password, profile: profile);
     } on ApiException catch (e) {
       if (e.fieldErrors != null) throw ValidationException(e.fieldErrors!);
       rethrow;
@@ -63,4 +69,11 @@ class UserEngineService {
   }
 
   Future<void> deactivate(int id) => _repository.deactivate(id);
+
+  Future<Uint8List?> getIdentityImage(int userId, IdentitySide side) => _repository.getIdentityImage(userId, side);
+
+  Future<void> setIdentityImage(int userId, IdentitySide side, UploadedFile file) =>
+      _repository.setIdentityImage(userId, side, file);
+
+  Future<void> deleteIdentityImage(int userId, IdentitySide side) => _repository.deleteIdentityImage(userId, side);
 }

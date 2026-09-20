@@ -54,7 +54,7 @@ final class UserFormControllerProvider
 }
 
 String _$userFormControllerHash() =>
-    r'9e57585f68d35ac50952860d8adb13a123535d5d';
+    r'a5342b23fd1f7aae61b8a85f39d0219d6cb9d627';
 
 /// Backs the Add/Edit User screen. [userId] is null in Add mode.
 
