@@ -15,6 +15,7 @@ import '../../core_engine/templates/domain/field_group.dart';
 import '../../core_engine/templates/domain/layer_text.dart';
 import '../../core_engine/templates/domain/template_layer.dart';
 import '../shared/widgets/card_text_layer.dart';
+import 'collapsible_panel.dart';
 import 'date_format_editor.dart';
 import 'remove_words_editor.dart';
 import '../shared/widgets/zoomable_canvas.dart';
@@ -222,11 +223,43 @@ class _EditorBody extends StatelessWidget {
                     ),
                   ),
                 ),
+                CollapsiblePanel(
+                  title: 'Properties',
+                  height: 320,
+                  edge: CollapseEdge.bottom,
+                  child: _selectedGroup == null
+                      ? const Center(
+                          child: Text('Select a layer to edit its properties'),
+                        )
+                      : _PropertiesPanel(
+                          key: ValueKey(_selectedGroup!.id),
+                          group: _selectedGroup!,
+                          sampleFields: state.sampleFields,
+                          otherLayers: [
+                            for (final g in _currentLayer.groups)
+                              if (g.id != _selectedGroup!.id &&
+                                  g.fieldType == LayerFieldType.text &&
+                                  !g.isList)
+                                g,
+                          ],
+                          onMergeLayer: (otherId) => controller.mergeLayerInto(
+                            _selectedGroup!.id,
+                            otherId,
+                          ),
+                          onChanged: (update) => controller.updateGroup(
+                            _selectedGroup!.id,
+                            update,
+                          ),
+                          onDelete: controller.deleteSelected,
+                        ),
+                ),
               ],
             ),
           ),
-          SizedBox(
+          CollapsiblePanel(
+            title: 'Layers',
             width: 260,
+            edge: CollapseEdge.left,
             child: _FieldsAndLayersPanel(
               fields: state.sampleFields,
               layers: _currentLayer.groups,
@@ -236,30 +269,6 @@ class _EditorBody extends StatelessWidget {
               onSelectLayer: controller.selectGroup,
               onDeleteLayer: controller.deleteGroup,
             ),
-          ),
-          SizedBox(
-            width: 300,
-            child: _selectedGroup == null
-                ? const Center(
-                    child: Text('Select a layer to edit its properties'),
-                  )
-                : _PropertiesPanel(
-                    key: ValueKey(_selectedGroup!.id),
-                    group: _selectedGroup!,
-                    sampleFields: state.sampleFields,
-                    otherLayers: [
-                      for (final g in _currentLayer.groups)
-                        if (g.id != _selectedGroup!.id &&
-                            g.fieldType == LayerFieldType.text &&
-                            !g.isList)
-                          g,
-                    ],
-                    onMergeLayer: (otherId) =>
-                        controller.mergeLayerInto(_selectedGroup!.id, otherId),
-                    onChanged: (update) =>
-                        controller.updateGroup(_selectedGroup!.id, update),
-                    onDelete: controller.deleteSelected,
-                  ),
           ),
         ],
       ),
@@ -416,155 +425,296 @@ class _PropertiesPanelState extends State<_PropertiesPanel> {
             ],
           ),
           const SizedBox(height: 8),
+          // Common settings first: the name (twice as wide as a number box) and the numbers in
+          // one row, then the toggles.
+          _CollapsibleSection(
+            title: 'General properties',
+            child: _ResponsiveGrid(
+              columns: 8,
+              minColumnWidth: 100,
+              children: [
+                _GridSpan(
+                  span: 2,
+                  child: TextField(
+                    controller: _nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Layer name'),
+                    onChanged: (v) =>
+                        widget.onChanged((g) => g.copyWith(name: v)),
+                  ),
+                ),
+                if (group.fieldType == LayerFieldType.text) ...[
+                  _NumberField(
+                    label: 'Font (pt)',
+                    step: 1,
+                    value: group.fontSizePt,
+                    onChanged: (v) =>
+                        widget.onChanged((g) => g.copyWith(fontSizePt: v)),
+                  ),
+                  _NumberField(
+                    label: 'Wrap width (mm)',
+                    value: group.widthMm ?? 30,
+                    onChanged: (v) =>
+                        widget.onChanged((g) => g.copyWith(widthMm: v)),
+                  ),
+                  _NumberField(
+                    label: 'Key width (mm)',
+                    value: group.keyWidthMm,
+                    onChanged: (v) =>
+                        widget.onChanged((g) => g.copyWith(keyWidthMm: v)),
+                    onCleared: () =>
+                        widget.onChanged((g) => g.copyWith(keyWidthMm: null)),
+                  ),
+                  if (group.isList)
+                    _NumberField(
+                      label: 'Line gap (mm)',
+                      value: group.lineGapMm,
+                      onChanged: (v) =>
+                          widget.onChanged((g) => g.copyWith(lineGapMm: v)),
+                    ),
+                ] else ...[
+                  _NumberField(
+                    label: 'Width (mm)',
+                    value: group.widthMm ?? 20,
+                    onChanged: (v) =>
+                        widget.onChanged((g) => g.copyWith(widthMm: v)),
+                  ),
+                  _NumberField(
+                    label: 'Height (mm)',
+                    value: group.heightMm ?? 20,
+                    onChanged: (v) =>
+                        widget.onChanged((g) => g.copyWith(heightMm: v)),
+                  ),
+                ],
+                _NumberField(
+                  label: 'X (mm)',
+                  value: group.xMm,
+                  onChanged: (v) => widget.onChanged((g) => g.copyWith(xMm: v)),
+                ),
+                _NumberField(
+                  label: 'Y (mm)',
+                  value: group.yMm,
+                  onChanged: (v) => widget.onChanged((g) => g.copyWith(yMm: v)),
+                ),
+                if (group.fieldType == LayerFieldType.text) ...[
+                  _GridSpan(
+                    span: 2,
+                    child: _alignedToInputs(
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Combine several fields'),
+                        value: group.isList,
+                        onChanged: (v) =>
+                            widget.onChanged((g) => g.copyWith(isList: v)),
+                      ),
+                    ),
+                  ),
+                  _alignedToInputs(
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Bold (B)'),
+                      value: group.bold,
+                      onChanged: (v) =>
+                          widget.onChanged((g) => g.copyWith(bold: v)),
+                    ),
+                  ),
+                  if (group.isList)
+                    _alignedToInputs(
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('List (L)'),
+                        value: group.bulletList,
+                        onChanged: (v) =>
+                            widget.onChanged((g) => g.copyWith(bulletList: v)),
+                      ),
+                    ),
+                  _GridSpan(
+                    span: 2,
+                    child: RemoveWordsEditor(
+                      words: group.removeWords,
+                      onChanged: (words) => widget.onChanged(
+                        (g) => g.copyWith(removeWords: words),
+                      ),
+                    ),
+                  ),
+                  _GridSpan(
+                    span: 2,
+                    child: DateFormatEditor(
+                      key: ValueKey('date-format-${group.id}'),
+                      format: group.dateFormat,
+                      onChanged: (format) => widget.onChanged(
+                        (g) => g.copyWith(dateFormat: format),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
           if (group.fieldType == LayerFieldType.text) ...[
-            TextField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(labelText: 'Layer name'),
-              onChanged: (v) => widget.onChanged((g) => g.copyWith(name: v)),
-            ),
-            const SizedBox(height: 8),
-            if (group.isList)
-              _CombinedFieldsEditor(
-                group: group,
-                sampleFields: widget.sampleFields,
-                otherLayers: widget.otherLayers,
-                onMergeLayer: widget.onMergeLayer,
-                onChanged: widget.onChanged,
-              )
-            else ...[
-              TextField(
-                controller: _keyCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Key (label printed before the value)',
-                ),
-                onChanged: (v) => _updateFirstSource((s) => s.copyWith(key: v)),
-              ),
-              const SizedBox(height: 8),
-              _PdfFieldPicker(
-                value: _firstSourceOrDefault(group).sourceKey,
-                fields: widget.sampleFields,
-                isFixedText:
-                    (_firstSourceOrDefault(group).key ?? '').trim().isEmpty &&
-                    (_firstSourceOrDefault(group).sourceKey ?? '').isEmpty,
-                onChanged: (v) =>
-                    _updateFirstSource((s) => s.copyWith(sourceKey: v)),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _valueCtrl,
-                decoration: const InputDecoration(labelText: 'Sample value'),
-                onChanged: (v) =>
-                    _updateFirstSource((s) => s.copyWith(value: v)),
-              ),
-            ],
             const SizedBox(height: 12),
-            RemoveWordsEditor(
-              words: group.removeWords,
-              onChanged: (words) =>
-                  widget.onChanged((g) => g.copyWith(removeWords: words)),
+            _CollapsibleSection(
+              title: 'Fields',
+              child: group.isList
+                  ? _CombinedFieldsEditor(
+                      group: group,
+                      sampleFields: widget.sampleFields,
+                      otherLayers: widget.otherLayers,
+                      onMergeLayer: widget.onMergeLayer,
+                      onChanged: widget.onChanged,
+                    )
+                  : _ResponsiveGrid(
+                      children: [
+                        TextField(
+                          controller: _keyCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Key (label before the value)',
+                          ),
+                          onChanged: (v) =>
+                              _updateFirstSource((s) => s.copyWith(key: v)),
+                        ),
+                        _PdfFieldPicker(
+                          value: _firstSourceOrDefault(group).sourceKey,
+                          fields: widget.sampleFields,
+                          isFixedText:
+                              (_firstSourceOrDefault(group).key ?? '')
+                                  .trim()
+                                  .isEmpty &&
+                              (_firstSourceOrDefault(group).sourceKey ?? '')
+                                  .isEmpty,
+                          onChanged: (v) => _updateFirstSource(
+                            (s) => s.copyWith(sourceKey: v),
+                          ),
+                        ),
+                        TextField(
+                          controller: _valueCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Sample value',
+                          ),
+                          onChanged: (v) =>
+                              _updateFirstSource((s) => s.copyWith(value: v)),
+                        ),
+                      ],
+                    ),
             ),
-            const SizedBox(height: 12),
-            DateFormatEditor(
-              key: ValueKey('date-format-${group.id}'),
-              format: group.dateFormat,
-              onChanged: (format) => widget.onChanged((g) => g.copyWith(dateFormat: format)),
-            ),
-            const SizedBox(height: 8),
-            _NumberField(
-              label: 'Font size (pt)',
-              step: 1,
-              value: group.fontSizePt,
-              onChanged: (v) =>
-                  widget.onChanged((g) => g.copyWith(fontSizePt: v)),
-            ),
-            _NumberField(
-              label: 'Max width for wrap (mm)',
-              value: group.widthMm ?? 30,
-              onChanged: (v) => widget.onChanged((g) => g.copyWith(widthMm: v)),
-            ),
-            _NumberField(
-              label: group.isList
-                  ? 'Key width (mm) - common for all fields'
-                  : 'Key width (mm) - empty: value follows key',
-              value: group.keyWidthMm,
-              onChanged: (v) =>
-                  widget.onChanged((g) => g.copyWith(keyWidthMm: v)),
-              onCleared: () =>
-                  widget.onChanged((g) => g.copyWith(keyWidthMm: null)),
-            ),
-            if (group.isList)
-              _NumberField(
-                label: 'Line gap (mm) - common for all lines',
-                value: group.lineGapMm,
-                onChanged: (v) =>
-                    widget.onChanged((g) => g.copyWith(lineGapMm: v)),
+          ] else if (group.isQr)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                'Empty QR code image. The image itself is chosen in the card generator; '
+                'it is stretched to the width and height above.',
               ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Bold (B)'),
-              value: group.bold,
-              onChanged: (v) => widget.onChanged((g) => g.copyWith(bold: v)),
             ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Combine several fields'),
-              value: group.isList,
-              onChanged: (v) => widget.onChanged((g) => g.copyWith(isList: v)),
-            ),
-            if (group.isList)
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('List (L)'),
-                subtitle: const Text('Bullet points, one field per line'),
-                value: group.bulletList,
-                onChanged: (v) =>
-                    widget.onChanged((g) => g.copyWith(bulletList: v)),
-              ),
-          ] else ...[
-            TextField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(labelText: 'Layer name'),
-              onChanged: (v) => widget.onChanged((g) => g.copyWith(name: v)),
-            ),
-            if (group.isQr)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Text(
-                  'Empty QR code image. The image itself is chosen in the card generator; '
-                  'it is stretched to the width and height below.',
-                ),
-              ),
-            const SizedBox(height: 8),
-            _NumberField(
-              label: 'Width (mm)',
-              value: group.widthMm ?? 20,
-              onChanged: (v) => widget.onChanged((g) => g.copyWith(widthMm: v)),
-            ),
-            const SizedBox(height: 8),
-            _NumberField(
-              label: 'Height (mm)',
-              value: group.heightMm ?? 20,
-              onChanged: (v) =>
-                  widget.onChanged((g) => g.copyWith(heightMm: v)),
-            ),
-          ],
-          const Divider(height: 32),
-          _NumberField(
-            label: 'X position (mm)',
-            value: group.xMm,
-            onChanged: (v) => widget.onChanged((g) => g.copyWith(xMm: v)),
-          ),
-          const SizedBox(height: 8),
-          _NumberField(
-            label: 'Y position (mm)',
-            value: group.yMm,
-            onChanged: (v) => widget.onChanged((g) => g.copyWith(yMm: v)),
-          ),
         ],
       ),
     );
   }
 }
+
+/// A titled part of the properties panel with a button to fold it away. The content stays
+/// mounted while folded, so nothing typed inside it is lost.
+class _CollapsibleSection extends StatefulWidget {
+  const _CollapsibleSection({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  State<_CollapsibleSection> createState() => _CollapsibleSectionState();
+}
+
+class _CollapsibleSectionState extends State<_CollapsibleSection> {
+  bool _collapsed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        InkWell(
+          onTap: () => setState(() => _collapsed = !_collapsed),
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: _collapsed
+                    ? 'Expand ${widget.title}'
+                    : 'Collapse ${widget.title}',
+                visualDensity: VisualDensity.compact,
+                icon: Icon(
+                  _collapsed ? Icons.chevron_right : Icons.expand_more,
+                ),
+                onPressed: () => setState(() => _collapsed = !_collapsed),
+              ),
+              Text(widget.title, style: Theme.of(context).textTheme.titleSmall),
+            ],
+          ),
+        ),
+        Offstage(offstage: _collapsed, child: widget.child),
+      ],
+    );
+  }
+}
+
+/// Marks a child of [_ResponsiveGrid] that is [span] columns wide.
+class _GridSpan extends StatelessWidget {
+  const _GridSpan({required this.span, required this.child});
+
+  final int span;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => child;
+}
+
+/// Lays its children out in rows of up to [columns], each the same width; on a narrow panel
+/// there are fewer columns so a field never gets squeezed below [minColumnWidth].
+class _ResponsiveGrid extends StatelessWidget {
+  const _ResponsiveGrid({
+    required this.children,
+    this.columns = 4,
+    this.minColumnWidth = 170,
+  });
+
+  final List<Widget> children;
+  final int columns;
+  final double minColumnWidth;
+
+  static const spacing = 12.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final available = constraints.maxWidth;
+        var count = columns;
+        while (count > 1 &&
+            (available - spacing * (count - 1)) / count < minColumnWidth) {
+          count--;
+        }
+        final width = (available - spacing * (count - 1)) / count;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.start,
+          children: [
+            for (final c in children)
+              SizedBox(
+                width: c is _GridSpan
+                    ? width * (c.span < count ? c.span : count) +
+                          spacing * ((c.span < count ? c.span : count) - 1)
+                    : width,
+                child: c is _GridSpan ? c.child : c,
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// A toggle sitting in the grid beside editors that have a title above their text box: pushed
+/// down so it lines up with those text boxes rather than with their titles.
+Widget _alignedToInputs(Widget toggle) =>
+    Padding(padding: const EdgeInsets.only(top: 26), child: toggle);
 
 /// A numeric input with up/down buttons (and mouse-wheel support). Applies every
 /// change immediately - typing, the buttons, or the wheel - so the canvas updates
@@ -915,7 +1065,7 @@ class _CombinedFieldsEditor extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Fields (${group.sources.length})',
+                '${group.sources.length} in this group',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
             ),
@@ -976,12 +1126,15 @@ class _CombinedFieldsEditor extends StatelessWidget {
             ),
           ],
         ),
+        // Each field is one row of four columns: key, value, read from, join with.
         for (var i = 0; i < group.sources.length; i++)
-          group.sources[i].emptyLine
-              ? Padding(
-                  key: ValueKey('${group.sources.length}-$i'),
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
+          Padding(
+            // Keyed on the field count so rows rebuild (with the right text) after an
+            // add/remove, but keep focus while typing.
+            key: ValueKey('${group.sources.length}-$i'),
+            padding: const EdgeInsets.only(bottom: 8),
+            child: group.sources[i].emptyLine
+                ? Row(
                     children: [
                       const Icon(Icons.space_bar, size: 18),
                       const SizedBox(width: 8),
@@ -992,20 +1145,14 @@ class _CombinedFieldsEditor extends StatelessWidget {
                         onPressed: () => _removeAt(i),
                       ),
                     ],
-                  ),
-                )
-              : Padding(
-                  // Keyed on the field count so rows rebuild (with the right text) after an
-                  // add/remove, but keep focus while typing.
-                  key: ValueKey('${group.sources.length}-$i'),
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Column(
+                  )
+                : Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
+                      Expanded(
+                        child: _ResponsiveGrid(
+                          children: [
+                            TextFormField(
                               initialValue: group.sources[i].key ?? '',
                               decoration: const InputDecoration(
                                 labelText: 'Key (label)',
@@ -1014,65 +1161,64 @@ class _CombinedFieldsEditor extends StatelessWidget {
                               onChanged: (v) =>
                                   _updateAt(i, (s) => s.copyWith(key: v)),
                             ),
-                          ),
-                          IconButton(
-                            tooltip: 'Remove field',
-                            icon: const Icon(Icons.close, size: 18),
-                            onPressed: () => _removeAt(i),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      TextFormField(
-                        initialValue: group.sources[i].value ?? '',
-                        decoration: const InputDecoration(
-                          labelText: 'Value',
-                          isDense: true,
-                        ),
-                        onChanged: (v) =>
-                            _updateAt(i, (s) => s.copyWith(value: v)),
-                      ),
-                      const SizedBox(height: 6),
-                      _PdfFieldPicker(
-                        value: group.sources[i].sourceKey,
-                        fields: sampleFields,
-                        isFixedText:
-                            (group.sources[i].key ?? '').trim().isEmpty &&
-                            (group.sources[i].sourceKey ?? '').isEmpty,
-                        onChanged: (v) =>
-                            _updateAt(i, (s) => s.copyWith(sourceKey: v)),
-                      ),
-                      if (i < group.sources.length - 1) ...[
-                        const SizedBox(height: 6),
-                        DropdownButtonFormField<String>(
-                          initialValue:
-                              (JoinSeparator.tryFromWireName(
-                                        group.sources[i].separator,
-                                      ) ??
-                                      JoinSeparator.comma)
-                                  .wireName,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Join with next field',
-                            isDense: true,
-                          ),
-                          items: [
-                            for (final s in JoinSeparator.values)
-                              DropdownMenuItem<String>(
-                                value: s.wireName,
-                                child: Text(s.label),
+                            TextFormField(
+                              initialValue: group.sources[i].value ?? '',
+                              decoration: const InputDecoration(
+                                labelText: 'Value',
+                                isDense: true,
+                              ),
+                              onChanged: (v) =>
+                                  _updateAt(i, (s) => s.copyWith(value: v)),
+                            ),
+                            _PdfFieldPicker(
+                              value: group.sources[i].sourceKey,
+                              fields: sampleFields,
+                              isFixedText:
+                                  (group.sources[i].key ?? '').trim().isEmpty &&
+                                  (group.sources[i].sourceKey ?? '').isEmpty,
+                              onChanged: (v) =>
+                                  _updateAt(i, (s) => s.copyWith(sourceKey: v)),
+                            ),
+                            if (i < group.sources.length - 1)
+                              DropdownButtonFormField<String>(
+                                initialValue:
+                                    (JoinSeparator.tryFromWireName(
+                                              group.sources[i].separator,
+                                            ) ??
+                                            JoinSeparator.comma)
+                                        .wireName,
+                                isExpanded: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'Join with next field',
+                                  isDense: true,
+                                ),
+                                items: [
+                                  for (final s in JoinSeparator.values)
+                                    DropdownMenuItem<String>(
+                                      value: s.wireName,
+                                      child: Text(s.label),
+                                    ),
+                                ],
+                                onChanged: (v) {
+                                  if (v != null) {
+                                    _updateAt(
+                                      i,
+                                      (s) => s.copyWith(separator: v),
+                                    );
+                                  }
+                                },
                               ),
                           ],
-                          onChanged: (v) {
-                            if (v != null)
-                              _updateAt(i, (s) => s.copyWith(separator: v));
-                          },
                         ),
-                      ],
-                      const Divider(height: 1),
+                      ),
+                      IconButton(
+                        tooltip: 'Remove field',
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: () => _removeAt(i),
+                      ),
                     ],
                   ),
-                ),
+          ),
       ],
     );
   }
@@ -1110,9 +1256,7 @@ class _PdfFieldPicker extends StatelessWidget {
       decoration: InputDecoration(
         labelText: 'Read from PDF field',
         isDense: true,
-        helperText: isFixedText
-            ? 'Fixed text: not read from the PDF'
-            : null,
+        helperText: isFixedText ? 'Fixed text: not read from the PDF' : null,
       ),
       items: [
         const DropdownMenuItem<String?>(

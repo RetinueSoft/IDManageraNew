@@ -4,7 +4,11 @@ import 'package:flutter/material.dart';
 /// value "எண் :117 கூளமடை" so the card prints "117 கூளமடை". One list per layer, any number of
 /// words; each shows as a chip that can be removed. Whole words only, and never from keys.
 class RemoveWordsEditor extends StatefulWidget {
-  const RemoveWordsEditor({super.key, required this.words, required this.onChanged});
+  const RemoveWordsEditor({
+    super.key,
+    required this.words,
+    required this.onChanged,
+  });
 
   final List<String> words;
   final ValueChanged<List<String>> onChanged;
@@ -40,24 +44,6 @@ class RemoveWordsEditorState extends State<RemoveWordsEditor> {
           'Words to remove from values',
           style: Theme.of(context).textTheme.titleSmall,
         ),
-        if (widget.words.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: [
-              for (final word in widget.words)
-                InputChip(
-                  label: Text(word),
-                  visualDensity: VisualDensity.compact,
-                  onDeleted: () => widget.onChanged([
-                    for (final w in widget.words)
-                      if (w != word) w,
-                  ]),
-                ),
-            ],
-          ),
-        ],
         const SizedBox(height: 6),
         Row(
           children: [
@@ -79,6 +65,24 @@ class RemoveWordsEditorState extends State<RemoveWordsEditor> {
             ),
           ],
         ),
+        if (widget.words.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              for (final word in widget.words)
+                InputChip(
+                  label: Text(word),
+                  visualDensity: VisualDensity.compact,
+                  onDeleted: () => widget.onChanged([
+                    for (final w in widget.words)
+                      if (w != word) w,
+                  ]),
+                ),
+            ],
+          ),
+        ],
       ],
     );
   }
