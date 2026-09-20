@@ -16,16 +16,20 @@ import 'package:idmanager_app/core_engine/common/uploaded_file.dart';
 import 'package:idmanager_app/core_engine/templates/domain/card_template.dart';
 import 'package:idmanager_app/core_engine/templates/domain/template_layer.dart';
 import 'package:idmanager_app/presentation/cards/generate_card_screen.dart';
+import 'package:idmanager_app/presentation/templates/collapsible_panel.dart';
 
 class _FakeTemplates implements TemplateService {
   @override
-  Future<List<LookupOption>> getActiveTemplateOptions() async => [(id: 1, label: 'Ration card')];
+  Future<List<LookupOption>> getActiveTemplateOptions() async => [
+    (id: 1, label: 'Ration card'),
+    (id: 2, label: 'Second card'),
+  ];
 
   @override
   Future<CardTemplateDetail?> getTemplate(int id) async => CardTemplateDetail(
     template: CardTemplate(
       id: id,
-      name: 'Ration card',
+      name: id == 1 ? 'Ration card' : 'Second card',
       cardWidthMm: 85.6,
       cardHeightMm: 54,
       pointCost: 1,
@@ -34,10 +38,13 @@ class _FakeTemplates implements TemplateService {
       backImageBase64: '',
       createdAt: DateTime(2024),
     ),
-    combinations: const [
-      Combination(id: 7, name: 'Blue', frontImageBase64: '', backImageBase64: ''),
-      Combination(id: 9, name: 'Festival', frontImageBase64: '', backImageBase64: ''),
-    ],
+    // Only the first template has extra backgrounds.
+    combinations: id != 1
+        ? const []
+        : const [
+            Combination(id: 7, name: 'Blue', frontImageBase64: '', backImageBase64: ''),
+            Combination(id: 9, name: 'Festival', frontImageBase64: '', backImageBase64: ''),
+          ],
   );
 
   @override
@@ -100,13 +107,6 @@ Future<(ProviderContainer, _FakeCards)> pumpGenerator(WidgetTester tester) async
   return (ProviderScope.containerOf(tester.element(find.byType(GenerateCardScreen))), cards);
 }
 
-Future<void> chooseTemplate(WidgetTester tester) async {
-  await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, 'Template'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('Ration card').last);
-  await tester.pumpAndSettle();
-}
-
 Future<void> chooseBackground(WidgetTester tester, String name) async {
   await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, 'Background'));
   await tester.pumpAndSettle();
@@ -125,26 +125,58 @@ Future<void> preview(WidgetTester tester, ProviderContainer container) async {
 const placeholder = 'Preview will appear here after parsing the PDF.';
 
 void main() {
-  testWidgets('there is no background drop-down until a template is chosen', (tester) async {
-    await pumpGenerator(tester);
-
-    expect(find.widgetWithText(DropdownButtonFormField<int>, 'Background'), findsNothing);
-  });
-
-  testWidgets('choosing a template adds a Background drop-down but shows no background yet', (tester) async {
+  testWidgets('opens with the first template selected, on its first (default) background', (tester) async {
     final (container, _) = await pumpGenerator(tester);
-    await chooseTemplate(tester);
 
+    final state = container.read(generateCardControllerProvider).value!;
+    expect(state.selectedTemplateId, 1);
+    expect(state.template?.template.name, 'Ration card');
+    expect(state.selectedCombinationId, 0);
+    // Both drop-downs show their first item, ready to go.
     expect(find.widgetWithText(DropdownButtonFormField<int>, 'Background'), findsOneWidget);
-    // Nothing is drawn until Preview: no thumbnails strip, no card, just the placeholder.
+    expect(find.descendant(of: find.widgetWithText(DropdownButtonFormField<int>, 'Template'), matching: find.text('Ration card')), findsOneWidget);
+    expect(find.descendant(of: find.widgetWithText(DropdownButtonFormField<int>, 'Background'), matching: find.text('Default')), findsOneWidget);
+    // Nothing is drawn until Preview: just the placeholder.
     expect(find.text(placeholder), findsOneWidget);
     expect(find.text('Add background'), findsNothing);
-    expect(container.read(generateCardControllerProvider).value!.selectedCombinationId, 0);
+  });
+
+  testWidgets('choosing another template shows its own backgrounds, starting on the default', (tester) async {
+    final (container, _) = await pumpGenerator(tester);
+    await chooseBackground(tester, 'Blue');
+    expect(container.read(generateCardControllerProvider).value!.selectedCombinationId, 7);
+
+    await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, 'Template'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Second card').last);
+    await tester.pumpAndSettle();
+
+    final state = container.read(generateCardControllerProvider).value!;
+    expect(state.selectedTemplateId, 2);
+    expect(state.selectedCombinationId, 0);
+    expect(find.descendant(of: find.widgetWithText(DropdownButtonFormField<int>, 'Background'), matching: find.text('Default')), findsOneWidget);
+    await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, 'Background'));
+    await tester.pumpAndSettle();
+    expect(find.text('Blue'), findsNothing);
+  });
+
+  testWidgets('the template panel folds away and comes back', (tester) async {
+    await pumpGenerator(tester);
+    expect(find.widgetWithText(DropdownButtonFormField<int>, 'Template').hitTestable(), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Shrink Template'));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(find.byType(CollapsiblePanel)).width, CollapsiblePanel.collapsedWidth);
+    expect(find.widgetWithText(DropdownButtonFormField<int>, 'Template').hitTestable(), findsNothing);
+
+    await tester.tap(find.byTooltip('Expand Template'));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(find.byType(CollapsiblePanel)).width, 340);
+    expect(find.widgetWithText(DropdownButtonFormField<int>, 'Template').hitTestable(), findsOneWidget);
   });
 
   testWidgets("the drop-down lists the template's backgrounds", (tester) async {
     await pumpGenerator(tester).then((_) => null);
-    await chooseTemplate(tester);
 
     await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, 'Background'));
     await tester.pumpAndSettle();
@@ -156,7 +188,6 @@ void main() {
 
   testWidgets('Preview shows the chosen background alone', (tester) async {
     final (container, cards) = await pumpGenerator(tester);
-    await chooseTemplate(tester);
     await chooseBackground(tester, 'Blue');
     // Choosing does not preview anything by itself.
     expect(cards.generatedWith, isEmpty);
@@ -173,7 +204,6 @@ void main() {
 
   testWidgets('another background only takes effect when Preview is pressed again', (tester) async {
     final (container, cards) = await pumpGenerator(tester);
-    await chooseTemplate(tester);
     await chooseBackground(tester, 'Blue');
     await preview(tester, container);
 
@@ -197,7 +227,6 @@ void main() {
 
   testWidgets('the download is printed on the background that was previewed', (tester) async {
     final (container, cards) = await pumpGenerator(tester);
-    await chooseTemplate(tester);
     await chooseBackground(tester, 'Blue');
     await preview(tester, container);
     // Pick another background but do not preview it.
@@ -210,7 +239,6 @@ void main() {
 
   testWidgets('choosing another template starts again on its default background', (tester) async {
     final (container, _) = await pumpGenerator(tester);
-    await chooseTemplate(tester);
     await chooseBackground(tester, 'Blue');
     await preview(tester, container);
 

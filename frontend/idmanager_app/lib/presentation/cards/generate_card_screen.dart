@@ -10,6 +10,7 @@ import '../../core_engine/common/enums.dart';
 import '../../core_engine/common/uploaded_file.dart';
 import '../../application/cards/generate_card_state.dart';
 import '../../core_engine/templates/domain/card_background.dart';
+import '../templates/collapsible_panel.dart';
 import '../templates/layout_workspace.dart';
 
 class GenerateCardScreen extends ConsumerStatefulWidget {
@@ -82,8 +83,12 @@ class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
         error: (e, _) => Center(child: Text('Failed to load templates: $e')),
         data: (state) => Row(
           children: [
-            SizedBox(
+            // Can be folded away to give the preview the whole width, like the designer's
+            // Layers panel.
+            CollapsiblePanel(
+              title: 'Template',
               width: 340,
+              edge: CollapseEdge.left,
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [

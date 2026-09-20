@@ -2,6 +2,9 @@ class AppRoutes {
   AppRoutes._();
 
   static const dashboard = '/';
+
+  /// Where a user lands after logging in: making a card is what most users are here for.
+  static const home = generateCard;
   static const templates = '/templates';
   static const users = '/users';
   static const points = '/points';

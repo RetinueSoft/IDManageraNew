@@ -1,4 +1,5 @@
 import '../../core_engine/cards/domain/downloaded_pdf.dart';
+
 import 'dart:typed_data';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -6,7 +7,9 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../business_service/providers.dart';
 import '../../core_engine/common/enums.dart';
 import '../../core_engine/common/uploaded_file.dart';
+import '../../core_engine/cards/domain/qr_slot.dart';
 import '../../core_engine/templates/domain/card_background.dart';
+import '../../core_engine/templates/domain/card_template.dart';
 import '../../core_engine/templates/domain/template_layer.dart';
 import '../points/points_refresh.dart';
 import 'generate_card_state.dart';
@@ -20,7 +23,35 @@ class GenerateCardController extends _$GenerateCardController {
     final options = await ref
         .watch(templateServiceProvider)
         .getActiveTemplateOptions();
-    return GenerateCardState(templateOptions: options);
+    if (options.isEmpty) return GenerateCardState(templateOptions: options);
+
+    // Open with the first template chosen (and so its first background, the default), so the
+    // user can go straight to choosing the member PDF.
+    final firstId = options.first.id;
+    try {
+      final loaded = await _loadTemplate(firstId);
+      return GenerateCardState(
+        templateOptions: options,
+        selectedTemplateId: firstId,
+        template: loaded.detail,
+        qrSlots: loaded.slots,
+      );
+    } catch (_) {
+      // Could not load it: leave the choice to the user rather than failing the whole screen.
+      return GenerateCardState(templateOptions: options);
+    }
+  }
+
+  Future<({CardTemplateDetail? detail, List<QrSlot> slots})> _loadTemplate(
+    int templateId,
+  ) async {
+    final detail = await ref
+        .read(templateServiceProvider)
+        .getTemplate(templateId);
+    final slots = await ref
+        .read(cardGenerationServiceProvider)
+        .getQrSlots(templateId);
+    return (detail: detail, slots: slots);
   }
 
   Future<void> selectTemplate(int? templateId) async {
@@ -40,15 +71,13 @@ class GenerateCardController extends _$GenerateCardController {
     );
     if (templateId == null) return;
 
-    final service = ref.read(cardGenerationServiceProvider);
-    final detail = await ref
-        .read(templateServiceProvider)
-        .getTemplate(templateId);
-    final slots = await service.getQrSlots(templateId);
+    final loaded = await _loadTemplate(templateId);
     final refreshed = state.value;
     // The user may have picked another template while this one was loading.
     if (refreshed == null || refreshed.selectedTemplateId != templateId) return;
-    state = AsyncData(refreshed.copyWith(template: detail, qrSlots: slots));
+    state = AsyncData(
+      refreshed.copyWith(template: loaded.detail, qrSlots: loaded.slots),
+    );
   }
 
   /// Chooses the background the next preview is made on (0 = the template's own). The card on
