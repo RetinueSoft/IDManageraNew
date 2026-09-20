@@ -4,6 +4,7 @@ import '../core_engine/providers.dart';
 import '../infrastructure/providers.dart';
 import 'audit/audit_log_service.dart';
 import 'cards/card_generation_service.dart';
+import 'dashboard/dashboard_service.dart';
 import 'points/points_service.dart';
 import 'security/auth_service.dart';
 import 'security/user_service.dart';
@@ -37,3 +38,7 @@ CardGenerationService cardGenerationService(Ref ref) => CardGenerationService(
 @Riverpod(keepAlive: true)
 AuditLogService auditLogService(Ref ref) =>
     AuditLogService(ref.watch(auditLogEngineServiceProvider));
+
+@Riverpod(keepAlive: true)
+DashboardService dashboardService(Ref ref) =>
+    DashboardService(ref.watch(dashboardEngineServiceProvider));

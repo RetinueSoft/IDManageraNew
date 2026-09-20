@@ -26,6 +26,7 @@ builder.Services.AddDbContext<IDManagerDbContext>(options =>
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<PointsService>();
+builder.Services.AddScoped<IDManager.Infrastructure.Dashboard.DashboardService>();
 builder.Services.AddScoped<TemplateService>();
 builder.Services.AddScoped<CardService>();
 builder.Services.AddScoped<AuditLogService>();
@@ -122,6 +123,7 @@ app.MapUserEndpoints();
 app.MapTemplateEndpoints();
 app.MapCardEndpoints();
 app.MapPointsEndpoints();
+app.MapDashboardEndpoints();
 app.MapAuditLogEndpoints();
 
 app.Run();

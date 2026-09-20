@@ -294,3 +294,51 @@ final class AuditLogEngineServiceProvider
 
 String _$auditLogEngineServiceHash() =>
     r'f22139797372d0673d270fdccf6071fa93087904';
+
+@ProviderFor(dashboardEngineService)
+final dashboardEngineServiceProvider = DashboardEngineServiceProvider._();
+
+final class DashboardEngineServiceProvider
+    extends
+        $FunctionalProvider<
+          DashboardEngineService,
+          DashboardEngineService,
+          DashboardEngineService
+        >
+    with $Provider<DashboardEngineService> {
+  DashboardEngineServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'dashboardEngineServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$dashboardEngineServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<DashboardEngineService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  DashboardEngineService create(Ref ref) {
+    return dashboardEngineService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(DashboardEngineService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<DashboardEngineService>(value),
+    );
+  }
+}
+
+String _$dashboardEngineServiceHash() =>
+    r'03b6a6fd37632242c1c117ceda0836e8f6784436';

@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../infrastructure/providers.dart';
 import 'audit/audit_engine.dart';
 import 'cards/cards_engine.dart';
+import 'dashboard/dashboard_engine.dart';
 import 'points/points_engine.dart';
 import 'security/security_engine.dart';
 import 'templates/template_engine.dart';
@@ -32,3 +33,7 @@ CardsEngineService cardsEngineService(Ref ref) =>
 @Riverpod(keepAlive: true)
 AuditLogEngineService auditLogEngineService(Ref ref) =>
     AuditLogEngineService(ref.watch(auditLogRepositoryProvider));
+
+@Riverpod(keepAlive: true)
+DashboardEngineService dashboardEngineService(Ref ref) =>
+    DashboardEngineService(ref.watch(dashboardRepositoryProvider));

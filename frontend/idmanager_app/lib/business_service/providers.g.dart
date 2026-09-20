@@ -263,3 +263,49 @@ final class AuditLogServiceProvider
 }
 
 String _$auditLogServiceHash() => r'ca2f7fdc150eaf22f9cd391f2faef183ff1dac36';
+
+@ProviderFor(dashboardService)
+final dashboardServiceProvider = DashboardServiceProvider._();
+
+final class DashboardServiceProvider
+    extends
+        $FunctionalProvider<
+          DashboardService,
+          DashboardService,
+          DashboardService
+        >
+    with $Provider<DashboardService> {
+  DashboardServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'dashboardServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$dashboardServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<DashboardService> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  DashboardService create(Ref ref) {
+    return dashboardService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(DashboardService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<DashboardService>(value),
+    );
+  }
+}
+
+String _$dashboardServiceHash() => r'b640f8b15671724d8f344e01b664b502c51a2968';

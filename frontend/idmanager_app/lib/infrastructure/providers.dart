@@ -2,6 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../core_engine/audit/contracts/audit_log_repository.dart';
 import '../core_engine/cards/contracts/card_repository.dart';
+import '../core_engine/dashboard/contracts/dashboard_repository.dart';
 import '../core_engine/points/contracts/points_repository.dart';
 import '../core_engine/security/contracts/auth_repository.dart';
 import '../core_engine/security/contracts/user_repository.dart';
@@ -10,6 +11,7 @@ import '../foundation/network/api_client.dart';
 import '../foundation/storage/token_storage.dart';
 import 'repositories/api_audit_log_repository.dart';
 import 'repositories/api_card_repository.dart';
+import 'repositories/api_dashboard_repository.dart';
 import 'repositories/api_points_repository.dart';
 import 'repositories/api_template_repository.dart';
 import 'repositories/api_user_repository.dart';
@@ -40,3 +42,6 @@ CardRepository cardRepository(Ref ref) => ApiCardRepository(ref.watch(apiClientP
 
 @Riverpod(keepAlive: true)
 AuditLogRepository auditLogRepository(Ref ref) => ApiAuditLogRepository(ref.watch(apiClientProvider));
+
+@Riverpod(keepAlive: true)
+DashboardRepository dashboardRepository(Ref ref) => ApiDashboardRepository(ref.watch(apiClientProvider));
