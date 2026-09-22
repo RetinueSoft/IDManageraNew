@@ -529,9 +529,10 @@ class _SpinButton extends StatelessWidget {
 /// printed before the value unless empty) and a value, which is always printed, plus
 /// its own separator to the next field.
 /// Fields can be added blank, from the sample PDF, or by merging in a layer already
-/// on the canvas.
-class CombinedFieldsEditor extends StatelessWidget {
+/// on the canvas, and reordered with the up/down buttons on each row.
+class CombinedFieldsEditor extends StatefulWidget {
   const CombinedFieldsEditor({
+    super.key,
     required this.designer,
     required this.group,
     required this.sampleFields,
@@ -540,8 +541,8 @@ class CombinedFieldsEditor extends StatelessWidget {
     required this.onChanged,
   });
 
-  /// Only the designer may add or remove fields, edit keys or pick the PDF field; on a
-  /// generated card just the values (and how they join) can change.
+  /// Only the designer may add, remove or reorder fields, edit keys or pick the PDF field; on
+  /// a generated card just the values (and how they join) can change.
   final bool designer;
   final LayerGroup group;
   final List<ExtractedField> sampleFields;
@@ -549,11 +550,20 @@ class CombinedFieldsEditor extends StatelessWidget {
   final void Function(String otherId) onMergeLayer;
   final void Function(LayerGroup Function(LayerGroup current) update) onChanged;
 
+  @override
+  State<CombinedFieldsEditor> createState() => _CombinedFieldsEditorState();
+}
+
+class _CombinedFieldsEditorState extends State<CombinedFieldsEditor> {
+  /// Bumped on every reorder so the two moved rows remount with their new content; typing
+  /// never touches this, so the field being typed into keeps its focus.
+  int _moveVersion = 0;
+
   void _addSource(LayerSourceItem item) =>
-      onChanged((g) => g.copyWith(sources: [...g.sources, item]));
+      widget.onChanged((g) => g.copyWith(sources: [...g.sources, item]));
 
   void _updateAt(int index, LayerSourceItem Function(LayerSourceItem) update) =>
-      onChanged(
+      widget.onChanged(
         (g) => g.copyWith(
           sources: [
             for (var i = 0; i < g.sources.length; i++)
@@ -562,7 +572,7 @@ class CombinedFieldsEditor extends StatelessWidget {
         ),
       );
 
-  void _removeAt(int index) => onChanged(
+  void _removeAt(int index) => widget.onChanged(
     (g) => g.copyWith(
       sources: [
         for (var i = 0; i < g.sources.length; i++)
@@ -571,11 +581,21 @@ class CombinedFieldsEditor extends StatelessWidget {
     ),
   );
 
+  void _swap(int a, int b) {
+    widget.onChanged((g) {
+      final sources = [...g.sources];
+      final moved = sources.removeAt(a);
+      sources.insert(b, moved);
+      return g.copyWith(sources: sources);
+    });
+    setState(() => _moveVersion++);
+  }
+
   void _onAddSelected(Object choice) {
     if (choice is ExtractedField) {
       _addSource(LayerSourceItem(key: choice.key, value: choice.value));
     } else if (choice is LayerGroup) {
-      onMergeLayer(choice.id);
+      widget.onMergeLayer(choice.id);
     } else if (choice == 'emptyline') {
       _addSource(const LayerSourceItem(emptyLine: true));
     } else {
@@ -590,8 +610,10 @@ class CombinedFieldsEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final group = widget.group;
+    final designer = widget.designer;
     final textFields = [
-      for (final f in sampleFields)
+      for (final f in widget.sampleFields)
         if (f.type == LayerFieldType.text) f,
     ];
 
@@ -635,13 +657,13 @@ class CombinedFieldsEditor extends StatelessWidget {
                         ),
                       ),
                   ],
-                  if (otherLayers.isNotEmpty) ...[
+                  if (widget.otherLayers.isNotEmpty) ...[
                     const PopupMenuDivider(),
                     const PopupMenuItem<Object>(
                       enabled: false,
                       child: Text('Merge an existing layer'),
                     ),
-                    for (final l in otherLayers)
+                    for (final l in widget.otherLayers)
                       PopupMenuItem<Object>(
                         value: l,
                         child: Text(
@@ -668,9 +690,9 @@ class CombinedFieldsEditor extends StatelessWidget {
         // Each field is one row of four columns: key, value, read from, join with.
         for (var i = 0; i < group.sources.length; i++)
           Padding(
-            // Keyed on the field count so rows rebuild (with the right text) after an
-            // add/remove, but keep focus while typing.
-            key: ValueKey('${group.sources.length}-$i'),
+            // Keyed on the field count and the move counter so rows rebuild (with the right
+            // text) after an add/remove/reorder, but keep focus while just typing.
+            key: ValueKey('${group.sources.length}-$_moveVersion-$i'),
             padding: const EdgeInsets.only(bottom: 8),
             child: group.sources[i].emptyLine
                 ? Row(
@@ -678,12 +700,19 @@ class CombinedFieldsEditor extends StatelessWidget {
                       const Icon(Icons.space_bar, size: 18),
                       const SizedBox(width: 8),
                       const Expanded(child: Text('Empty line')),
-                      if (designer)
+                      if (designer) ...[
+                        _ReorderButtons(
+                          canMoveUp: i > 0,
+                          canMoveDown: i < group.sources.length - 1,
+                          onMoveUp: () => _swap(i, i - 1),
+                          onMoveDown: () => _swap(i, i + 1),
+                        ),
                         IconButton(
                           tooltip: 'Remove empty line',
                           icon: const Icon(Icons.close, size: 18),
                           onPressed: () => _removeAt(i),
                         ),
+                      ],
                     ],
                   )
                 : Row(
@@ -714,7 +743,7 @@ class CombinedFieldsEditor extends StatelessWidget {
                             if (designer)
                               PdfFieldPicker(
                                 value: group.sources[i].sourceKey,
-                                fields: sampleFields,
+                                fields: widget.sampleFields,
                                 isFixedText:
                                     (group.sources[i].key ?? '')
                                         .trim()
@@ -757,12 +786,19 @@ class CombinedFieldsEditor extends StatelessWidget {
                           ],
                         ),
                       ),
-                      if (designer)
+                      if (designer) ...[
+                        _ReorderButtons(
+                          canMoveUp: i > 0,
+                          canMoveDown: i < group.sources.length - 1,
+                          onMoveUp: () => _swap(i, i - 1),
+                          onMoveDown: () => _swap(i, i + 1),
+                        ),
                         IconButton(
                           tooltip: 'Remove field',
                           icon: const Icon(Icons.close, size: 18),
                           onPressed: () => _removeAt(i),
                         ),
+                      ],
                     ],
                   ),
           ),
@@ -775,8 +811,13 @@ class CombinedFieldsEditor extends StatelessWidget {
 /// itself is looked up; choosing another field lets the key stay empty (value only on the
 /// card) or read differently, without breaking the link to the PDF. A field with neither a
 /// key nor a PDF field is fixed text and always prints what is typed.
+///
+/// A combo box, not a plain dropdown: the sample PDF's fields are offered as suggestions, but
+/// typing a name of its own is just as valid - the field a template needs is not always one
+/// the sample happened to have.
 class PdfFieldPicker extends StatelessWidget {
   const PdfFieldPicker({
+    super.key,
     required this.value,
     required this.fields,
     required this.isFixedText,
@@ -794,29 +835,92 @@ class PdfFieldPicker extends StatelessWidget {
       for (final f in fields)
         if (f.type == LayerFieldType.text && (f.key ?? '').trim().isNotEmpty)
           f.key!.trim(),
-      if ((value ?? '').isNotEmpty) value!,
     }.toList();
 
-    return DropdownButtonFormField<String?>(
-      initialValue: (value ?? '').isEmpty ? null : value,
-      isExpanded: true,
-      decoration: InputDecoration(
-        labelText: 'Read from PDF field',
-        isDense: true,
-        helperText: isFixedText ? 'Fixed text: not read from the PDF' : null,
-      ),
-      items: [
-        const DropdownMenuItem<String?>(
-          value: null,
-          child: Text('Same as key'),
-        ),
-        for (final k in keys)
-          DropdownMenuItem<String?>(
-            value: k,
-            child: Text(k, overflow: TextOverflow.ellipsis),
+    return Autocomplete<String>(
+      initialValue: TextEditingValue(text: value ?? ''),
+      optionsBuilder: (textEditingValue) {
+        final query = textEditingValue.text.trim().toLowerCase();
+        return query.isEmpty
+            ? keys
+            : keys.where((k) => k.toLowerCase().contains(query));
+      },
+      onSelected: (selection) =>
+          onChanged(selection.trim().isEmpty ? null : selection),
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+        return TextFormField(
+          controller: controller,
+          focusNode: focusNode,
+          decoration: InputDecoration(
+            labelText: 'Read from PDF field',
+            isDense: true,
+            hintText: 'Same as key',
+            helperText: isFixedText ? 'Fixed text: not read from the PDF' : null,
           ),
-      ],
-      onChanged: onChanged,
+          onChanged: (v) => onChanged(v.trim().isEmpty ? null : v),
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) => Align(
+        alignment: Alignment.topLeft,
+        child: Material(
+          elevation: 4,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 200, maxWidth: 320),
+            child: ListView(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              children: [
+                for (final option in options)
+                  ListTile(
+                    dense: true,
+                    title: Text(option, overflow: TextOverflow.ellipsis),
+                    onTap: () => onSelected(option),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
+}
+
+/// Up/down arrows to move a field within its group. Disabled (greyed) at either end.
+class _ReorderButtons extends StatelessWidget {
+  const _ReorderButtons({
+    required this.canMoveUp,
+    required this.canMoveDown,
+    required this.onMoveUp,
+    required this.onMoveDown,
+  });
+
+  final bool canMoveUp;
+  final bool canMoveDown;
+  final VoidCallback onMoveUp;
+  final VoidCallback onMoveDown;
+
+  static const _constraints = BoxConstraints(minWidth: 28, minHeight: 22);
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      IconButton(
+        tooltip: 'Move up',
+        icon: const Icon(Icons.keyboard_arrow_up, size: 18),
+        visualDensity: VisualDensity.compact,
+        padding: EdgeInsets.zero,
+        constraints: _constraints,
+        onPressed: canMoveUp ? onMoveUp : null,
+      ),
+      IconButton(
+        tooltip: 'Move down',
+        icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+        visualDensity: VisualDensity.compact,
+        padding: EdgeInsets.zero,
+        constraints: _constraints,
+        onPressed: canMoveDown ? onMoveDown : null,
+      ),
+    ],
+  );
 }
