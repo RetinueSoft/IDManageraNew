@@ -18,6 +18,10 @@ void main() {
       (' 01-Jan-1968 ', 'dd/MM/yyyy', '01/01/1968'), // surrounding spaces
       ('01-JAN-1968', 'dd/MM/yyyy', '01/01/1968'), // any case
       ('01-january-1968', 'dd/MM/yyyy', '01/01/1968'),
+      // A "generated on" timestamp some PDFs print: the time of day is dropped.
+      ('12 September 2026 | 09:53:46 AM', 'yyyy', '2026'),
+      ('12 September 2026 | 09:53:46 AM:', 'yyyy', '2026'), // a stray trailing colon
+      ('09 December 2023 | 03:42:37 PM', 'dd/MM/yyyy', '09/12/2023'),
     ];
     for (final (value, format, expected) in cases) {
       test('"$value" as $format is "$expected"', () {
@@ -49,8 +53,7 @@ void main() {
     const values = [
       '614001', // a postcode
       '9876543210', // a phone number
-      '01-Jan-1968 10:30', // has a time: not a plain date
-      '09 December 2023 | 03:42:37 PM',
+      '01-Jan-1968 10:30', // a time with no "|" before it is not stripped
       '31-Feb-2020', // not a real date
       '32/01/2020',
       'hello',

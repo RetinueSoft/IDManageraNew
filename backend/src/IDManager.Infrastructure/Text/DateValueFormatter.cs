@@ -11,7 +11,8 @@ namespace IDManager.Infrastructure.Text;
 ///
 /// Recognised inputs, day first (so 05/03/2021 is 5 March): dd-MM-yyyy (separators - / . or
 /// space), yyyy-MM-dd, dd-MMM-yyyy and dd MMMM yyyy (English month names, any case), and
-/// "MMM d, yyyy".
+/// "MMM d, yyyy". A "| 09:53:46 AM"-style time of day tacked on the end (as some PDFs print a
+/// generated-on date) is dropped before matching, so only the date part is read.
 ///
 /// Format tokens: yyyy, yy, MMMM, MMM, MM, M, dd, d. Everything else is printed as typed.
 public static class DateValueFormatter
@@ -29,6 +30,10 @@ public static class DateValueFormatter
     private static readonly Regex YearMonthDayNumeric = new(@"^([0-9]{4})[-/.]([0-9]{1,2})[-/.]([0-9]{1,2})$", RegexOptions.CultureInvariant);
     private static readonly Regex DayMonthNameYear = new(@"^([0-9]{1,2})[-/. ]+([A-Za-z]+)[-/. ]+([0-9]{4})$", RegexOptions.CultureInvariant);
     private static readonly Regex MonthNameDayYear = new(@"^([A-Za-z]+)\.? +([0-9]{1,2}),? +([0-9]{4})$", RegexOptions.CultureInvariant);
+
+    // A "| 09:53:46 AM" (or "PM", with or without a trailing period/colon) tacked on the end of a
+    // date - dropped before matching so only the date part is read.
+    private static readonly Regex TrailingTimeOfDay = new(@"\s*\|\s*[0-9]{1,2}:[0-9]{2}(:[0-9]{2})?\s*[AaPp]\.?[Mm]\.?:?\s*$", RegexOptions.CultureInvariant);
 
     /// [value] as a date in [format], or [value] itself when it is not a date or [format] has no
     /// date parts.
@@ -48,17 +53,19 @@ public static class DateValueFormatter
 
     private static (int Year, int Month, int Day)? Parse(string text)
     {
-        var m = DayMonthYearNumeric.Match(text);
+        var date = TrailingTimeOfDay.Replace(text, "");
+
+        var m = DayMonthYearNumeric.Match(date);
         if (m.Success) return Valid(int.Parse(m.Groups[3].Value), int.Parse(m.Groups[2].Value), int.Parse(m.Groups[1].Value));
 
-        m = YearMonthDayNumeric.Match(text);
+        m = YearMonthDayNumeric.Match(date);
         if (m.Success) return Valid(int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value), int.Parse(m.Groups[3].Value));
 
-        m = DayMonthNameYear.Match(text);
+        m = DayMonthNameYear.Match(date);
         if (m.Success && MonthNumber(m.Groups[2].Value) is { } month1)
             return Valid(int.Parse(m.Groups[3].Value), month1, int.Parse(m.Groups[1].Value));
 
-        m = MonthNameDayYear.Match(text);
+        m = MonthNameDayYear.Match(date);
         if (m.Success && MonthNumber(m.Groups[1].Value) is { } month2)
             return Valid(int.Parse(m.Groups[3].Value), month2, int.Parse(m.Groups[2].Value));
 

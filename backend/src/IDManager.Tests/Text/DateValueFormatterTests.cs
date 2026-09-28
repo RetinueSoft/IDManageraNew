@@ -20,6 +20,10 @@ public class DateValueFormatterTests
     [InlineData(" 01-Jan-1968 ", "dd/MM/yyyy", "01/01/1968")]     // surrounding spaces
     [InlineData("01-JAN-1968", "dd/MM/yyyy", "01/01/1968")]       // any case
     [InlineData("01-january-1968", "dd/MM/yyyy", "01/01/1968")]
+    // A "generated on" timestamp some PDFs print: the time of day is dropped.
+    [InlineData("12 September 2026 | 09:53:46 AM", "yyyy", "2026")]
+    [InlineData("12 September 2026 | 09:53:46 AM:", "yyyy", "2026")]  // a stray trailing colon
+    [InlineData("09 December 2023 | 03:42:37 PM", "dd/MM/yyyy", "09/12/2023")]
     public void ReformatsADateValue(string value, string format, string expected) =>
         Assert.Equal(expected, DateValueFormatter.Reformat(value, format));
 
@@ -39,8 +43,7 @@ public class DateValueFormatterTests
     [Theory]
     [InlineData("614001")]                       // a postcode
     [InlineData("9876543210")]                   // a phone number
-    [InlineData("01-Jan-1968 10:30")]            // has a time: not a plain date
-    [InlineData("09 December 2023 | 03:42:37 PM")]
+    [InlineData("01-Jan-1968 10:30")]            // a time with no "|" before it is not stripped
     [InlineData("31-Feb-2020")]                  // not a real date
     [InlineData("32/01/2020")]
     [InlineData("hello")]

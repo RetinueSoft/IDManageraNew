@@ -25,6 +25,7 @@ class DateFormatEditor extends StatefulWidget {
     'dd MMMM yyyy',
     'MM/dd/yyyy',
     'yyyy-MM-dd',
+    'yyyy',
   ];
 
   @override

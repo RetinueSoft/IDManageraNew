@@ -6,7 +6,8 @@
 //
 // Recognised inputs, day first (so 05/03/2021 is 5 March): dd-MM-yyyy (separators - / . or
 // space), yyyy-MM-dd, dd-MMM-yyyy and dd MMMM yyyy (English month names, any case), and
-// "MMM d, yyyy".
+// "MMM d, yyyy". A "| 09:53:46 AM"-style time of day tacked on the end (as some PDFs print a
+// generated-on date) is dropped before matching, so only the date part is read.
 //
 // Format tokens: yyyy, yy, MMMM, MMM, MM, M, dd, d. Everything else is printed as typed.
 
@@ -33,6 +34,12 @@ final _yearMonthDayNumeric = RegExp(r'^([0-9]{4})[-/.]([0-9]{1,2})[-/.]([0-9]{1,
 final _dayMonthNameYear = RegExp(r'^([0-9]{1,2})[-/. ]+([A-Za-z]+)[-/. ]+([0-9]{4})$');
 final _monthNameDayYear = RegExp(r'^([A-Za-z]+)\.? +([0-9]{1,2}),? +([0-9]{4})$');
 
+/// A "| 09:53:46 AM" (or "PM", with or without a trailing period/colon) tacked on the end of a
+/// date - dropped before matching so only the date part is read.
+final _trailingTimeOfDay = RegExp(
+  r'\s*\|\s*[0-9]{1,2}:[0-9]{2}(:[0-9]{2})?\s*[AaPp]\.?[Mm]\.?:?\s*$',
+);
+
 /// [value] as a date in [format], or [value] itself when it is not a date or [format] has no date
 /// parts.
 String reformatDate(String value, String? format) {
@@ -49,19 +56,21 @@ bool isUsableDateFormat(String? format) =>
     format != null && format.trim().isNotEmpty && _tokens.any(format.contains);
 
 (int, int, int)? _parse(String text) {
-  var m = _dayMonthYearNumeric.firstMatch(text);
+  final date = text.replaceFirst(_trailingTimeOfDay, '');
+
+  var m = _dayMonthYearNumeric.firstMatch(date);
   if (m != null) return _valid(int.parse(m[3]!), int.parse(m[2]!), int.parse(m[1]!));
 
-  m = _yearMonthDayNumeric.firstMatch(text);
+  m = _yearMonthDayNumeric.firstMatch(date);
   if (m != null) return _valid(int.parse(m[1]!), int.parse(m[2]!), int.parse(m[3]!));
 
-  m = _dayMonthNameYear.firstMatch(text);
+  m = _dayMonthNameYear.firstMatch(date);
   if (m != null) {
     final month = _monthNumber(m[2]!);
     if (month != null) return _valid(int.parse(m[3]!), month, int.parse(m[1]!));
   }
 
-  m = _monthNameDayYear.firstMatch(text);
+  m = _monthNameDayYear.firstMatch(date);
   if (m != null) {
     final month = _monthNumber(m[1]!);
     if (month != null) return _valid(int.parse(m[3]!), month, int.parse(m[2]!));

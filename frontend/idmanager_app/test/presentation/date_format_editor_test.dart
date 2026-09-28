@@ -31,4 +31,15 @@ void main() {
     expect(changes.last, 'yyyy-MM-dd');
     expect(find.text('yyyy-MM-dd'), findsOneWidget);
   });
+
+  testWidgets('year-only (yyyy) is offered as a preset', (tester) async {
+    final changes = <String?>[];
+    await tester.pumpWidget(host(null, changes.add));
+    await tester.tap(find.byType(PopupMenuButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('yyyy   (2024)'));
+    await tester.pumpAndSettle();
+    expect(changes.last, 'yyyy');
+    expect(find.text('Prints as 2024'), findsOneWidget);
+  });
 }
