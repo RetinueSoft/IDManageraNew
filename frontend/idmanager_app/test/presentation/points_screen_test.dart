@@ -208,6 +208,41 @@ void main() {
     expect(find.textContaining('Deep'), findsNothing);
   });
 
+  group('a Super Admin sees every member, but only manages their own', () {
+    testWidgets("the drop-down lists a member deeper than the Super Admin's own, unlike other roles", (tester) async {
+      await pump(tester, UserRole.superAdmin);
+
+      await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, 'User'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Deep'), findsWidgets);
+    });
+
+    testWidgets('picking that member shows their history, but Allocate and Reclaim are disabled', (tester) async {
+      await pump(tester, UserRole.superAdmin);
+
+      await choose(tester, 'Deep');
+
+      expect(find.text('Point details of Deep'), findsOneWidget);
+      expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Allocate')).onPressed, isNull);
+      expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Reclaim')).onPressed, isNull);
+      expect(
+        find.textContaining('You can only allocate or reclaim points for the members you created directly'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('picking a direct member still allows allocating and reclaiming as usual', (tester) async {
+      await pump(tester, UserRole.superAdmin);
+
+      await choose(tester, 'Anu');
+
+      expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Allocate')).onPressed, isNotNull);
+      expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Reclaim')).onPressed, isNotNull);
+      expect(find.textContaining('You can only allocate or reclaim points for the members you created directly'), findsNothing);
+    });
+  });
+
   testWidgets('a User has no member picker and only ever sees their own details', (tester) async {
     final points = await pump(tester, UserRole.user);
 

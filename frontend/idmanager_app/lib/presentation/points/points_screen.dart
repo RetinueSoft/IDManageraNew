@@ -259,16 +259,26 @@ class _AllocatePointsPanelState extends ConsumerState<_AllocatePointsPanel> {
   @override
   Widget build(BuildContext context) {
     final usersAsync = ref.watch(userListControllerProvider);
-    // Only the logged-in user and the members they created directly: points move one
-    // level at a time (docs/member-hierarchy.md, section 5).
-    final users = [
-      for (final u in usersAsync.value ?? const <User>[])
-        if (u.id == widget.myUserId || u.parentId == widget.myUserId) u,
-    ];
+    final visible = usersAsync.value ?? const <User>[];
+    // A Super Admin's drop-down offers every member they can see, so any member's history can
+    // be looked up here - same as the Users screen (docs/member-hierarchy.md, section 3).
+    // Everyone else's drop-down stays the logged-in user and the members they created directly.
+    // Allocating or reclaiming, though, always stays one level down for everyone, the Super
+    // Admin included (section 5) - see canManageSelected below.
+    final users = widget.isSuperAdmin
+        ? visible
+        : [
+            for (final u in visible)
+              if (u.id == widget.myUserId || u.parentId == widget.myUserId) u,
+          ];
+    final target = users.where((u) => u.id == _targetUserId).firstOrNull;
     // You appear in the list, but your own points can't be adjusted (a SuperAdmin's
     // pool is unlimited; everyone else's balance is changed by the user above them).
     final selectedIsMe = _targetUserId == widget.myUserId;
     final isTopUp = selectedIsMe && widget.isSuperAdmin;
+    // Points move one level at a time: only a member created directly by you (never anyone
+    // deeper) can be allocated to or reclaimed from, even when the drop-down offers more.
+    final canManageSelected = target != null && target.parentId == widget.myUserId;
     final state = _targetUserId == null
         ? null
         : ref.watch(adjustPointsControllerProvider(_targetUserId!));
@@ -328,6 +338,13 @@ class _AllocatePointsPanelState extends ConsumerState<_AllocatePointsPanel> {
                     : 'You cannot allocate or reclaim your own points. Your history is listed below.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
+            ] else if (target != null && !canManageSelected) ...[
+              const SizedBox(height: 8),
+              Text(
+                'You can only allocate or reclaim points for the members you created directly. '
+                "${target.name}'s point history is listed below.",
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ],
             const SizedBox(height: 12),
             TextField(
@@ -344,7 +361,10 @@ class _AllocatePointsPanelState extends ConsumerState<_AllocatePointsPanel> {
                 if (widget.isSuperAdmin) ...[
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: (state?.isSaving ?? false) || selectedIsMe
+                      onPressed:
+                          (state?.isSaving ?? false) ||
+                              selectedIsMe ||
+                              !canManageSelected
                           ? null
                           : () => _submit(false),
                       child: const Text('Reclaim'),
@@ -355,7 +375,8 @@ class _AllocatePointsPanelState extends ConsumerState<_AllocatePointsPanel> {
                 Expanded(
                   child: FilledButton(
                     onPressed:
-                        (state?.isSaving ?? false) || (selectedIsMe && !isTopUp)
+                        (state?.isSaving ?? false) ||
+                            (selectedIsMe ? !isTopUp : !canManageSelected)
                         ? null
                         : () => _submit(true),
                     child: Text(isTopUp ? 'Add to my balance' : 'Allocate'),

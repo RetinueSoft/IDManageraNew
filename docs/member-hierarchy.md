@@ -69,8 +69,12 @@ screen: reuse the single implementation (section 6).
 - **Points**: allocate points, or (SuperAdmin only) reclaim them, only for **your own members** - the members you
   created directly, one level down, not anyone deeper in your branch - and never for
   yourself (the one exception is the SuperAdmin's own top-up, section 5). The Points
-  screen's member dropdown lists only you and your own members. A member's **points
-  history** is readable for any visible member (or yourself).
+  screen's member dropdown lists only you and your own members - **except for the
+  SuperAdmin, whose dropdown lists every member they can see**, so any member's history
+  can be looked up from there; allocating or reclaiming still only works for their own
+  members, the same as everyone else (the buttons are disabled, with an explanation, for
+  anyone else picked). A member's **points history** is readable for any visible member
+  (or yourself).
 - A member's role and parent are fixed at creation.
 
 ## 4a. Member details (shop and identity proof)
