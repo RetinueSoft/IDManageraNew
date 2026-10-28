@@ -1,7 +1,7 @@
 # ID Manager on the server: PostgreSQL 16 + the API + the web UI (nginx, which also forwards /api/ to the API).
 # Public access: the server's common Caddy (VpsSetup caddy/sites/idcardmanager.caddy) serves http://<ip>:5144
 # (UI) and :5165 (API) from 127.0.0.1:UI_HOST_PORT / API_HOST_PORT.
-# Settings: /root/common/env/idcardmanager.env (linked as .env next to this file).
+# Settings: /root/common/.env (shared) + /root/common/env/idcardmanager.env, generated into .env next to this file.
 #
 # The images are built by GitHub Actions from the release branch (.github/workflows/docker-image.yml).
 # On the server, update.sh downloads this file and keeps everything up to date:

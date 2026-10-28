@@ -39,13 +39,9 @@ database, and nothing is copied over. On the first start the API:
 ## Install (once)
 
 `/root/common/setup.sh` installs every app listed in VpsSetup's `apps.conf`: it creates `/root/idcardmanager` and
-`/root/common/env/idcardmanager.env` (with a random `JWT_KEY` and the server IP as `IDCM_PUBLIC_HOST`), then stops
-so you can fill in the password:
-
-```bash
-sudo nano /root/common/env/idcardmanager.env    # POSTGRES_PASSWORD
-sudo /root/idcardmanager/update.sh              # pulls the images, creates the database, starts everything
-```
+`/root/common/env/idcardmanager.env` (with a random `JWT_KEY` and the server IP as `IDCM_PUBLIC_HOST`) and starts it.
+The database password is `POSTGRES_PASSWORD` in `/root/common/.env`, shared by all apps. To start it by hand:
+`sudo /root/idcardmanager/update.sh`.
 
 ## Day-to-day
 
@@ -59,11 +55,11 @@ sudo /root/idcardmanager/update.sh              # pulls the images, creates the 
 | Back up now | `sudo /root/common/backup-db.sh idcardmanager` |
 | Restore a backup | `sudo /root/common/restore-db.sh idcardmanager <file>` (replaces the database) |
 
-## Settings (`/root/common/env/idcardmanager.env`)
+## Settings (`/root/common/env/idcardmanager.env`; shared ones in `/root/common/.env`)
 
 | Variable              | Needed | What it is                                                                       |
 | --------------------- | ------ | -------------------------------------------------------------------------------- |
-| `POSTGRES_PASSWORD`   | yes    | the database password                                                            |
+| `POSTGRES_PASSWORD`   | yes    | the database password: in `/root/common/.env`, shared by all apps                |
 | `JWT_KEY`             | yes    | secret that signs login tokens; `update.sh` generates one; changing it logs everyone out |
 | `JWT_EXPIRY_MINUTES`  | no     | how long a login lasts, from the moment of login (default `30`)                  |
 | `IDCM_PUBLIC_HOST`    | no     | server IP/domain, for the API's CORS origin (`update.sh` fills in the server IP) |
