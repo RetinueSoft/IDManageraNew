@@ -20,6 +20,18 @@ services:
       POSTGRES_DB: IDManager
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    # Memory PostgreSQL may use, set explicitly so it stays predictable (about 128 MB shared + 4 MB per
+    # sort/join per connection; at most 30 connections, the API's pool uses up to 20).
+    command:
+      - postgres
+      - -c
+      - shared_buffers=${POSTGRES_SHARED_BUFFERS:-128MB}
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - max_connections=30
     volumes:
       - idmanager-postgres-data:/var/lib/postgresql/data
     ports:
@@ -29,7 +41,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    mem_limit: ${POSTGRES_MEM_LIMIT:-512m}         # RAM cap; the container is restarted if it goes over
+    # Safety net only (normal use about 90-130 MB): Docker stops and restarts the container above it.
+    mem_limit: ${POSTGRES_MEM_LIMIT:-512m}
 
   api:
     image: ghcr.io/retinuesoft/idcardmanager-api:${APP_IMAGE_TAG:-latest}
@@ -41,7 +54,11 @@ services:
     environment:
       # Production: no Swagger page and no error details shown to users.
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=IDManager;Username=postgres;Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}"
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=IDManager;Username=postgres;Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env};Maximum Pool Size=20"
+      # Keep memory down instead of hitting the limit: one shared heap instead of one per CPU core
+      # (workstation GC), and collect/compact sooner (ConserveMemory 0-9).
+      DOTNET_gcServer: "0"
+      DOTNET_GCConserveMemory: "${API_GC_CONSERVE_MEMORY:-5}"
       Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env}
       # How long a login lasts, in minutes, from the moment of login.
       Jwt__ExpiryMinutes: ${JWT_EXPIRY_MINUTES:-30}
@@ -52,8 +69,9 @@ services:
       TZ: "${TZ:-UTC}"
     ports:
       - "127.0.0.1:${API_HOST_PORT:-15165}:8080"   # only the server's common Caddy reaches it
-    # RAM cap (card PDFs are drawn in memory). .NET sizes its heap to this limit.
-    mem_limit: ${API_MEM_LIMIT:-768m}
+    # Safety net only (peak seen about 690 MB while drawing card PDFs). .NET keeps its heap under 75% of this
+    # and fails a single request instead of growing past it; Docker restarts the container only above it.
+    mem_limit: ${API_MEM_LIMIT:-1g}
     depends_on:
       postgres:
         condition: service_healthy
@@ -67,7 +85,7 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:${UI_HOST_PORT:-15144}:8080"    # only the server's common Caddy reaches it
-    mem_limit: ${UI_MEM_LIMIT:-64m}                # nginx serving static files
+    mem_limit: ${UI_MEM_LIMIT:-64m}                # safety net; nginx serving static files uses about 1-10 MB
     depends_on:
       - api
 
