@@ -1,35 +1,64 @@
-# Server deploy: pulls the api/ui images from GHCR rather than building them,
-# so the server never needs the source tree, just this file. Building happens
-# on a dev machine instead -- see docker-compose.build.yml and
-# scripts/build-and-push.sh, and DEPLOY.md for the full runbook.
+# ID Manager on the server: PostgreSQL 16 + the API + the web UI (nginx, which also forwards /api/ to the API).
+# Public access: the server's common Caddy (VpsSetup caddy/sites/idcardmanager.caddy) serves http://<ip>:5144
+# (UI) and :5165 (API) from 127.0.0.1:UI_HOST_PORT / API_HOST_PORT.
+# Settings: /root/common/env/idcardmanager.env (linked as .env next to this file).
 #
-# This replaces the old ID Card Manager deployment: same services, ports and image names, but a
-# NEW database (IDManager, in its own volume) - nothing from the old app's database or from a
-# development machine is carried over. The first start creates the schema and one Super Admin.
+# The images are built by GitHub Actions from the release branch (.github/workflows/docker-image.yml).
+# On the server, update.sh downloads this file and keeps everything up to date:
+#   sudo /root/idcardmanager/update.sh
+# Local build instead: docker compose build api ui
+#
+# This app has its own database (IDManager); the first start creates the schema and one Super Admin.
+name: idcardmanager
+
 services:
   postgres:
     image: postgres:16
+    container_name: idcardmanager-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: IDManager
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    # Memory PostgreSQL may use, set explicitly so it stays predictable (about 128 MB shared + 4 MB per
+    # sort/join per connection; at most 30 connections, the API's pool uses up to 20).
+    command:
+      - postgres
+      - -c
+      - shared_buffers=${POSTGRES_SHARED_BUFFERS:-128MB}
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - max_connections=30
     volumes:
       - idmanager-postgres-data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"   # only reachable from the server itself (SSH tunnel for pgAdmin/DBeaver)
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d IDManager"]
       interval: 5s
       timeout: 5s
       retries: 10
+    # Safety net only (normal use about 90-130 MB): Docker stops and restarts the container above it.
+    mem_limit: ${POSTGRES_MEM_LIMIT:-512m}
 
   api:
-    image: ${IDCM_API_IMAGE:-ghcr.io/retinuesoft/idcardmanager-api:latest}
+    image: ghcr.io/retinuesoft/idcardmanager-api:${APP_IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: idcardmanager-api
     restart: unless-stopped
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=IDManager;Username=postgres;Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}"
+      # Production: no Swagger page and no error details shown to users.
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=IDManager;Username=postgres;Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env};Maximum Pool Size=20"
+      # Keep memory down instead of hitting the limit: one shared heap instead of one per CPU core
+      # (workstation GC), and collect/compact sooner (ConserveMemory 0-9).
+      DOTNET_gcServer: "0"
+      DOTNET_GCConserveMemory: "${API_GC_CONSERVE_MEMORY:-5}"
       Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env}
       # How long a login lasts, in minutes, from the moment of login.
       Jwt__ExpiryMinutes: ${JWT_EXPIRY_MINUTES:-30}
@@ -37,17 +66,26 @@ services:
       # The Super Admin created on the very first start (only when the database has no users).
       SeedAdmin__Phone: ${SEED_ADMIN_PHONE:-9943135008}
       SeedAdmin__Password: ${SEED_ADMIN_PASSWORD:-Red@123}
+      TZ: "${TZ:-UTC}"
     ports:
-      - "5165:8080"
+      - "127.0.0.1:${API_HOST_PORT:-15165}:8080"   # only the server's common Caddy reaches it
+    # Safety net only (peak seen about 690 MB while drawing card PDFs). .NET keeps its heap under 75% of this
+    # and fails a single request instead of growing past it; Docker restarts the container only above it.
+    mem_limit: ${API_MEM_LIMIT:-1g}
     depends_on:
       postgres:
         condition: service_healthy
 
   ui:
-    image: ${IDCM_UI_IMAGE:-ghcr.io/retinuesoft/idcardmanager-ui:latest}
+    image: ghcr.io/retinuesoft/idcardmanager-ui:${APP_IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: idcardmanager-ui
     restart: unless-stopped
     ports:
-      - "5144:8080"
+      - "127.0.0.1:${UI_HOST_PORT:-15144}:8080"    # only the server's common Caddy reaches it
+    mem_limit: ${UI_MEM_LIMIT:-64m}                # safety net; nginx serving static files uses about 1-10 MB
     depends_on:
       - api
 
