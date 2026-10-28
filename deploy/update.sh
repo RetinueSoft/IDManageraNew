@@ -36,11 +36,11 @@ done
 # 1. Deployment files from the release branch.
 fetch_files "$REPO" "$RELEASE_BRANCH" docker-compose.yml:docker-compose.yml .env.example:.env.example
 
-# 2. Settings: /root/common/env/idcardmanager.env, linked as .env here.
+# 2. Settings: /root/common/.env (shared by all apps, e.g. POSTGRES_PASSWORD) + /root/common/env/idcardmanager.env
+#    (this app). /root/idcardmanager/.env is generated from both; docker compose reads it.
 ENV_FILE="$(app_env_path "$NAME")"
 link_app_env "$NAME"
-created=0
-sync_env .env.example "$ENV_FILE" || created=1
+sync_env .env.example "$ENV_FILE" || true
 # JWT signing key: a random one when empty (changing it later logs everyone out).
 if [ -z "$(env_get "$ENV_FILE" JWT_KEY)" ]; then
     env_set "$ENV_FILE" JWT_KEY "$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
@@ -50,18 +50,10 @@ if [ -z "$(env_get "$ENV_FILE" IDCM_PUBLIC_HOST)" ]; then
     load_common_env
     env_set "$ENV_FILE" IDCM_PUBLIC_HOST "${SERVER_IP:-}"
 fi
-if [ "$created" = 1 ]; then
-    echo "Fill in POSTGRES_PASSWORD: nano $ENV_FILE, then run $0 again."
-    exit 0
-fi
-set -a; . "$ENV_FILE"; set +a
-for v in POSTGRES_PASSWORD JWT_KEY; do
-    [ -n "${!v:-}" ] || die "$v is empty in $ENV_FILE"
-done
-
-# Remember the chosen build, so a later "docker compose up" keeps using it.
-env_set "$ENV_FILE" APP_IMAGE_TAG "$TAG"
-export APP_IMAGE_TAG="$TAG"
+env_set "$ENV_FILE" APP_IMAGE_TAG "$TAG"      # remember the chosen build for a later "docker compose up"
+set -a; . ./.env; set +a
+[ -n "${POSTGRES_PASSWORD:-}" ] || die "POSTGRES_PASSWORD is empty: set it in $COMMON_DIR/.env (shared by all apps)"
+[ -n "${JWT_KEY:-}" ] || die "JWT_KEY is empty in $ENV_FILE"
 
 # 3. Images.
 log "pulling images ($TAG)"
