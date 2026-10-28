@@ -29,6 +29,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    mem_limit: ${POSTGRES_MEM_LIMIT:-512m}         # RAM cap; the container is restarted if it goes over
 
   api:
     image: ghcr.io/retinuesoft/idcardmanager-api:${APP_IMAGE_TAG:-latest}
@@ -38,7 +39,8 @@ services:
     container_name: idcardmanager-api
     restart: unless-stopped
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      # Production: no Swagger page and no error details shown to users.
+      ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: "Host=postgres;Port=5432;Database=IDManager;Username=postgres;Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}"
       Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env}
       # How long a login lasts, in minutes, from the moment of login.
@@ -50,6 +52,8 @@ services:
       TZ: "${TZ:-UTC}"
     ports:
       - "127.0.0.1:${API_HOST_PORT:-15165}:8080"   # only the server's common Caddy reaches it
+    # RAM cap (card PDFs are drawn in memory). .NET sizes its heap to this limit.
+    mem_limit: ${API_MEM_LIMIT:-768m}
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,6 +67,7 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:${UI_HOST_PORT:-15144}:8080"    # only the server's common Caddy reaches it
+    mem_limit: ${UI_MEM_LIMIT:-64m}                # nginx serving static files
     depends_on:
       - api
 

@@ -70,6 +70,7 @@ sudo /root/idcardmanager/update.sh              # pulls the images, creates the 
 | `SEED_ADMIN_PHONE`    | no     | first Super Admin's phone (default `9943135008`)                                 |
 | `SEED_ADMIN_PASSWORD` | no     | first Super Admin's password (default `Red@123`)                                 |
 | `UI_HOST_PORT` / `API_HOST_PORT` / `POSTGRES_HOST_PORT` | no | ports on 127.0.0.1 (15144 / 15165 / 5433)     |
+| `POSTGRES_MEM_LIMIT` / `API_MEM_LIMIT` / `UI_MEM_LIMIT` | no | RAM limit per container (512m / 768m / 64m); a container that goes over is restarted |
 | `APP_IMAGE_TAG`       | no     | image tag in use; set by `update.sh`                                             |
 
 The size of the downloaded card PDF's page is the API setting `Pdf__PageScale` (default 2.31 times the
