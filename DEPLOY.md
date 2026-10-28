@@ -51,7 +51,7 @@ The database password is `POSTGRES_PASSWORD` in `/root/common/.env`, shared by a
 | Back up first, then update | `sudo /root/idcardmanager/update.sh --backup` |
 | Roll back to an earlier build | `sudo /root/idcardmanager/update.sh sha-1a2b3c4` (tags: GitHub → Packages → idcardmanager-api) |
 | Change a setting | `sudo nano /root/common/env/idcardmanager.env`, then `sudo /root/idcardmanager/update.sh` |
-| Logs | `cd /root/idcardmanager && docker compose logs -f api ui` |
+| Logs | `app-compose idcardmanager logs -f api ui` |
 | Back up now | `sudo /root/common/backup-db.sh idcardmanager` |
 | Restore a backup | `sudo /root/common/restore-db.sh idcardmanager <file>` (replaces the database) |
 

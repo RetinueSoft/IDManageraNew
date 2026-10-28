@@ -37,7 +37,7 @@ done
 fetch_files "$REPO" "$RELEASE_BRANCH" docker-compose.yml:docker-compose.yml .env.example:.env.example
 
 # 2. Settings: /root/common/.env (shared by all apps, e.g. POSTGRES_PASSWORD) + /root/common/env/idcardmanager.env
-#    (this app). /root/idcardmanager/.env is generated from both; docker compose reads it.
+#    (this app). docker compose reads both (app_compose); nothing is kept in /root/idcardmanager.
 ENV_FILE="$(app_env_path "$NAME")"
 link_app_env "$NAME"
 sync_env .env.example "$ENV_FILE" || true
@@ -51,23 +51,23 @@ if [ -z "$(env_get "$ENV_FILE" IDCM_PUBLIC_HOST)" ]; then
     env_set "$ENV_FILE" IDCM_PUBLIC_HOST "${SERVER_IP:-}"
 fi
 env_set "$ENV_FILE" APP_IMAGE_TAG "$TAG"      # remember the chosen build for a later "docker compose up"
-set -a; . ./.env; set +a
+load_app_env "$NAME"                          # /root/common/.env + env/idcardmanager.env
 [ -n "${POSTGRES_PASSWORD:-}" ] || die "POSTGRES_PASSWORD is empty: set it in $COMMON_DIR/.env (shared by all apps)"
 [ -n "${JWT_KEY:-}" ] || die "JWT_KEY is empty in $ENV_FILE"
 
 # 3. Images.
 log "pulling images ($TAG)"
 ghcr_login
-docker compose pull api ui
+app_compose "$NAME" pull api ui
 
 # 4. Database, optional backup, then everything (the API migrates the database when it starts).
-docker compose up -d --wait postgres
+app_compose "$NAME" up -d --wait postgres
 if [ "$BACKUP" = 1 ]; then
     /root/common/backup-db.sh "$NAME" || die "backup failed; nothing was updated"
 fi
-docker compose up -d --remove-orphans
+app_compose "$NAME" up -d --remove-orphans
 docker image prune -f >/dev/null
 
 docker inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}' idcardmanager-api > .deployed_sha 2>/dev/null || true
-docker compose ps
+app_compose "$NAME" ps
 log "$NAME is running $(docker inspect -f '{{.Config.Image}}' idcardmanager-api) + ui ($(cut -c1-7 .deployed_sha))"
