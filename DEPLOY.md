@@ -5,13 +5,13 @@ Three containers, started together by `docker-compose.yml`:
 | Container | What it is | Port (127.0.0.1 only) | Public (common Caddy) |
 | --- | --- | --- | --- |
 | `idcardmanager-postgres` | PostgreSQL 16, database **IDManager** | 5433 | - |
-| `idcardmanager-api` | the .NET 8 API (also runs the migrations) | 15165 | `http://<server>:5165` |
-| `idcardmanager-ui` | the Flutter web app, served by nginx | 15144 | `http://<server>:5144` |
+| `idcardmanager-api` | the .NET 8 API (also runs the migrations) | 18182 | `https://<server>:8182` |
+| `idcardmanager-ui` | the Flutter web app, served by nginx | 18082 | `https://<server>:8082` |
 
-The UI forwards `/api/` to the API itself, so open the app at `http://<server>:5144` - nothing else
+The UI forwards `/api/` to the API itself, so open the app at `https://<server>:8082` - nothing else
 has to be configured for the browser to reach the API.
 
-The server is set up by **RetinueSoft/VpsSetup** (`/root/common`): the common Caddy serves ports 5144/5165
+The server is set up by **RetinueSoft/VpsSetup** (`/root/common`): the common Caddy serves ports 8082/8182
 (`caddy/sites/idcardmanager.caddy`), one GitHub token, nightly database backups to Azure, and the settings file
 `/root/common/env/idcardmanager.env`. This repo holds the app and its `deploy/update.sh`.
 
@@ -65,7 +65,7 @@ The database password is `POSTGRES_PASSWORD` in `/root/common/.env`, shared by a
 | `IDCM_PUBLIC_HOST`    | no     | server IP/domain, for the API's CORS origin (`update.sh` fills in the server IP) |
 | `SEED_ADMIN_PHONE`    | no     | first Super Admin's phone (default `9943135008`)                                 |
 | `SEED_ADMIN_PASSWORD` | no     | first Super Admin's password (default `Red@123`)                                 |
-| `UI_HOST_PORT` / `API_HOST_PORT` / `POSTGRES_HOST_PORT` | no | ports on 127.0.0.1 (15144 / 15165 / 5433)     |
+| `UI_HOST_PORT` / `API_HOST_PORT` / `POSTGRES_HOST_PORT` | no | ports on 127.0.0.1 (18082 / 18182 / 5433)     |
 | `POSTGRES_MEM_LIMIT` / `API_MEM_LIMIT` / `UI_MEM_LIMIT` | no | safety-net RAM limit per container (512m / 1g / 64m); a container that goes over is restarted |
 | `POSTGRES_SHARED_BUFFERS` | no | PostgreSQL's shared cache (default `128MB`); with `max_connections=30` it keeps the database predictable |
 | `API_GC_CONSERVE_MEMORY` | no | 0-9, how hard .NET keeps its memory small (default `5`); the API also uses workstation GC (one heap) |
