@@ -18,8 +18,11 @@ public class CardService(
     PdfExtractionService pdfExtractionService,
     PdfGenerationService pdfGenerationService,
     TemplateService templateService,
-    PointsService pointsService)
+    PointsService pointsService,
+    DemoAccounts? demoAccounts = null)
 {
+    private readonly DemoAccounts _demoAccounts = demoAccounts ?? DemoAccounts.None;
+
     public List<ExtractedFieldDto> ParsePdf(byte[] pdfBytes) => pdfExtractionService.ExtractFields(pdfBytes);
 
     public async Task<OperationResult<GenerateCardResponse>> GenerateAsync(int userId, GenerateCardCommand command, CancellationToken ct)
@@ -34,8 +37,10 @@ public class CardService(
         var user = await db.Users.FindAsync([userId], ct);
         if (user is null) return OperationResult<GenerateCardResponse>.NotFound("User not found.");
         // The SuperAdmin's pool is unlimited (docs/member-hierarchy.md, section 5): they are
-        // never blocked by a balance, and cannot allocate points to themselves anyway.
-        if (user.Role != UserRole.SuperAdmin && user.Points < template.PointCost)
+        // never blocked by a balance, and cannot allocate points to themselves anyway. A demo
+        // account sees the card without a watermark, so it is always checked and pays now.
+        var isDemo = _demoAccounts.IsDemo(user.Phone);
+        if ((isDemo || user.Role != UserRole.SuperAdmin) && user.Points < template.PointCost)
         {
             return OperationResult<GenerateCardResponse>.Invalid("You don't have enough points. Contact your admin.");
         }
@@ -85,10 +90,14 @@ public class CardService(
             ?? extractedFields.FirstOrDefault(f => f.Type == LayerFieldType.Text)?.Value
             ?? "Unknown";
         var idCardId = await pointsService.CreateIdCardAsync(idCard, await CardLabelAsync(template.Name, command.CombinationId, ct), forName, ct);
+        // An unwatermarked preview is as good as the card, so a demo account pays on preview.
+        // The download then finds nothing pending and does not charge again.
+        if (isDemo) await pointsService.CompletePaymentTransactionAsync(idCardId, ct);
 
         return OperationResult<GenerateCardResponse>.Success(new GenerateCardResponse
         {
             IdCardId = idCardId,
+            Watermark = !isDemo,
             Layers = layers,
             CardWidthMm = template.CardWidthMm,
             CardHeightMm = template.CardHeightMm,

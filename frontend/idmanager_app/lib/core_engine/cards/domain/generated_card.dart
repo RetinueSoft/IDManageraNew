@@ -8,6 +8,10 @@ part 'generated_card.freezed.dart';
 sealed class GeneratedCard with _$GeneratedCard {
   const factory GeneratedCard({
     required int idCardId,
+
+    /// Whether the preview is watermarked. False for a demo account, which pays for the card
+    /// when it is previewed.
+    @Default(true) bool watermark,
     @Default(<TemplateLayer>[]) List<TemplateLayer> layers,
     required double cardWidthMm,
     required double cardHeightMm,

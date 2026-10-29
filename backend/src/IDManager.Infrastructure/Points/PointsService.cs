@@ -234,7 +234,11 @@ public class PointsService(IDManagerDbContext db)
 
     public async Task CompletePaymentTransactionAsync(int idCardId, CancellationToken ct)
     {
-        var transactions = await db.PointTransactions.Where(t => t.ForIdCardId == idCardId).ToListAsync(ct);
+        // Only what is still pending is applied, so downloading a card again (or downloading a
+        // demo card, already paid on preview) does not charge it twice.
+        var transactions = await db.PointTransactions
+            .Where(t => t.ForIdCardId == idCardId && t.Status == PointStatus.Pending)
+            .ToListAsync(ct);
         if (transactions.Count == 0) return;
 
         await using var dbTransaction = await db.Database.BeginTransactionAsync(ct);
@@ -247,7 +251,7 @@ public class PointsService(IDManagerDbContext db)
             var sign = (item.Type == PointTransType.Spend || item.Type == PointTransType.SpendForCard) ? -1 : 1;
             user.Points += item.Points * sign;
 
-            if (item.Status == PointStatus.Pending) item.Status = PointStatus.Completed;
+            item.Status = PointStatus.Completed;
         }
 
         await db.SaveChangesAsync(ct);

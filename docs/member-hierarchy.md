@@ -120,6 +120,13 @@ Rules:
 - A member needs enough points to generate a card. The SuperAdmin is never blocked by
   their balance when generating one: they pay and receive the same amount, so their own
   balance does not change.
+- **Demo accounts** (`DemoAccounts:Phones` in the API settings, `DEMO_ACCOUNT_PHONE` in
+  docker-compose; `9999999999` by default): their card preview has **no watermark**, so they pay
+  when the card is **previewed**, not when it is downloaded - both entries are applied at once,
+  and the download charges nothing more. Without enough points they get no preview at all, a
+  SuperAdmin demo account included. Implemented in `CardService.GenerateAsync`.
+- A card is charged once: downloading it again applies nothing more (only pending entries are
+  applied).
 
 ## 6. Where it is implemented - keep it in one place
 
