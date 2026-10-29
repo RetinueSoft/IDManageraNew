@@ -5,7 +5,7 @@ Three containers, started together by `docker-compose.yml`:
 | Container | What it is | Port (127.0.0.1 only) | Public (common Caddy) |
 | --- | --- | --- | --- |
 | `idcardmanager-postgres` | PostgreSQL 16, database **IDManager** | 5433 | - |
-| `idcardmanager-api` | the .NET 8 API (also runs the migrations) | 18182 | `https://<server>:8182` |
+| `idcardmanager-api` | the .NET 10 API (also runs the migrations) | 18182 | `https://<server>:8182` |
 | `idcardmanager-ui` | the Flutter web app, served by nginx | 18082 | `https://<server>:8082` |
 
 The UI forwards `/api/` to the API itself, so open the app at `https://<server>:8082` - nothing else

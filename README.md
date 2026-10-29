@@ -64,7 +64,7 @@ correct regardless of what zoom level the layout was designed at. See
 
 ## Running the backend
 
-Requires .NET 8 SDK and PostgreSQL.
+Requires .NET 10 SDK and PostgreSQL.
 
 ```bash
 cd backend/src/IDManager.Infrastructure
