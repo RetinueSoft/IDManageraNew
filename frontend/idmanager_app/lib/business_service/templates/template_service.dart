@@ -16,9 +16,10 @@ class TemplateService {
 
   Future<CardTemplateDetail?> getTemplate(int id) => _engine.getById(id);
 
-  /// Active templates only - shown to end users generating a card.
+  /// Active templates only - shown to end users generating a card. Names only: the pictures
+  /// are not downloaded for the dropdown.
   Future<List<LookupOption>> getActiveTemplateOptions() async {
-    final page = await _engine.getAll(pageSize: 200);
+    final page = await _engine.getAll(pageSize: 200, includeImages: false);
     return [
       for (final t in page.items)
         if (t.isActive) (id: t.id, label: t.name),

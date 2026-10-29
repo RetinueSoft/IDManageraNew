@@ -35,7 +35,7 @@ class _FakeTemplateRepository implements TemplateRepository {
   int? savedTemplateId;
 
   @override
-  Future<PagedResult<CardTemplate>> getAll({int pageIndex = 1, int pageSize = 20, String? searchBy}) async =>
+  Future<PagedResult<CardTemplate>> getAll({int pageIndex = 1, int pageSize = 20, String? searchBy, bool includeImages = true}) async =>
       PagedResult(items: const [], totalCount: 0, pageIndex: pageIndex, pageSize: pageSize);
 
   @override

@@ -42,16 +42,20 @@ class GenerateCardController extends _$GenerateCardController {
     }
   }
 
+  /// Downloads the template once; its QR slots are read from that same copy. Both services are
+  /// taken before the download, so nothing touches `ref` after the wait (the screen may have
+  /// been closed by then, and using `ref` would throw "Cannot use the Ref ... after it has been
+  /// disposed").
   Future<({CardTemplateDetail? detail, List<QrSlot> slots})> _loadTemplate(
     int templateId,
   ) async {
-    final detail = await ref
-        .read(templateServiceProvider)
-        .getTemplate(templateId);
-    final slots = await ref
-        .read(cardGenerationServiceProvider)
-        .getQrSlots(templateId);
-    return (detail: detail, slots: slots);
+    final templates = ref.read(templateServiceProvider);
+    final cards = ref.read(cardGenerationServiceProvider);
+    final detail = await templates.getTemplate(templateId);
+    return (
+      detail: detail,
+      slots: detail == null ? const <QrSlot>[] : cards.qrSlotsOf(detail),
+    );
   }
 
   Future<void> selectTemplate(int? templateId) async {
@@ -71,7 +75,18 @@ class GenerateCardController extends _$GenerateCardController {
     );
     if (templateId == null) return;
 
-    final loaded = await _loadTemplate(templateId);
+    final ({CardTemplateDetail? detail, List<QrSlot> slots}) loaded;
+    try {
+      loaded = await _loadTemplate(templateId);
+    } catch (e) {
+      if (!ref.mounted) return;
+      final failed = state.value;
+      if (failed != null && failed.selectedTemplateId == templateId) {
+        state = AsyncData(failed.copyWith(error: e.toString()));
+      }
+      return;
+    }
+    if (!ref.mounted) return; // the screen was closed while loading
     final refreshed = state.value;
     // The user may have picked another template while this one was loading.
     if (refreshed == null || refreshed.selectedTemplateId != templateId) return;
@@ -220,6 +235,7 @@ class GenerateCardController extends _$GenerateCardController {
             file: current.pdfFile!,
             qrImages: current.qrFiles,
           );
+      if (!ref.mounted) return; // the screen was closed while previewing
       state = AsyncData(
         current.copyWith(
           isBusy: false,
@@ -231,6 +247,7 @@ class GenerateCardController extends _$GenerateCardController {
       );
       refreshPointsData(ref); // the card's points are recorded (pending) now
     } catch (e) {
+      if (!ref.mounted) return;
       state = AsyncData(current.copyWith(isBusy: false, error: e.toString()));
     }
   }
@@ -249,12 +266,14 @@ class GenerateCardController extends _$GenerateCardController {
             current.result!.layers,
             current.resultCombinationId ?? CardBackground.defaultId,
           );
+      if (!ref.mounted) return pdf;
       state = AsyncData(current.copyWith(isBusy: false));
       refreshPointsData(
         ref,
       ); // the points are applied when the PDF is downloaded
       return pdf;
     } catch (e) {
+      if (!ref.mounted) return null;
       state = AsyncData(current.copyWith(isBusy: false, error: e.toString()));
       return null;
     }

@@ -80,6 +80,9 @@ class _FakeCards implements CardGenerationService {
   Future<List<QrSlot>> getQrSlots(int templateId) async => const [];
 
   @override
+  List<QrSlot> qrSlotsOf(CardTemplateDetail template) => const [];
+
+  @override
   Future<GeneratedCard> generate({
     required int templateId,
     required int combinationId,

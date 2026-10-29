@@ -15,7 +15,7 @@ public static class TemplateEndpoints
     {
         var group = app.MapGroup("/api/templates").RequireAuthorization();
 
-        group.MapPost("/list", async (PagedRequest request, TemplateService service, CancellationToken ct) =>
+        group.MapPost("/list", async (TemplateListRequest request, TemplateService service, CancellationToken ct) =>
             Results.Ok(await service.GetAllAsync(request, ct)));
 
         group.MapGet("/{id:int}", async (int id, TemplateService service, CancellationToken ct) =>

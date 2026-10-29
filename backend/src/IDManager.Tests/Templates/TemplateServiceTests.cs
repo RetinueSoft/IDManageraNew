@@ -46,6 +46,24 @@ public class TemplateServiceTests
     }
 
     [Fact]
+    public async Task GetAllAsync_WithoutImages_LeavesPicturesOut()
+    {
+        using var testDb = TestDb.Create();
+        var service = new TemplateService(testDb.Context);
+        await service.CreateAsync(1, ValidCommand(), CancellationToken.None);
+
+        var withImages = await service.GetAllAsync(new TemplateListRequest(), CancellationToken.None);
+        var names = await service.GetAllAsync(new TemplateListRequest { IncludeImages = false }, CancellationToken.None);
+
+        Assert.NotEmpty(withImages.Items.Single().FrontImageBase64);
+        var lite = names.Items.Single();
+        Assert.Equal("Sample Card", lite.Name);
+        Assert.True(lite.IsActive);
+        Assert.Empty(lite.FrontImageBase64);
+        Assert.Empty(lite.BackImageBase64);
+    }
+
+    [Fact]
     public async Task SaveLayersAsync_ThenGetTemplate_ReturnsPersistedLayers()
     {
         using var testDb = TestDb.Create();

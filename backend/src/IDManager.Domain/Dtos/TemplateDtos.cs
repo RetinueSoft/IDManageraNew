@@ -1,5 +1,12 @@
 namespace IDManager.Domain.Dtos;
 
+/// The template list request. IncludeImages = false leaves out the front/back pictures, for screens
+/// that only need the names (e.g. the Generate Card template dropdown).
+public class TemplateListRequest : PagedRequest
+{
+    public bool IncludeImages { get; set; } = true;
+}
+
 public class TemplateSummaryDto
 {
     public int Id { get; set; }

@@ -5,7 +5,7 @@ import '../domain/field_group.dart';
 import '../domain/template_layer.dart';
 
 abstract interface class TemplateRepository {
-  Future<PagedResult<CardTemplate>> getAll({int pageIndex = 1, int pageSize = 20, String? searchBy});
+  Future<PagedResult<CardTemplate>> getAll({int pageIndex = 1, int pageSize = 20, String? searchBy, bool includeImages = true});
   Future<CardTemplateDetail?> getById(int id);
 
   Future<CardTemplateDetail> create({
