@@ -12,8 +12,13 @@ class TemplateEngineService {
 
   final TemplateRepository _repository;
 
-  Future<PagedResult<CardTemplate>> getAll({int pageIndex = 1, int pageSize = 20, String? searchBy}) =>
-      _repository.getAll(pageIndex: pageIndex, pageSize: pageSize, searchBy: searchBy);
+  Future<PagedResult<CardTemplate>> getAll({int pageIndex = 1, int pageSize = 20, String? searchBy, bool includeImages = true}) =>
+      _repository.getAll(
+        pageIndex: pageIndex,
+        pageSize: pageSize,
+        searchBy: searchBy,
+        includeImages: includeImages,
+      );
 
   Future<CardTemplateDetail?> getById(int id) => _repository.getById(id);
 

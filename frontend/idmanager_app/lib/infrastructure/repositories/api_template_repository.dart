@@ -15,11 +15,16 @@ class ApiTemplateRepository implements TemplateRepository {
   final ApiClient _client;
 
   @override
-  Future<PagedResult<CardTemplate>> getAll({int pageIndex = 1, int pageSize = 20, String? searchBy}) =>
+  Future<PagedResult<CardTemplate>> getAll({int pageIndex = 1, int pageSize = 20, String? searchBy, bool includeImages = true}) =>
       _client.guard(() async {
         final response = await _client.dio.post(
           '/templates/list',
-          data: {'pageIndex': pageIndex, 'pageSize': pageSize, 'searchBy': searchBy},
+          data: {
+            'pageIndex': pageIndex,
+            'pageSize': pageSize,
+            'searchBy': searchBy,
+            'includeImages': includeImages,
+          },
         );
         return PagedResult.fromJson(response.data as Map<String, dynamic>, cardTemplateFromJson);
       });

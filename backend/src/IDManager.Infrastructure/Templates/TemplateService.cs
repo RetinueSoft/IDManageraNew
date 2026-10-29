@@ -20,15 +20,29 @@ public class TemplateService(IDManagerDbContext db)
         }
 
         var totalCount = await query.CountAsync(ct);
-        var items = await query
+        var page = query
             .OrderByDescending(t => t.CreatedAt)
             .Skip((request.PageIndex - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .ToListAsync(ct);
+            .Take(request.PageSize);
+
+        // Without pictures the image columns are not even read from the database.
+        var items = request is TemplateListRequest { IncludeImages: false }
+            ? await page.Select(t => new TemplateSummaryDto
+                {
+                    Id = t.Id,
+                    Name = t.Name,
+                    CardWidthMm = t.CardWidthMm,
+                    CardHeightMm = t.CardHeightMm,
+                    PointCost = t.PointCost,
+                    IsActive = t.IsActive,
+                    FileNamePattern = t.FileNamePattern,
+                    CreatedAt = t.CreatedAt,
+                }).ToListAsync(ct)
+            : (await page.ToListAsync(ct)).Select(ToSummaryDto).ToList();
 
         return new PagedResult<TemplateSummaryDto>
         {
-            Items = items.Select(ToSummaryDto).ToList(),
+            Items = items,
             TotalCount = totalCount,
             PageIndex = request.PageIndex,
             PageSize = request.PageSize,

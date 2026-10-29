@@ -9,6 +9,7 @@ import '../../core_engine/cards/domain/qr_slot.dart';
 import '../../core_engine/common/enums.dart';
 import '../../core_engine/common/lookup_option.dart';
 import '../../core_engine/common/uploaded_file.dart';
+import '../../core_engine/templates/domain/card_template.dart';
 import '../../core_engine/templates/domain/field_group.dart';
 import '../../core_engine/templates/template_engine.dart';
 
@@ -31,7 +32,11 @@ class CardGenerationService {
   /// before generating.
   Future<List<QrSlot>> getQrSlots(int templateId) async {
     final template = await _templateEngine.getById(templateId);
-    if (template == null) return [];
+    return template == null ? [] : qrSlotsOf(template);
+  }
+
+  /// The QR slots of a template that is already loaded (no second download).
+  List<QrSlot> qrSlotsOf(CardTemplateDetail template) {
     return [
       for (final layer in template.layers)
         for (final g in layer.groups)
