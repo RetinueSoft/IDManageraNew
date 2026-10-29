@@ -35,6 +35,9 @@ builder.Services.AddSingleton<PdfExtractionService>();
 builder.Services.AddSingleton(sp => new PdfGenerationService(
     sp.GetRequiredService<IConfiguration>().GetValue("Pdf:PageScale", PdfGenerationService.DefaultPageScale)));
 builder.Services.AddSingleton<JwtTokenGenerator>();
+// Demo logins: no watermark on the card preview, and the points are taken on preview.
+builder.Services.AddSingleton(new DemoAccounts(
+    builder.Configuration.GetSection("DemoAccounts:Phones").Get<string[]>() ?? []));
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options =>

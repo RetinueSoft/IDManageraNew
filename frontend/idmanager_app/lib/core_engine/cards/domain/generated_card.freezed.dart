@@ -15,7 +15,9 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$GeneratedCard {
 
- int get idCardId; List<TemplateLayer> get layers; double get cardWidthMm; double get cardHeightMm; String get frontImageBase64; String get backImageBase64;
+ int get idCardId;/// Whether the preview is watermarked. False for a demo account, which pays for the card
+/// when it is previewed.
+ bool get watermark; List<TemplateLayer> get layers; double get cardWidthMm; double get cardHeightMm; String get frontImageBase64; String get backImageBase64;
 /// Create a copy of GeneratedCard
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -27,20 +29,20 @@ $GeneratedCardCopyWith<GeneratedCard> get copyWith => _$GeneratedCardCopyWithImp
 @override
 bool operator ==(Object other) {
   final _this = this as GeneratedCard;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is GeneratedCard&&(identical(other.idCardId, _this.idCardId) || other.idCardId == _this.idCardId)&&const DeepCollectionEquality().equals(other.layers, _this.layers)&&(identical(other.cardWidthMm, _this.cardWidthMm) || other.cardWidthMm == _this.cardWidthMm)&&(identical(other.cardHeightMm, _this.cardHeightMm) || other.cardHeightMm == _this.cardHeightMm)&&(identical(other.frontImageBase64, _this.frontImageBase64) || other.frontImageBase64 == _this.frontImageBase64)&&(identical(other.backImageBase64, _this.backImageBase64) || other.backImageBase64 == _this.backImageBase64));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GeneratedCard&&(identical(other.idCardId, _this.idCardId) || other.idCardId == _this.idCardId)&&(identical(other.watermark, _this.watermark) || other.watermark == _this.watermark)&&const DeepCollectionEquality().equals(other.layers, _this.layers)&&(identical(other.cardWidthMm, _this.cardWidthMm) || other.cardWidthMm == _this.cardWidthMm)&&(identical(other.cardHeightMm, _this.cardHeightMm) || other.cardHeightMm == _this.cardHeightMm)&&(identical(other.frontImageBase64, _this.frontImageBase64) || other.frontImageBase64 == _this.frontImageBase64)&&(identical(other.backImageBase64, _this.backImageBase64) || other.backImageBase64 == _this.backImageBase64));
 }
 
 
 @override
 int get hashCode {
   final _this = this as GeneratedCard;
-  return Object.hash(runtimeType,_this.idCardId,const DeepCollectionEquality().hash(_this.layers),_this.cardWidthMm,_this.cardHeightMm,_this.frontImageBase64,_this.backImageBase64);
+  return Object.hash(runtimeType,_this.idCardId,_this.watermark,const DeepCollectionEquality().hash(_this.layers),_this.cardWidthMm,_this.cardHeightMm,_this.frontImageBase64,_this.backImageBase64);
 }
 
 @override
 String toString() {
   final _this = this as GeneratedCard;
-  return 'GeneratedCard(idCardId: ${_this.idCardId}, layers: ${_this.layers}, cardWidthMm: ${_this.cardWidthMm}, cardHeightMm: ${_this.cardHeightMm}, frontImageBase64: ${_this.frontImageBase64}, backImageBase64: ${_this.backImageBase64})';
+  return 'GeneratedCard(idCardId: ${_this.idCardId}, watermark: ${_this.watermark}, layers: ${_this.layers}, cardWidthMm: ${_this.cardWidthMm}, cardHeightMm: ${_this.cardHeightMm}, frontImageBase64: ${_this.frontImageBase64}, backImageBase64: ${_this.backImageBase64})';
 }
 
 
@@ -51,7 +53,7 @@ abstract mixin class $GeneratedCardCopyWith<$Res>  {
   factory $GeneratedCardCopyWith(GeneratedCard value, $Res Function(GeneratedCard) _then) = _$GeneratedCardCopyWithImpl;
 @useResult
 $Res call({
- int idCardId, List<TemplateLayer> layers, double cardWidthMm, double cardHeightMm, String frontImageBase64, String backImageBase64
+ int idCardId, bool watermark, List<TemplateLayer> layers, double cardWidthMm, double cardHeightMm, String frontImageBase64, String backImageBase64
 });
 
 
@@ -68,10 +70,11 @@ class _$GeneratedCardCopyWithImpl<$Res>
 
 /// Create a copy of GeneratedCard
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? idCardId = null,Object? layers = null,Object? cardWidthMm = null,Object? cardHeightMm = null,Object? frontImageBase64 = null,Object? backImageBase64 = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? idCardId = null,Object? watermark = null,Object? layers = null,Object? cardWidthMm = null,Object? cardHeightMm = null,Object? frontImageBase64 = null,Object? backImageBase64 = null,}) {
   return _then(GeneratedCard(
 idCardId: null == idCardId ? _self.idCardId : idCardId // ignore: cast_nullable_to_non_nullable
-as int,layers: null == layers ? _self.layers : layers // ignore: cast_nullable_to_non_nullable
+as int,watermark: null == watermark ? _self.watermark : watermark // ignore: cast_nullable_to_non_nullable
+as bool,layers: null == layers ? _self.layers : layers // ignore: cast_nullable_to_non_nullable
 as List<TemplateLayer>,cardWidthMm: null == cardWidthMm ? _self.cardWidthMm : cardWidthMm // ignore: cast_nullable_to_non_nullable
 as double,cardHeightMm: null == cardHeightMm ? _self.cardHeightMm : cardHeightMm // ignore: cast_nullable_to_non_nullable
 as double,frontImageBase64: null == frontImageBase64 ? _self.frontImageBase64 : frontImageBase64 // ignore: cast_nullable_to_non_nullable
@@ -158,10 +161,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int idCardId,  List<TemplateLayer> layers,  double cardWidthMm,  double cardHeightMm,  String frontImageBase64,  String backImageBase64)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int idCardId,  bool watermark,  List<TemplateLayer> layers,  double cardWidthMm,  double cardHeightMm,  String frontImageBase64,  String backImageBase64)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _GeneratedCard() when $default != null:
-return $default(_that.idCardId,_that.layers,_that.cardWidthMm,_that.cardHeightMm,_that.frontImageBase64,_that.backImageBase64);case _:
+return $default(_that.idCardId,_that.watermark,_that.layers,_that.cardWidthMm,_that.cardHeightMm,_that.frontImageBase64,_that.backImageBase64);case _:
   return orElse();
 
 }
@@ -179,10 +182,10 @@ return $default(_that.idCardId,_that.layers,_that.cardWidthMm,_that.cardHeightMm
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int idCardId,  List<TemplateLayer> layers,  double cardWidthMm,  double cardHeightMm,  String frontImageBase64,  String backImageBase64)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int idCardId,  bool watermark,  List<TemplateLayer> layers,  double cardWidthMm,  double cardHeightMm,  String frontImageBase64,  String backImageBase64)  $default,) {final _that = this;
 switch (_that) {
 case _GeneratedCard():
-return $default(_that.idCardId,_that.layers,_that.cardWidthMm,_that.cardHeightMm,_that.frontImageBase64,_that.backImageBase64);}
+return $default(_that.idCardId,_that.watermark,_that.layers,_that.cardWidthMm,_that.cardHeightMm,_that.frontImageBase64,_that.backImageBase64);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -196,10 +199,10 @@ return $default(_that.idCardId,_that.layers,_that.cardWidthMm,_that.cardHeightMm
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int idCardId,  List<TemplateLayer> layers,  double cardWidthMm,  double cardHeightMm,  String frontImageBase64,  String backImageBase64)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int idCardId,  bool watermark,  List<TemplateLayer> layers,  double cardWidthMm,  double cardHeightMm,  String frontImageBase64,  String backImageBase64)?  $default,) {final _that = this;
 switch (_that) {
 case _GeneratedCard() when $default != null:
-return $default(_that.idCardId,_that.layers,_that.cardWidthMm,_that.cardHeightMm,_that.frontImageBase64,_that.backImageBase64);case _:
+return $default(_that.idCardId,_that.watermark,_that.layers,_that.cardWidthMm,_that.cardHeightMm,_that.frontImageBase64,_that.backImageBase64);case _:
   return null;
 
 }
@@ -211,10 +214,13 @@ return $default(_that.idCardId,_that.layers,_that.cardWidthMm,_that.cardHeightMm
 
 
 class _GeneratedCard implements GeneratedCard {
-  const _GeneratedCard({required this.idCardId,  List<TemplateLayer> layers = const <TemplateLayer>[], required this.cardWidthMm, required this.cardHeightMm, required this.frontImageBase64, required this.backImageBase64}): _layers = layers;
+  const _GeneratedCard({required this.idCardId, this.watermark = true,  List<TemplateLayer> layers = const <TemplateLayer>[], required this.cardWidthMm, required this.cardHeightMm, required this.frontImageBase64, required this.backImageBase64}): _layers = layers;
   
 
 @override final  int idCardId;
+/// Whether the preview is watermarked. False for a demo account, which pays for the card
+/// when it is previewed.
+@override@JsonKey() final  bool watermark;
  final  List<TemplateLayer> _layers;
 @override@JsonKey() List<TemplateLayer> get layers {
   if (_layers is EqualUnmodifiableListView) return _layers;
@@ -237,18 +243,18 @@ _$GeneratedCardCopyWith<_GeneratedCard> get copyWith => __$GeneratedCardCopyWith
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _GeneratedCard&&(identical(other.idCardId, idCardId) || other.idCardId == idCardId)&&const DeepCollectionEquality().equals(other.layers, _layers)&&(identical(other.cardWidthMm, cardWidthMm) || other.cardWidthMm == cardWidthMm)&&(identical(other.cardHeightMm, cardHeightMm) || other.cardHeightMm == cardHeightMm)&&(identical(other.frontImageBase64, frontImageBase64) || other.frontImageBase64 == frontImageBase64)&&(identical(other.backImageBase64, backImageBase64) || other.backImageBase64 == backImageBase64));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _GeneratedCard&&(identical(other.idCardId, idCardId) || other.idCardId == idCardId)&&(identical(other.watermark, watermark) || other.watermark == watermark)&&const DeepCollectionEquality().equals(other.layers, _layers)&&(identical(other.cardWidthMm, cardWidthMm) || other.cardWidthMm == cardWidthMm)&&(identical(other.cardHeightMm, cardHeightMm) || other.cardHeightMm == cardHeightMm)&&(identical(other.frontImageBase64, frontImageBase64) || other.frontImageBase64 == frontImageBase64)&&(identical(other.backImageBase64, backImageBase64) || other.backImageBase64 == backImageBase64));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,idCardId,const DeepCollectionEquality().hash(_layers),cardWidthMm,cardHeightMm,frontImageBase64,backImageBase64);
+    return Object.hash(runtimeType,idCardId,watermark,const DeepCollectionEquality().hash(_layers),cardWidthMm,cardHeightMm,frontImageBase64,backImageBase64);
 }
 
 @override
 String toString() {
-    return 'GeneratedCard(idCardId: $idCardId, layers: $layers, cardWidthMm: $cardWidthMm, cardHeightMm: $cardHeightMm, frontImageBase64: $frontImageBase64, backImageBase64: $backImageBase64)';
+    return 'GeneratedCard(idCardId: $idCardId, watermark: $watermark, layers: $layers, cardWidthMm: $cardWidthMm, cardHeightMm: $cardHeightMm, frontImageBase64: $frontImageBase64, backImageBase64: $backImageBase64)';
 }
 
 
@@ -259,7 +265,7 @@ abstract mixin class _$GeneratedCardCopyWith<$Res> implements $GeneratedCardCopy
   factory _$GeneratedCardCopyWith(_GeneratedCard value, $Res Function(_GeneratedCard) _then) = __$GeneratedCardCopyWithImpl;
 @override @useResult
 $Res call({
- int idCardId, List<TemplateLayer> layers, double cardWidthMm, double cardHeightMm, String frontImageBase64, String backImageBase64
+ int idCardId, bool watermark, List<TemplateLayer> layers, double cardWidthMm, double cardHeightMm, String frontImageBase64, String backImageBase64
 });
 
 
@@ -276,10 +282,11 @@ class __$GeneratedCardCopyWithImpl<$Res>
 
 /// Create a copy of GeneratedCard
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? idCardId = null,Object? layers = null,Object? cardWidthMm = null,Object? cardHeightMm = null,Object? frontImageBase64 = null,Object? backImageBase64 = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? idCardId = null,Object? watermark = null,Object? layers = null,Object? cardWidthMm = null,Object? cardHeightMm = null,Object? frontImageBase64 = null,Object? backImageBase64 = null,}) {
   return _then(_GeneratedCard(
 idCardId: null == idCardId ? _self.idCardId : idCardId // ignore: cast_nullable_to_non_nullable
-as int,layers: null == layers ? _self._layers : layers // ignore: cast_nullable_to_non_nullable
+as int,watermark: null == watermark ? _self.watermark : watermark // ignore: cast_nullable_to_non_nullable
+as bool,layers: null == layers ? _self._layers : layers // ignore: cast_nullable_to_non_nullable
 as List<TemplateLayer>,cardWidthMm: null == cardWidthMm ? _self.cardWidthMm : cardWidthMm // ignore: cast_nullable_to_non_nullable
 as double,cardHeightMm: null == cardHeightMm ? _self.cardHeightMm : cardHeightMm // ignore: cast_nullable_to_non_nullable
 as double,frontImageBase64: null == frontImageBase64 ? _self.frontImageBase64 : frontImageBase64 // ignore: cast_nullable_to_non_nullable

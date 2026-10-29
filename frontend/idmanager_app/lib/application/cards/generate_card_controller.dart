@@ -245,7 +245,7 @@ class GenerateCardController extends _$GenerateCardController {
           selectedGroupId: null,
         ),
       );
-      refreshPointsData(ref); // the card's points are recorded (pending) now
+      refreshPointsData(ref); // the card's points are recorded now (taken now for a demo account)
     } catch (e) {
       if (!ref.mounted) return;
       state = AsyncData(current.copyWith(isBusy: false, error: e.toString()));

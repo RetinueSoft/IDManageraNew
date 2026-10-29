@@ -39,6 +39,11 @@ public class DownloadCardRequest
 public class GenerateCardResponse
 {
     public int IdCardId { get; set; }
+
+    /// Whether the preview is shown with a watermark. False for a demo account, which has paid
+    /// for the card already (CardService.GenerateAsync).
+    public bool Watermark { get; set; } = true;
+
     public List<TemplateLayerDto> Layers { get; set; } = new();
     public double CardWidthMm { get; set; }
     public double CardHeightMm { get; set; }

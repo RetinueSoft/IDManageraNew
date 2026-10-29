@@ -198,13 +198,16 @@ class _GenerateCardScreenState extends ConsumerState<GenerateCardScreen> {
     }
 
     // The preview is marked with who is previewing and when, so a screenshot or a photo of it is
-    // traceable and not the real card (the downloaded PDF has no watermark).
+    // traceable and not the real card (the downloaded PDF has no watermark). A demo account's
+    // preview has none: it has paid for the card already.
     final user = ref.watch(sessionControllerProvider).value;
-    final watermark = previewWatermarkText(
-      name: user?.name ?? '',
-      phone: user?.phone ?? '',
-      date: DateTime.now(),
-    );
+    final watermark = result.watermark
+        ? previewWatermarkText(
+            name: user?.name ?? '',
+            phone: user?.phone ?? '',
+            date: DateTime.now(),
+          )
+        : null;
 
     // The layer name and the field keys are hidden or read-only and the template's structure
     // cannot change.

@@ -66,6 +66,8 @@ services:
       # The Super Admin created on the very first start (only when the database has no users).
       SeedAdmin__Phone: ${SEED_ADMIN_PHONE:-9943135008}
       SeedAdmin__Password: ${SEED_ADMIN_PASSWORD:-Red@123}
+      # Demo login: its card preview has no watermark and its points are taken on preview.
+      DemoAccounts__Phones__0: ${DEMO_ACCOUNT_PHONE:-9999999999}
       TZ: "${TZ:-UTC}"
     ports:
       - "127.0.0.1:${API_HOST_PORT:-18182}:8080"   # only the server's common Caddy reaches it

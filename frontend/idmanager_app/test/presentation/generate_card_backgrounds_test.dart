@@ -76,6 +76,9 @@ class _FakeCards implements CardGenerationService {
   /// The background each download was printed on.
   final downloadedWith = <int>[];
 
+  /// What the server says about the preview's watermark (false for a demo account).
+  bool watermark = true;
+
   @override
   Future<List<QrSlot>> getQrSlots(int templateId) async => const [];
 
@@ -92,6 +95,7 @@ class _FakeCards implements CardGenerationService {
     generatedWith.add(combinationId);
     return GeneratedCard(
       idCardId: 100 + generatedWith.length,
+      watermark: watermark,
       layers: const [TemplateLayer(side: CardSide.front)],
       cardWidthMm: 85.6,
       cardHeightMm: 54,
@@ -296,6 +300,15 @@ void main() {
         expect(text, contains('Ravi Kumar'));
         expect(text, contains('9943135008'));
       }
+    });
+
+    testWidgets('a demo account preview has no watermark', (tester) async {
+      final (container, cards) = await pumpGenerator(tester);
+      cards.watermark = false;
+      await preview(tester, container);
+
+      expect(container.read(generateCardControllerProvider).value!.result, isNotNull);
+      expect(find.byKey(const ValueKey('preview-watermark')), findsNothing);
     });
 
     testWidgets('one card on show, one watermark', (tester) async {

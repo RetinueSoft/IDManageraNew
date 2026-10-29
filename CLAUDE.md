@@ -1,6 +1,6 @@
 # IDManager - notes for Claude
 
-Backend: .NET 8 (`backend/`). Frontend: Flutter (`frontend/idmanager_app/`). See
+Backend: .NET 10 (`backend/`). Frontend: Flutter (`frontend/idmanager_app/`). See
 `README.md` for the architecture and how to run.
 
 ## Members, users and points - read the rules first

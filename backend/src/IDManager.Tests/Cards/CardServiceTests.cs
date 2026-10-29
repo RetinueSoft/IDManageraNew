@@ -186,6 +186,111 @@ public class CardServiceTests
         Assert.Equal(50, distributor.Points); // the parent gets nothing
     }
 
+    // ---- demo accounts: no watermark, paid on preview ----
+
+    private static CardService NewDemoService(IDManagerDbContext db, string demoPhone) => new(
+        db,
+        new PdfExtractionService(),
+        new PdfGenerationService(),
+        new TemplateService(db),
+        new PointsService(db),
+        new DemoAccounts([demoPhone]));
+
+    private static Task<OperationResult<GenerateCardResponse>> GenerateFor(CardService service, int userId, int templateId, int combinationId) =>
+        service.GenerateAsync(
+            userId,
+            new GenerateCardCommand { TemplateId = templateId, CombinationId = combinationId, PdfBytes = ValidPdf() },
+            CancellationToken.None);
+
+    [Fact]
+    public async Task GenerateAsync_AnOrdinaryMember_IsWatermarked_AndPaysOnlyOnDownload()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (templateId, combinationId) = await CreateTemplateWithCombinationAsync(db, pointCost: 3);
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var user = await TestUsers.AddAsync(db, "U", UserRole.User, sa, points: 10);
+        var service = NewDemoService(db, "0000000000");
+
+        var result = await GenerateFor(service, user.Id, templateId, combinationId);
+
+        Assert.Equal(ResultStatus.Success, result.Status);
+        Assert.True(result.Value!.Watermark);
+        Assert.Equal(10, user.Points);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_ADemoAccount_IsNotWatermarked_AndPaysOnPreview_NotAgainOnDownload()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (templateId, combinationId) = await CreateTemplateWithCombinationAsync(db, pointCost: 3);
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var demo = await TestUsers.AddAsync(db, "Demo", UserRole.User, sa, points: 10);
+        var service = NewDemoService(db, demo.Phone);
+
+        var result = await GenerateFor(service, demo.Id, templateId, combinationId);
+
+        Assert.Equal(ResultStatus.Success, result.Status);
+        Assert.False(result.Value!.Watermark);
+        Assert.Equal(7, demo.Points);
+        Assert.Equal(3, sa.Points);
+        Assert.All(db.PointTransactions.Where(t => t.ForIdCardId == result.Value.IdCardId), t => Assert.Equal(PointStatus.Completed, t.Status));
+
+        await service.DownloadAsync(demo.Id, result.Value.IdCardId, null, null, CancellationToken.None);
+        Assert.Equal(7, demo.Points);
+        Assert.Equal(3, sa.Points);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_ADemoAccountWithoutEnoughPoints_GetsNoPreview()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (templateId, combinationId) = await CreateTemplateWithCombinationAsync(db, pointCost: 3);
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var demo = await TestUsers.AddAsync(db, "Demo", UserRole.User, sa, points: 2);
+        var service = NewDemoService(db, demo.Phone);
+
+        var result = await GenerateFor(service, demo.Id, templateId, combinationId);
+
+        Assert.Equal(ResultStatus.ValidationFailed, result.Status);
+        Assert.Equal(2, demo.Points);
+        Assert.Empty(db.IDCards);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_ADemoSuperAdminWithoutEnoughPoints_GetsNoPreviewEither()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (templateId, combinationId) = await CreateTemplateWithCombinationAsync(db, pointCost: 3);
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin, points: 0);
+        var service = NewDemoService(db, sa.Phone);
+
+        var result = await GenerateFor(service, sa.Id, templateId, combinationId);
+
+        Assert.Equal(ResultStatus.ValidationFailed, result.Status);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_Twice_ChargesTheCardOnce()
+    {
+        using var testDb = TestDb.Create();
+        var db = testDb.Context;
+        var (templateId, combinationId) = await CreateTemplateWithCombinationAsync(db, pointCost: 3);
+        var sa = await TestUsers.AddAsync(db, "SA", UserRole.SuperAdmin);
+        var user = await TestUsers.AddAsync(db, "U", UserRole.User, sa, points: 10);
+        var service = NewService(db);
+        var generated = await GenerateFor(service, user.Id, templateId, combinationId);
+
+        await service.DownloadAsync(user.Id, generated.Value!.IdCardId, null, null, CancellationToken.None);
+        await service.DownloadAsync(user.Id, generated.Value.IdCardId, null, null, CancellationToken.None);
+
+        Assert.Equal(7, user.Points);
+        Assert.Equal(3, sa.Points);
+    }
+
     // ---- adjusted layers on download ----
 
     private static string PdfText(byte[] pdf)

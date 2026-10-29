@@ -51,6 +51,7 @@ class ApiCardRepository implements CardRepository {
     final body = response.data as Map<String, dynamic>;
     return GeneratedCard(
       idCardId: body['idCardId'] as int,
+      watermark: body['watermark'] as bool? ?? true,
       layers: (body['layers'] as List<dynamic>? ?? [])
           .map((e) => templateLayerFromJson(e as Map<String, dynamic>))
           .toList(),
